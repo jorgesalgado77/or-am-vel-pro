@@ -252,6 +252,112 @@ export function getContractTemplates(): ContractTemplate[] {
       ],
     },
     {
+      id: "termo-garantia",
+      name: "Termo de Garantia",
+      description: "Termo de garantia para produtos ou serviços prestados",
+      icon: "🛡️",
+      pages: [
+        {
+          id: tplId(), backgroundOpacity: 0.5, elements: [
+            makeRect(0, 0, 794, 70, { fill: "#7c3aed", stroke: "transparent" }),
+            makeText(40, 18, 500, 30, "TERMO DE GARANTIA", { fontSize: 20, fontWeight: "bold", color: "#ffffff" }),
+            makeText(40, 48, 300, 18, "Nº {{numero_garantia}}", { fontSize: 11, color: "#ddd6fe" }),
+
+            makeText(40, 90, 714, 20, "DADOS DO PRODUTO / SERVIÇO", { fontSize: 12, fontWeight: "bold", color: "#7c3aed" }),
+            makeLine(40, 108, 714, { stroke: "#7c3aed" }),
+            makeText(40, 115, 714, 20, "Produto/Serviço: {{produto_descricao}}"),
+            makeText(40, 138, 350, 20, "Nº de Série / Lote: {{numero_serie}}"),
+            makeText(400, 138, 350, 20, "Data da Compra: {{data_compra}}"),
+            makeText(40, 161, 350, 20, "Nota Fiscal: {{nota_fiscal}}"),
+            makeText(400, 161, 350, 20, "Valor: {{valor_produto}}"),
+
+            makeText(40, 200, 714, 20, "DADOS DO COMPRADOR", { fontSize: 12, fontWeight: "bold", color: "#7c3aed" }),
+            makeLine(40, 218, 714, { stroke: "#7c3aed" }),
+            makeText(40, 225, 714, 20, "Nome: {{cliente_nome}}"),
+            makeText(40, 248, 350, 20, "CPF: {{cliente_cpf}}"),
+            makeText(400, 248, 350, 20, "Telefone: {{cliente_telefone}}"),
+            makeText(40, 271, 714, 20, "Endereço: {{cliente_endereco}}"),
+
+            makeText(40, 310, 714, 20, "COBERTURA DA GARANTIA", { fontSize: 12, fontWeight: "bold", color: "#7c3aed" }),
+            makeLine(40, 328, 714, { stroke: "#7c3aed" }),
+            makeTable(40, 335, 714, 120, [
+              ["Item", "Período", "Cobertura"],
+              ["Defeitos de fabricação", "{{prazo_garantia_fabricacao}}", "Total"],
+              ["Desgaste natural", "{{prazo_garantia_desgaste}}", "Parcial"],
+              ["Mão de obra", "{{prazo_garantia_mao_obra}}", "Total"],
+            ]),
+
+            makeText(40, 475, 714, 20, "EXCLUSÕES DA GARANTIA", { fontSize: 12, fontWeight: "bold", color: "#7c3aed" }),
+            makeLine(40, 493, 714, { stroke: "#7c3aed" }),
+            makeText(40, 500, 714, 120, "A garantia NÃO cobre:\n\n• Danos causados por mau uso, negligência ou acidentes\n• Desgaste natural de componentes consumíveis\n• Modificações ou reparos realizados por terceiros não autorizados\n• Danos causados por eventos de força maior (enchentes, incêndios, etc.)\n• Uso em desacordo com o manual de instruções", { fontSize: 11, color: "#374151" }),
+
+            makeText(40, 640, 714, 20, "PROCEDIMENTO PARA ACIONAMENTO", { fontSize: 12, fontWeight: "bold", color: "#7c3aed" }),
+            makeLine(40, 658, 714, { stroke: "#7c3aed" }),
+            makeText(40, 665, 714, 80, "Para acionar a garantia, o comprador deverá:\n1. Entrar em contato pelo telefone {{empresa_telefone}} ou e-mail {{empresa_email}}\n2. Apresentar este Termo de Garantia e a Nota Fiscal\n3. Descrever o defeito apresentado", { fontSize: 11, color: "#374151" }),
+
+            makeText(40, 770, 714, 20, "DISPOSIÇÕES GERAIS", { fontSize: 12, fontWeight: "bold", color: "#7c3aed" }),
+            makeLine(40, 788, 714, { stroke: "#7c3aed" }),
+            makeText(40, 795, 714, 50, "Este termo é válido a partir da data da compra e pelo período especificado acima. Fica eleito o foro da comarca de {{cidade_foro}} para resolução de litígios.", { fontSize: 11, color: "#374151" }),
+
+            makeText(40, 870, 340, 20, "______________________________", { textAlign: "center" }),
+            makeText(40, 895, 340, 15, "{{empresa_nome}}", { textAlign: "center", fontSize: 10, color: "#6b7280" }),
+            makeText(414, 870, 340, 20, "______________________________", { textAlign: "center" }),
+            makeText(414, 895, 340, 15, "{{cliente_nome}}", { textAlign: "center", fontSize: 10, color: "#6b7280" }),
+          ],
+        },
+      ],
+    },
+    {
+      id: "acordo-confidencialidade",
+      name: "Acordo de Confidencialidade (NDA)",
+      description: "Acordo de não divulgação para proteção de informações sigilosas",
+      icon: "🔒",
+      pages: [
+        {
+          id: tplId(), backgroundOpacity: 0.5, elements: [
+            makeRect(0, 0, 794, 70, { fill: "#1e293b", stroke: "transparent" }),
+            makeText(40, 18, 600, 30, "ACORDO DE CONFIDENCIALIDADE", { fontSize: 18, fontWeight: "bold", color: "#ffffff" }),
+            makeText(40, 48, 300, 18, "NDA — Non-Disclosure Agreement", { fontSize: 10, color: "#94a3b8" }),
+
+            makeText(40, 90, 714, 20, "PARTE DIVULGADORA", { fontSize: 12, fontWeight: "bold", color: "#1e293b" }),
+            makeLine(40, 108, 714, { stroke: "#1e293b" }),
+            makeText(40, 115, 714, 20, "Razão Social: {{empresa_nome}}"),
+            makeText(40, 138, 350, 20, "CNPJ: {{empresa_cnpj}}"),
+            makeText(400, 138, 350, 20, "Representante: {{empresa_representante}}"),
+
+            makeText(40, 175, 714, 20, "PARTE RECEPTORA", { fontSize: 12, fontWeight: "bold", color: "#1e293b" }),
+            makeLine(40, 193, 714, { stroke: "#1e293b" }),
+            makeText(40, 200, 714, 20, "Nome/Razão Social: {{cliente_nome}}"),
+            makeText(40, 223, 350, 20, "CPF/CNPJ: {{cliente_cpf}}"),
+            makeText(400, 223, 350, 20, "Cargo: {{cliente_cargo}}"),
+
+            makeText(40, 260, 714, 20, "OBJETO", { fontSize: 12, fontWeight: "bold", color: "#1e293b" }),
+            makeLine(40, 278, 714, { stroke: "#1e293b" }),
+            makeText(40, 285, 714, 60, "O presente Acordo tem por objeto estabelecer as condições de confidencialidade sobre as informações trocadas entre as partes no contexto de:\n\n{{objeto_acordo}}", { fontSize: 11, color: "#374151" }),
+
+            makeText(40, 360, 714, 20, "DEFINIÇÃO DE INFORMAÇÃO CONFIDENCIAL", { fontSize: 12, fontWeight: "bold", color: "#1e293b" }),
+            makeLine(40, 378, 714, { stroke: "#1e293b" }),
+            makeText(40, 385, 714, 100, "Considera-se 'Informação Confidencial' toda e qualquer informação, seja oral, escrita, digital ou em qualquer outro formato, incluindo, mas não se limitando a:\n\n• Dados comerciais, financeiros e estratégicos\n• Projetos, desenhos técnicos e especificações\n• Listas de clientes, fornecedores e parceiros\n• Processos, métodos e know-how\n• Software, códigos-fonte e algoritmos", { fontSize: 11, color: "#374151" }),
+
+            makeText(40, 500, 714, 20, "OBRIGAÇÕES DA PARTE RECEPTORA", { fontSize: 12, fontWeight: "bold", color: "#1e293b" }),
+            makeLine(40, 518, 714, { stroke: "#1e293b" }),
+            makeText(40, 525, 714, 120, "A Parte Receptora compromete-se a:\n\n1. Manter sigilo absoluto sobre as Informações Confidenciais\n2. Não divulgar, copiar ou reproduzir sem autorização prévia por escrito\n3. Utilizar as informações exclusivamente para os fins deste Acordo\n4. Restringir o acesso apenas a colaboradores que necessitem conhecê-las\n5. Devolver ou destruir todas as informações ao término deste Acordo", { fontSize: 11, color: "#374151" }),
+
+            makeText(40, 665, 714, 20, "VIGÊNCIA E PENALIDADES", { fontSize: 12, fontWeight: "bold", color: "#1e293b" }),
+            makeLine(40, 683, 714, { stroke: "#1e293b" }),
+            makeText(40, 690, 714, 80, "Este Acordo vigorará por {{prazo_vigencia}} a partir da assinatura, podendo ser renovado por acordo mútuo.\n\nEm caso de descumprimento, a Parte Receptora estará sujeita a multa de {{valor_multa}}, sem prejuízo de indenização por perdas e danos, além de responsabilização civil e criminal.", { fontSize: 11, color: "#374151" }),
+
+            makeRect(40, 790, 714, 40, { fill: "#f1f5f9", stroke: "#1e293b", borderRadius: 6, text: "Data de assinatura: {{data_contrato}} — {{cidade_foro}}", fontSize: 12, color: "#1e293b", textAlign: "center" }),
+
+            makeText(40, 860, 340, 20, "______________________________", { textAlign: "center" }),
+            makeText(40, 885, 340, 15, "PARTE DIVULGADORA", { textAlign: "center", fontSize: 10, color: "#6b7280" }),
+            makeText(414, 860, 340, 20, "______________________________", { textAlign: "center" }),
+            makeText(414, 885, 340, 15, "PARTE RECEPTORA", { textAlign: "center", fontSize: 10, color: "#6b7280" }),
+          ],
+        },
+      ],
+    },
+    {
       id: "em-branco",
       name: "Em Branco",
       description: "Página em branco para criar seu contrato do zero",

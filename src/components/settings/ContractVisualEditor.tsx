@@ -148,6 +148,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [saveTemplateDesc, setSaveTemplateDesc] = useState("");
   const [editingCustomId, setEditingCustomId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [overwriteTemplateId, setOverwriteTemplateId] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1005,11 +1006,21 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       toast.error("Informe um nome para o template");
       return;
     }
-    const ok = await saveTemplate(saveTemplateName.trim(), saveTemplateDesc.trim(), pages);
+    let ok: boolean;
+    if (overwriteTemplateId) {
+      ok = await updateTemplate(overwriteTemplateId, {
+        name: saveTemplateName.trim(),
+        description: saveTemplateDesc.trim(),
+        pages_data: pages,
+      });
+    } else {
+      ok = await saveTemplate(saveTemplateName.trim(), saveTemplateDesc.trim(), pages);
+    }
     if (ok) {
       setShowSaveDialog(false);
       setSaveTemplateName("");
       setSaveTemplateDesc("");
+      setOverwriteTemplateId(null);
     }
   };
 
@@ -1165,9 +1176,11 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
       {/* Save as Template Dialog */}
       {showSaveDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowSaveDialog(false)}>
-          <div className="bg-background rounded-xl border border-border p-6 w-96 shadow-2xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-foreground mb-4">Salvar como Template</h3>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => { setShowSaveDialog(false); setOverwriteTemplateId(null); }}>
+          <div className="bg-background rounded-xl border border-border p-6 w-[420px] shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-foreground mb-4">
+              {overwriteTemplateId ? "Atualizar Template Existente" : "Salvar como Template"}
+            </h3>
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Nome do Template *</label>
@@ -1178,10 +1191,46 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                 <Input value={saveTemplateDesc} onChange={e => setSaveTemplateDesc(e.target.value)} placeholder="Breve descrição do modelo" className="mt-1" />
               </div>
             </div>
+
+            {/* Overwrite existing option */}
+            {customTemplates.length > 0 && !overwriteTemplateId && (
+              <div className="mt-4 pt-3 border-t border-border">
+                <label className="text-xs font-medium text-muted-foreground mb-2 block">Ou sobrescrever um template existente:</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {customTemplates.map(ct => (
+                    <Button
+                      key={ct.id}
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs gap-1"
+                      onClick={() => {
+                        setOverwriteTemplateId(ct.id);
+                        setSaveTemplateName(ct.name);
+                        setSaveTemplateDesc(ct.description || "");
+                      }}
+                    >
+                      {ct.icon} {ct.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {overwriteTemplateId && (
+              <p className="mt-3 text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded-md px-3 py-2">
+                ⚠️ O layout atual substituirá completamente o template selecionado.
+              </p>
+            )}
+
             <div className="flex gap-2 mt-5 justify-end">
-              <Button variant="outline" size="sm" onClick={() => setShowSaveDialog(false)}>Cancelar</Button>
+              {overwriteTemplateId && (
+                <Button variant="ghost" size="sm" onClick={() => setOverwriteTemplateId(null)} className="mr-auto text-xs">
+                  ← Novo template
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={() => { setShowSaveDialog(false); setOverwriteTemplateId(null); }}>Cancelar</Button>
               <Button size="sm" onClick={handleSaveAsTemplate} disabled={!saveTemplateName.trim()}>
-                <BookmarkPlus className="h-3.5 w-3.5 mr-1" /> Salvar
+                <BookmarkPlus className="h-3.5 w-3.5 mr-1" /> {overwriteTemplateId ? "Atualizar" : "Salvar"}
               </Button>
             </div>
           </div>
