@@ -1239,6 +1239,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     <div className="flex flex-col h-full">
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
       <input ref={pdfInputRef} type="file" accept=".pdf" className="hidden" onChange={handlePdfFileChange} />
+      <input ref={jsonInputRef} type="file" accept=".json" className="hidden" onChange={handleImportTemplatesJson} />
 
       {/* Toolbar */}
       <ContractEditorToolbar
