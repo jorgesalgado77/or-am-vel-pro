@@ -991,12 +991,49 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     if (tpl.id !== "em-branco") toast.success(`Template "${tpl.name}" aplicado!`);
   };
 
+  const applyCustomTemplate = (ct: CustomTemplate) => {
+    const pagesData = ct.pages_data as PageData[];
+    setPages(pagesData.map(p => ({ ...p, id: pageId(), elements: (p.elements || []).map(e => ({ ...e, id: genId() })) })));
+    setCurrentPageIdx(0);
+    setSelectedId(null);
+    setShowTemplates(false);
+    toast.success(`Template "${ct.name}" carregado!`);
+  };
+
+  const handleSaveAsTemplate = async () => {
+    if (!saveTemplateName.trim()) {
+      toast.error("Informe um nome para o template");
+      return;
+    }
+    const ok = await saveTemplate(saveTemplateName.trim(), saveTemplateDesc.trim(), pages);
+    if (ok) {
+      setShowSaveDialog(false);
+      setSaveTemplateName("");
+      setSaveTemplateDesc("");
+    }
+  };
+
+  const handleDeleteCustom = async (id: string, name: string) => {
+    if (!confirm(`Excluir template "${name}"?`)) return;
+    await deleteTemplate(id);
+  };
+
+  const handleRenameCustom = async (id: string) => {
+    if (!editName.trim()) return;
+    await updateTemplate(id, { name: editName.trim() });
+    setEditingCustomId(null);
+    setEditName("");
+  };
+
   if (showTemplates) {
     return (
-      <div className="flex flex-col items-center justify-center h-full bg-muted/20 p-8">
+      <div className="flex flex-col items-center justify-center h-full bg-muted/20 p-8 overflow-y-auto">
         <h2 className="text-xl font-bold text-foreground mb-2">Escolha um modelo para começar</h2>
-        <p className="text-muted-foreground text-sm mb-6">Selecione um template pré-pronto ou comece do zero</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl">
+        <p className="text-muted-foreground text-sm mb-6">Selecione um template pré-pronto, um salvo, ou comece do zero</p>
+
+        {/* Pre-built templates */}
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Modelos Pré-prontos</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl mb-8">
           {getContractTemplates().map(tpl => (
             <button
               key={tpl.id}
@@ -1009,7 +1046,45 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             </button>
           ))}
         </div>
-        <Button variant="ghost" className="mt-6 text-xs text-muted-foreground" onClick={onCancel}>
+
+        {/* Custom templates */}
+        {(customTemplates.length > 0 || loadingCustom) && (
+          <>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Meus Templates Salvos</h3>
+            {loadingCustom ? (
+              <p className="text-xs text-muted-foreground">Carregando...</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-3xl mb-6">
+                {customTemplates.map(ct => (
+                  <div key={ct.id} className="relative flex flex-col items-center gap-2 p-5 rounded-xl border-2 border-border bg-background hover:border-primary hover:shadow-lg transition-all text-center group">
+                    <button onClick={() => applyCustomTemplate(ct)} className="flex flex-col items-center gap-2 w-full">
+                      <span className="text-3xl">{ct.icon}</span>
+                      {editingCustomId === ct.id ? (
+                        <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                          <Input value={editName} onChange={e => setEditName(e.target.value)} className="h-6 text-xs w-32" onKeyDown={e => e.key === "Enter" && handleRenameCustom(ct.id)} />
+                          <Button size="sm" className="h-6 text-[10px]" onClick={() => handleRenameCustom(ct.id)}>OK</Button>
+                        </div>
+                      ) : (
+                        <span className="font-semibold text-sm text-foreground group-hover:text-primary">{ct.name}</span>
+                      )}
+                      {ct.description && <span className="text-xs text-muted-foreground leading-tight">{ct.description}</span>}
+                    </button>
+                    <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setEditingCustomId(ct.id); setEditName(ct.name); }} title="Renomear">
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteCustom(ct.id, ct.name); }} title="Excluir">
+                        <Trash className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        <Button variant="ghost" className="mt-2 text-xs text-muted-foreground" onClick={onCancel}>
           <X className="h-3 w-3 mr-1" /> Cancelar
         </Button>
       </div>
