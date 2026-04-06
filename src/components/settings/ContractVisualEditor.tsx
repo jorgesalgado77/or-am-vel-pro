@@ -669,6 +669,34 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             continue;
           }
 
+          if (el.type === "table" && el.tableData) {
+            const colCount = el.tableData[0]?.length || 1;
+            const colW = Math.floor(9360 / colCount);
+            const cellBorder = { style: BorderStyle.SINGLE, size: 1, color: el.stroke?.replace("#", "") || "333333" };
+            const cellBorders = { top: cellBorder, bottom: cellBorder, left: cellBorder, right: cellBorder };
+            children.push(new Table({
+              width: { size: 9360, type: WidthType.DXA },
+              columnWidths: Array(colCount).fill(colW),
+              rows: el.tableData.map((row, ri) => new TableRow({
+                children: row.map(cell => new TableCell({
+                  borders: cellBorders,
+                  width: { size: colW, type: WidthType.DXA },
+                  shading: ri === 0 ? { fill: el.stroke?.replace("#", "") || "333333", type: ShadingType.CLEAR } : undefined,
+                  children: [new Paragraph({
+                    children: [new TextRun({
+                      text: cell,
+                      font: el.fontFamily,
+                      size: Math.round(el.fontSize * 1.5),
+                      bold: ri === 0,
+                      color: ri === 0 ? "FFFFFF" : el.color?.replace("#", "") || "000000",
+                    })],
+                  })],
+                })),
+              })),
+            }));
+            continue;
+          }
+
           // Text elements
           const text = el.text || "";
           if (!text.trim()) continue;
