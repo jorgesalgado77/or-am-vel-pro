@@ -974,6 +974,10 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       {/* Action bar with page navigation */}
       <div className="flex items-center justify-between border-x border-border bg-muted/20 px-3 py-1.5">
         <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => setShowTemplates(true)} title="Templates">
+            <LayoutTemplate className="h-3.5 w-3.5" /> Templates
+          </Button>
+          <div className="h-5 w-px bg-border mx-1" />
           {/* Zoom */}
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setZoom(z => Math.max(0.25, z - 0.1))} title="Zoom -"><ZoomOut className="h-3.5 w-3.5" /></Button>
           <span className="text-xs text-muted-foreground w-12 text-center">{Math.round(zoom * 100)}%</span>
