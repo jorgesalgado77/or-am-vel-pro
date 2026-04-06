@@ -662,6 +662,15 @@ export function ContratosTab() {
                   {viewMode === "editor" ? <Eye className="h-4 w-4" /> : <Code className="h-4 w-4" />}
                   {viewMode === "editor" ? "Visualizar" : "Editar"}
                 </Button>
+                <Button
+                  variant={dragMode ? "default" : "outline"}
+                  size="sm"
+                  className="gap-1"
+                  onClick={handleToggleDragMode}
+                >
+                  <Move className="h-4 w-4" />
+                  {dragMode ? "Aplicar Posições" : "Mover Variáveis"}
+                </Button>
                 <Button size="sm" className="gap-2" onClick={handleSave} disabled={saving}>
                   <Save className="h-4 w-4" />
                   {saving ? "Salvando..." : "Salvar"}
