@@ -27,15 +27,16 @@ async function requestPermission(): Promise<boolean> {
 function sendLocalNotification(title: string, body: string, tag: string, requireInteraction = false) {
   if (!("serviceWorker" in navigator)) return;
   navigator.serviceWorker.ready.then((reg) => {
-    reg.showNotification(title, {
+    const options: NotificationOptions & Record<string, unknown> = {
       body,
       icon: "/favicon.ico",
       badge: "/favicon.ico",
       tag,
-      vibrate: [200, 100, 200],
       requireInteraction,
       data: { url: "/admin" },
-    });
+    };
+    (options as any).vibrate = [200, 100, 200];
+    reg.showNotification(title, options);
   });
 }
 
