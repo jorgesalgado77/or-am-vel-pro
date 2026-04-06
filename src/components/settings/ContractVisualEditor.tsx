@@ -629,7 +629,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     }
   };
 
-
+  const filteredVars = variables
     .filter(v => !varSearch || v.var.toLowerCase().includes(varSearch.toLowerCase()) || v.desc.toLowerCase().includes(varSearch.toLowerCase()))
     .sort((a, b) => a.var.localeCompare(b.var));
 
