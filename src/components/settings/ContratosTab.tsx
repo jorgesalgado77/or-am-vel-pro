@@ -522,6 +522,12 @@ export function ContratosTab() {
               </Button>
             </div>
           </div>
+          {importing && importProgress && (
+            <div className="mt-3 flex items-center gap-2 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary animate-pulse">
+              <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+              {importProgress}
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {loading ? (
