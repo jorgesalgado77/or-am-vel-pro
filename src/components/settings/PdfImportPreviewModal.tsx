@@ -14,6 +14,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   CheckCircle2,
   AlertTriangle,
   Eye,
@@ -23,6 +28,8 @@ import {
   Save,
   X,
   Pencil,
+  Plus,
+  Search,
 } from "lucide-react";
 import { removeHighlights } from "@/lib/contractImport";
 import { EditorToolbar } from "./EditorToolbar";
@@ -53,14 +60,65 @@ interface PdfImportPreviewModalProps {
   saving?: boolean;
 }
 
-const KNOWN_VARIABLES = [
-  "{{nome_cliente}}", "{{cpf_cliente}}", "{{rg_insc_estadual}}", "{{endereco}}",
-  "{{bairro}}", "{{cidade}}", "{{cep}}", "{{telefone_cliente}}", "{{email_cliente}}",
-  "{{profissao}}", "{{data_nascimento}}", "{{data_atual}}", "{{valor_final}}",
-  "{{valor_entrada}}", "{{parcelas}}", "{{valor_parcela}}", "{{forma_pagamento}}",
-  "{{prazo_entrega}}", "{{projetista}}", "{{numero_contrato}}", "{{garantia}}",
-  "{{nome_empresa}}", "{{cnpj_empresa}}", "{{endereco_empresa}}", "{{telefone_empresa}}",
+const ALL_VARIABLES = [
+  { var: "{{nome_cliente}}", desc: "Nome do cliente", group: "Cliente" },
+  { var: "{{cpf_cliente}}", desc: "CPF/CNPJ do cliente", group: "Cliente" },
+  { var: "{{rg_insc_estadual}}", desc: "RG / Insc. Estadual", group: "Cliente" },
+  { var: "{{telefone_cliente}}", desc: "Telefone do cliente", group: "Cliente" },
+  { var: "{{email_cliente}}", desc: "Email do cliente", group: "Cliente" },
+  { var: "{{data_nascimento}}", desc: "Data de nascimento", group: "Cliente" },
+  { var: "{{profissao}}", desc: "Profissão do cliente", group: "Cliente" },
+  { var: "{{endereco}}", desc: "Endereço do cliente", group: "Endereço" },
+  { var: "{{bairro}}", desc: "Bairro do cliente", group: "Endereço" },
+  { var: "{{cidade}}", desc: "Cidade do cliente", group: "Endereço" },
+  { var: "{{uf}}", desc: "UF do cliente", group: "Endereço" },
+  { var: "{{cep}}", desc: "CEP do cliente", group: "Endereço" },
+  { var: "{{endereco_entrega}}", desc: "Endereço de entrega", group: "Endereço" },
+  { var: "{{bairro_entrega}}", desc: "Bairro de entrega", group: "Endereço" },
+  { var: "{{cidade_entrega}}", desc: "Cidade de entrega", group: "Endereço" },
+  { var: "{{uf_entrega}}", desc: "UF de entrega", group: "Endereço" },
+  { var: "{{cep_entrega}}", desc: "CEP de entrega", group: "Endereço" },
+  { var: "{{numero_orcamento}}", desc: "Nº do orçamento", group: "Contrato" },
+  { var: "{{numero_contrato}}", desc: "Nº do contrato", group: "Contrato" },
+  { var: "{{data_fechamento}}", desc: "Data de fechamento", group: "Contrato" },
+  { var: "{{data_atual}}", desc: "Data atual", group: "Contrato" },
+  { var: "{{responsavel_venda}}", desc: "Responsável pela venda", group: "Contrato" },
+  { var: "{{projetista}}", desc: "Projetista responsável", group: "Contrato" },
+  { var: "{{observacoes}}", desc: "Observações do contrato", group: "Contrato" },
+  { var: "{{garantia}}", desc: "Texto de garantia", group: "Contrato" },
+  { var: "{{prazo_garantia}}", desc: "Prazo de garantia", group: "Contrato" },
+  { var: "{{validade_proposta}}", desc: "Validade da proposta", group: "Contrato" },
+  { var: "{{valor_tela}}", desc: "Valor de tela", group: "Financeiro" },
+  { var: "{{valor_final}}", desc: "Valor final", group: "Financeiro" },
+  { var: "{{valor_entrada}}", desc: "Valor da entrada", group: "Financeiro" },
+  { var: "{{parcelas}}", desc: "Número de parcelas", group: "Financeiro" },
+  { var: "{{valor_parcela}}", desc: "Valor da parcela", group: "Financeiro" },
+  { var: "{{forma_pagamento}}", desc: "Forma de pagamento", group: "Financeiro" },
+  { var: "{{percentual_desconto}}", desc: "Percentual de desconto", group: "Financeiro" },
+  { var: "{{valor_com_desconto}}", desc: "Valor com desconto", group: "Financeiro" },
+  { var: "{{valor_desconto}}", desc: "Valor do desconto em R$", group: "Financeiro" },
+  { var: "{{valor_restante}}", desc: "Valor restante", group: "Financeiro" },
+  { var: "{{condicoes_pagamento}}", desc: "Condições de pagamento", group: "Financeiro" },
+  { var: "{{valor_por_extenso}}", desc: "Valor por extenso", group: "Financeiro" },
+  { var: "{{prazo_entrega}}", desc: "Prazo de entrega", group: "Entrega" },
+  { var: "{{prazo_entrega_fornecedor}}", desc: "Prazo do fornecedor", group: "Entrega" },
+  { var: "{{data_entrega_prevista}}", desc: "Data prevista de entrega", group: "Entrega" },
+  { var: "{{empresa_nome}}", desc: "Nome da empresa/loja", group: "Empresa" },
+  { var: "{{cnpj_loja}}", desc: "CNPJ da loja", group: "Empresa" },
+  { var: "{{endereco_loja}}", desc: "Endereço da loja", group: "Empresa" },
+  { var: "{{telefone_loja}}", desc: "Telefone da loja", group: "Empresa" },
+  { var: "{{email_loja}}", desc: "Email da loja", group: "Empresa" },
+  { var: "{{itens_tabela}}", desc: "Tabela de itens/ambientes", group: "Tabelas" },
+  { var: "{{itens_detalhes}}", desc: "Detalhes dos itens", group: "Tabelas" },
+  { var: "{{ambientes_detalhes_completos}}", desc: "Tabela completa de ambientes", group: "Tabelas" },
+  { var: "{{ambientes_prazos}}", desc: "Ambientes + prazos + fornecedores", group: "Tabelas" },
+  { var: "{{produtos_catalogo}}", desc: "Produtos do catálogo", group: "Tabelas" },
+  { var: "{{quantidade_ambientes}}", desc: "Nº total de ambientes", group: "Tabelas" },
+  { var: "{{indicador_nome}}", desc: "Nome do indicador", group: "Outros" },
+  { var: "{{indicador_comissao}}", desc: "Comissão do indicador", group: "Outros" },
 ];
+
+const KNOWN_VARIABLES = ALL_VARIABLES.map(v => v.var);
 
 export function PdfImportPreviewModal({
   open,
@@ -81,6 +139,22 @@ export function PdfImportPreviewModal({
   const [editedHtml, setEditedHtml] = useState<string | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const [editorKey, setEditorKey] = useState(0);
+  const [varSearch, setVarSearch] = useState("");
+
+  const insertVariableAtCursor = useCallback((variable: string) => {
+    if (!editorRef.current) return;
+    editorRef.current.focus();
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      range.insertNode(document.createTextNode(variable));
+      range.collapse(false);
+    } else {
+      editorRef.current.innerHTML += variable;
+    }
+    setEditedHtml(editorRef.current.innerHTML);
+  }, []);
 
   const baseHtml = useAutoReplace ? processedHtml : imported.html;
   const finalHtml = editedHtml !== null ? editedHtml : baseHtml;
@@ -219,7 +293,64 @@ export function PdfImportPreviewModal({
               />
             ) : viewMode === "html" ? (
               <div className="p-4">
-                <EditorToolbar editorRef={editorRef as React.RefObject<HTMLDivElement>} />
+                <div className="flex items-center gap-2 mb-1">
+                  <EditorToolbar editorRef={editorRef as React.RefObject<HTMLDivElement>} />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="gap-1.5 shrink-0">
+                        <Plus className="h-3.5 w-3.5" />
+                        Inserir variável
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-0" align="end">
+                      <div className="p-2 border-b border-border">
+                        <div className="relative">
+                          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                          <Input
+                            placeholder="Buscar variável..."
+                            value={varSearch}
+                            onChange={(e) => setVarSearch(e.target.value)}
+                            className="h-8 pl-8 text-xs"
+                          />
+                        </div>
+                      </div>
+                      <ScrollArea className="h-64">
+                        <div className="p-1">
+                          {(() => {
+                            const filtered = ALL_VARIABLES.filter(
+                              (v) =>
+                                v.var.toLowerCase().includes(varSearch.toLowerCase()) ||
+                                v.desc.toLowerCase().includes(varSearch.toLowerCase())
+                            );
+                            const groups = [...new Set(filtered.map((v) => v.group))];
+                            return groups.map((group) => (
+                              <div key={group} className="mb-1">
+                                <p className="text-[10px] font-semibold text-muted-foreground px-2 py-1 uppercase tracking-wider">
+                                  {group}
+                                </p>
+                                {filtered
+                                  .filter((v) => v.group === group)
+                                  .map((v) => (
+                                    <button
+                                      key={v.var}
+                                      onClick={() => {
+                                        insertVariableAtCursor(v.var);
+                                        setVarSearch("");
+                                      }}
+                                      className="w-full text-left px-2 py-1.5 rounded-sm text-xs hover:bg-accent flex items-center justify-between gap-2"
+                                    >
+                                      <span className="font-mono text-primary truncate">{v.var}</span>
+                                      <span className="text-muted-foreground text-[10px] shrink-0">{v.desc}</span>
+                                    </button>
+                                  ))}
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                      </ScrollArea>
+                    </PopoverContent>
+                  </Popover>
+                </div>
                 <div
                   key={editorKey}
                   ref={editorRef}

@@ -212,6 +212,40 @@ export const replaceDetectedFieldsWithPlaceholders = (
   let replacedCount = 0;
   const replacements: FieldReplacement[] = [];
 
+  // ── Pass 1.5: Table detection for {{itens_tabela}} / {{ambientes_detalhes_completos}} ──
+  const tables = Array.from(container.querySelectorAll("table"));
+  for (const table of tables) {
+    const tableText = (table.textContent || "").toLowerCase();
+    const hasAmb = /ambiente|c[oô]modo|espa[çc]o|quarto|cozinha|sala|banheiro|lavabo|closet|varanda/i.test(tableText);
+    const hasItem = /item|produto|descri[çc][ãa]o|quantidade|qtd|valor|pre[çc]o|un\b|total/i.test(tableText);
+    const hasPrazo = /prazo|entrega|fornecedor/i.test(tableText);
+
+    if (hasAmb && (hasPrazo || hasItem)) {
+      const placeholder = doc.createElement("div");
+      placeholder.textContent = "{{ambientes_detalhes_completos}}";
+      table.parentNode?.replaceChild(placeholder, table);
+      replacedCount++;
+      replacements.push({
+        id: `fr-table-${replacedCount}-${Date.now()}`,
+        originalValue: `[Tabela de ambientes: ${table.rows?.length || '?'} linhas]`,
+        variable: "{{ambientes_detalhes_completos}}",
+        label: "Tabela completa de ambientes",
+      });
+    } else if (hasItem || hasAmb) {
+      const placeholder = doc.createElement("div");
+      placeholder.textContent = "{{itens_tabela}}";
+      table.parentNode?.replaceChild(placeholder, table);
+      replacedCount++;
+      replacements.push({
+        id: `fr-table-${replacedCount}-${Date.now()}`,
+        originalValue: `[Tabela de itens: ${table.rows?.length || '?'} linhas]`,
+        variable: "{{itens_tabela}}",
+        label: "Tabela de itens/ambientes",
+      });
+    }
+  }
+
+
   // First, do label-value replacements
   for (let i = 0; i < allElements.length - 1; i++) {
     const el = allElements[i];
