@@ -142,7 +142,13 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [varSearch, setVarSearch] = useState("");
   const [importingPdf, setImportingPdf] = useState(false);
   const [pdfProgress, setPdfProgress] = useState({ current: 0, total: 0, status: "" });
-  const [pdfImportSettings, setPdfImportSettings] = useState({ scale: 1.5, quality: 0.85, format: "jpeg" as "jpeg" | "png" });
+  const [pdfImportSettings, setPdfImportSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem("pdf_import_settings");
+      if (saved) return JSON.parse(saved) as { scale: number; quality: number; format: "jpeg" | "png" };
+    } catch {}
+    return { scale: 1.5, quality: 0.85, format: "jpeg" as "jpeg" | "png" };
+  });
   const [showPdfSettings, setShowPdfSettings] = useState(false);
   const [pendingPdfFile, setPendingPdfFile] = useState<File | null>(null);
   const [dragPageIdx, setDragPageIdx] = useState<number | null>(null);
@@ -359,6 +365,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     const { scale, quality, format } = pdfImportSettings;
 
     setShowPdfSettings(false);
+    try { localStorage.setItem("pdf_import_settings", JSON.stringify(pdfImportSettings)); } catch {}
     setPendingPdfFile(null);
     setImportingPdf(true);
     setPdfProgress({ current: 0, total: 0, status: "Lendo arquivo..." });
