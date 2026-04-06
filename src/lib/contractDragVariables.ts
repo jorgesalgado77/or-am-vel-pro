@@ -124,6 +124,27 @@ const DRAG_VARIABLES_SCRIPT = `
     });
     menu.appendChild(listBtn);
 
+    var editBtn = document.createElement('div');
+    editBtn.setAttribute('data-var-action', 'true');
+    editBtn.textContent = '✏️ Editar texto';
+    editBtn.style.cssText = 'padding:6px 12px;cursor:pointer;color:#1e293b;transition:background 0.1s;';
+    editBtn.addEventListener('mouseenter', function() { editBtn.style.background = '#f1f5f9'; });
+    editBtn.addEventListener('mouseleave', function() { editBtn.style.background = 'transparent'; });
+    editBtn.addEventListener('click', function() {
+      if (menu._targetEl) {
+        var currentText = menu._targetEl.getAttribute('data-var-text') || '';
+        var newText = prompt('Editar texto da variável:', currentText);
+        if (newText !== null && newText.trim() !== '') {
+          menu._targetEl.setAttribute('data-var-text', newText);
+          var inner = menu._targetEl.querySelector('.drag-variable-inner');
+          if (inner) inner.textContent = newText;
+          notifyPositionChange(menu._targetEl);
+        }
+      }
+      menu.style.display = 'none';
+    });
+    menu.appendChild(editBtn);
+
     var sep0 = document.createElement('div');
     sep0.style.cssText = 'height:1px;background:#e5e7eb;margin:4px 0;';
     sep0.setAttribute('data-var-action', 'true');
