@@ -105,6 +105,85 @@ const DRAG_VARIABLES_SCRIPT = `
 
   var varListPanel = null;
 
+  function showEditModal(targetEl) {
+    var currentText = targetEl.getAttribute('data-var-text') || '';
+    // Backdrop
+    var backdrop = document.createElement('div');
+    backdrop.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:99998;display:flex;align-items:center;justify-content:center;animation:fadeIn 0.15s ease;';
+    // Modal
+    var modal = document.createElement('div');
+    modal.style.cssText = 'background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.25);padding:24px;width:380px;max-width:90vw;font-family:system-ui,sans-serif;animation:scaleIn 0.15s ease;';
+    // Title
+    var title = document.createElement('div');
+    title.textContent = 'Editar variável';
+    title.style.cssText = 'font-size:16px;font-weight:600;color:#1e293b;margin-bottom:4px;';
+    modal.appendChild(title);
+    // Subtitle
+    var sub = document.createElement('div');
+    sub.textContent = 'Altere o texto da variável exibida no contrato.';
+    sub.style.cssText = 'font-size:12px;color:#94a3b8;margin-bottom:16px;';
+    modal.appendChild(sub);
+    // Label
+    var label = document.createElement('div');
+    label.textContent = 'Texto da variável';
+    label.style.cssText = 'font-size:12px;font-weight:500;color:#475569;margin-bottom:6px;';
+    modal.appendChild(label);
+    // Input
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentText;
+    input.style.cssText = 'width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:monospace;color:#1e293b;outline:none;box-sizing:border-box;transition:border-color 0.15s;';
+    input.addEventListener('focus', function() { input.style.borderColor = '#3b82f6'; });
+    input.addEventListener('blur', function() { input.style.borderColor = '#e2e8f0'; });
+    modal.appendChild(input);
+    // Buttons
+    var btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin-top:20px;';
+    var cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancelar';
+    cancelBtn.style.cssText = 'padding:8px 16px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:13px;font-weight:500;cursor:pointer;transition:background 0.1s;';
+    cancelBtn.addEventListener('mouseenter', function() { cancelBtn.style.background = '#f8fafc'; });
+    cancelBtn.addEventListener('mouseleave', function() { cancelBtn.style.background = '#fff'; });
+    cancelBtn.addEventListener('click', function() { backdrop.remove(); });
+    var saveBtn = document.createElement('button');
+    saveBtn.textContent = 'Salvar';
+    saveBtn.style.cssText = 'padding:8px 20px;border-radius:8px;border:none;background:#3b82f6;color:#fff;font-size:13px;font-weight:500;cursor:pointer;transition:background 0.1s;';
+    saveBtn.addEventListener('mouseenter', function() { saveBtn.style.background = '#2563eb'; });
+    saveBtn.addEventListener('mouseleave', function() { saveBtn.style.background = '#3b82f6'; });
+    saveBtn.addEventListener('click', function() {
+      var newText = input.value.trim();
+      if (newText) {
+        targetEl.setAttribute('data-var-text', newText);
+        var inner = targetEl.querySelector('.drag-variable-inner');
+        if (inner) inner.textContent = newText;
+        notifyPositionChange(targetEl);
+      }
+      backdrop.remove();
+    });
+    btnRow.appendChild(cancelBtn);
+    btnRow.appendChild(saveBtn);
+    modal.appendChild(btnRow);
+    backdrop.appendChild(modal);
+    // Close on backdrop click
+    backdrop.addEventListener('click', function(e) { if (e.target === backdrop) backdrop.remove(); });
+    // Close on Escape, confirm on Enter
+    var keyHandler = function(e) {
+      if (e.key === 'Escape') { backdrop.remove(); document.removeEventListener('keydown', keyHandler); }
+      if (e.key === 'Enter') { saveBtn.click(); document.removeEventListener('keydown', keyHandler); }
+    };
+    document.addEventListener('keydown', keyHandler);
+    // Inject animation styles
+    if (!document.getElementById('edit-modal-anim')) {
+      var animStyle = document.createElement('style');
+      animStyle.id = 'edit-modal-anim';
+      animStyle.textContent = '@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes scaleIn{from{opacity:0;transform:scale(0.95)}to{opacity:1;transform:scale(1)}}';
+      document.head.appendChild(animStyle);
+    }
+    document.body.appendChild(backdrop);
+    setTimeout(function() { input.focus(); input.select(); }, 50);
+  }
+
+
   function createContextMenu() {
     var menu = document.createElement('div');
     menu.id = 'var-context-menu';
