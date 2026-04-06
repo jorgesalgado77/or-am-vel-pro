@@ -323,7 +323,7 @@ const DRAG_VARIABLES_STYLES = `
 export function injectDragVariablesIntoHtml(previewHtml: string, gridSize: number = 8): string {
   let result = previewHtml;
 
-  const gridCSS = `.contract-page, [data-contract-page] { background-image: linear-gradient(to right, hsl(210 20% 80% / 0.15) 1px, transparent 1px), linear-gradient(to bottom, hsl(210 20% 80% / 0.15) 1px, transparent 1px) !important; background-size: ${gridSize}px ${gridSize}px !important; background-position: 0 0 !important; }`;
+  const gridCSS = `.contract-page, [data-contract-page] { position: relative !important; } .contract-page::after, [data-contract-page]::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 50; background-image: linear-gradient(to right, hsl(210 20% 80% / 0.15) 1px, transparent 1px), linear-gradient(to bottom, hsl(210 20% 80% / 0.15) 1px, transparent 1px); background-size: ${gridSize}px ${gridSize}px; background-position: 0 0; }`;
 
   result = result.replace(
     '</head>',
