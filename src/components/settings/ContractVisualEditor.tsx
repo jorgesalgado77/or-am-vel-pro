@@ -576,6 +576,36 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
               }
               break;
             }
+            case "table": {
+              if (el.tableData) {
+                const rows = el.tableData.length;
+                const cols = el.tableData[0]?.length || 1;
+                const cellW = el.width / cols;
+                const cellH = el.height / rows;
+                doc.setLineWidth(0.5);
+                const sc = hexToRgb(el.stroke);
+                if (sc) doc.setDrawColor(sc.r, sc.g, sc.b);
+                for (let ri = 0; ri < rows; ri++) {
+                  for (let ci = 0; ci < cols; ci++) {
+                    const cx = el.x + ci * cellW;
+                    const cy = el.y + ri * cellH;
+                    if (ri === 0 && sc) {
+                      doc.setFillColor(sc.r, sc.g, sc.b);
+                      doc.rect(cx, cy, cellW, cellH, "FD");
+                      doc.setTextColor(255, 255, 255);
+                    } else {
+                      doc.rect(cx, cy, cellW, cellH, "S");
+                      doc.setTextColor(0, 0, 0);
+                    }
+                    doc.setFontSize(el.fontSize * 0.75);
+                    doc.setFont("helvetica", ri === 0 ? "bold" : "normal");
+                    const txt = el.tableData[ri][ci] || "";
+                    doc.text(txt, cx + 4, cy + cellH / 2 + 3, { maxWidth: cellW - 8 });
+                  }
+                }
+              }
+              break;
+            }
           }
         }
       }
