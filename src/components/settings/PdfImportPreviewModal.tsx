@@ -140,6 +140,18 @@ export function PdfImportPreviewModal({
   const editorRef = useRef<HTMLDivElement>(null);
   const [editorKey, setEditorKey] = useState(0);
   const [varSearch, setVarSearch] = useState("");
+  const [revertedVars, setRevertedVars] = useState<Set<number>>(new Set());
+
+  const undoReplacement = useCallback((index: number) => {
+    const r = replacements[index];
+    if (!r) return;
+    setRevertedVars((prev) => new Set(prev).add(index));
+    setEditedHtml((prev) => {
+      const html = prev !== null ? prev : (useAutoReplace ? processedHtml : imported.html);
+      return html.replaceAll(r.variable, r.originalValue);
+    });
+    setEditorKey((k) => k + 1);
+  }, [replacements, useAutoReplace, processedHtml, imported.html]);
 
   const insertVariableAtCursor = useCallback((variable: string) => {
     if (!editorRef.current) return;
