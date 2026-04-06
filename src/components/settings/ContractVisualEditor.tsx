@@ -741,6 +741,9 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
         <div className="flex gap-2">
           <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={onCancel}><X className="h-3 w-3" /> Cancelar</Button>
+          <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={handleExportPdf} disabled={exporting}>
+            <Download className="h-3 w-3" /> {exporting ? "Exportando..." : "Exportar PDF"}
+          </Button>
           <Button size="sm" className="h-7 gap-1 text-xs" onClick={handleSave}><Save className="h-3 w-3" /> Salvar Contrato</Button>
         </div>
       </div>
