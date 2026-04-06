@@ -22,6 +22,8 @@ import { buildPixelPerfectPageHtml } from "./contract/pdfRenderer";
 import { sanitizeImportedHtml, normalizeSuggestedName, arrayBufferToBase64 } from "./contract/importUtils";
 import type { ImportedContractContent, FieldReplacement, PdfTextItem, StructureBlock } from "./contract/types";
 
+export type ImportProgressCallback = (info: { current: number; total: number; label: string }) => void;
+
 // Re-export public types
 export type { ImportedContractContent, FieldReplacement };
 
@@ -199,7 +201,7 @@ export const removeHighlights = (html: string): string => {
 
 // ── PDF import (pixel-perfect) ──
 
-const importPdf = async (file: File): Promise<ImportedContractContent> => {
+const importPdf = async (file: File, onProgress?: ImportProgressCallback): Promise<ImportedContractContent> => {
   const arrayBuffer = await file.arrayBuffer();
   let html = "";
   let structure: StructureBlock[] = [];
@@ -207,12 +209,14 @@ const importPdf = async (file: File): Promise<ImportedContractContent> => {
   try {
     console.log("[PDF Import] Starting pdfjs extraction...");
     const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
-    console.log(`[PDF Import] PDF loaded: ${pdf.numPages} pages`);
+    const totalPages = pdf.numPages;
+    console.log(`[PDF Import] PDF loaded: ${totalPages} pages`);
     const pages: string[] = [];
     const allStructure: StructureBlock[] = [];
 
-    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-      console.log(`[PDF Import] Processing page ${pageNumber}/${pdf.numPages}...`);
+    for (let pageNumber = 1; pageNumber <= totalPages; pageNumber++) {
+      console.log(`[PDF Import] Processing page ${pageNumber}/${totalPages}...`);
+      onProgress?.({ current: pageNumber, total: totalPages, label: `Processando página ${pageNumber} de ${totalPages}...` });
       const page = await pdf.getPage(pageNumber);
       const viewport = page.getViewport({ scale: 1 });
       const textContent = await page.getTextContent();
@@ -287,9 +291,11 @@ const importPdf = async (file: File): Promise<ImportedContractContent> => {
 
 // ── DOCX import ──
 
-const importDocx = async (file: File): Promise<ImportedContractContent> => {
+const importDocx = async (file: File, onProgress?: ImportProgressCallback): Promise<ImportedContractContent> => {
+  onProgress?.({ current: 1, total: 2, label: "Carregando documento Word..." });
   const arrayBuffer = await file.arrayBuffer();
   const mammoth = (await import("mammoth")).default;
+  onProgress?.({ current: 2, total: 2, label: "Convertendo para HTML..." });
   const result = await mammoth.convertToHtml({ arrayBuffer });
   return {
     html: sanitizeImportedHtml(result.value),
@@ -315,10 +321,13 @@ const importSpreadsheet = async (file: File): Promise<ImportedContractContent> =
 
 // ── Public entry point ──
 
-export const importContractFile = async (file: File): Promise<ImportedContractContent> => {
+export const importContractFile = async (
+  file: File,
+  onProgress?: ImportProgressCallback,
+): Promise<ImportedContractContent> => {
   const extension = file.name.split(".").pop()?.toLowerCase();
-  if (extension === "docx") return importDocx(file);
+  if (extension === "docx") return importDocx(file, onProgress);
   if (extension === "xlsx" || extension === "xls" || extension === "csv") return importSpreadsheet(file);
-  if (extension === "pdf") return importPdf(file);
+  if (extension === "pdf") return importPdf(file, onProgress);
   throw new Error("Formato não suportado. Use PDF, Word (.docx) ou Excel (.xlsx/.xls).");
 };
