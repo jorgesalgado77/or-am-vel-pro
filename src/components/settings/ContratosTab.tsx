@@ -556,6 +556,50 @@ export function ContratosTab() {
 
   const isEditing = editingTemplate !== null || htmlContent !== "";
 
+  const handleVisualEditorSave = useCallback(async (html: string) => {
+    const tenantId = getTenantId();
+    if (!tenantId) { toast.error("Tenant não identificado"); return; }
+    try {
+      setSaving(true);
+      const { error } = await supabase.from("contract_templates").insert({
+        nome,
+        conteudo_html: html,
+        ativo: true,
+        tenant_id: tenantId,
+        template_type: "visual",
+      } as never);
+      if (error) { toast.error("Erro ao salvar: " + error.message); return; }
+      toast.success("Contrato salvo com sucesso!");
+      setVisualEditorMode(false);
+      fetchTemplates();
+    } catch (err) {
+      toast.error("Erro ao salvar contrato");
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  }, [nome]);
+
+  if (visualEditorMode) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="min-w-[200px] flex-1 max-w-md">
+            <Label className="mb-1 block text-xs">Nome do Modelo</Label>
+            <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome do contrato" />
+          </div>
+        </div>
+        <div className="h-[80vh]">
+          <ContractVisualEditor
+            onSave={handleVisualEditorSave}
+            onCancel={() => setVisualEditorMode(false)}
+            variables={AVAILABLE_VARIABLES}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <Card>
