@@ -1066,7 +1066,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
               </TabsTrigger>
               <TabsTrigger value="landing" className="gap-2 data-[state=active]:bg-[hsl(30,80%,50%)] data-[state=active]:text-white"><Globe className="h-4 w-4" />Landing Page</TabsTrigger>
               <TabsTrigger value="apis-config" className="gap-2 data-[state=active]:bg-[hsl(220,70%,50%)] data-[state=active]:text-white"><KeyRound className="h-4 w-4" />APIs (Config)</TabsTrigger>
-              <TabsTrigger value="canva" className="gap-2 data-[state=active]:bg-[hsl(180,60%,40%)] data-[state=active]:text-white"><Palette className="h-4 w-4" />Canva</TabsTrigger>
+              
               <TabsTrigger value="affiliates" className="gap-2 data-[state=active]:bg-[hsl(45,80%,45%)] data-[state=active]:text-white"><Gift className="h-4 w-4" />Afiliados</TabsTrigger>
               <TabsTrigger value="tutorials" className="gap-2 data-[state=active]:bg-[hsl(0,60%,50%)] data-[state=active]:text-white"><Film className="h-4 w-4" />Tutoriais</TabsTrigger>
               <TabsTrigger value="diagnostics" className="gap-2 data-[state=active]:bg-[hsl(280,60%,50%)] data-[state=active]:text-white"><Activity className="h-4 w-4" />Diagnóstico Login</TabsTrigger>
@@ -1362,6 +1362,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                 <TabsTrigger value="whatsapp" className="gap-2 data-[state=active]:bg-[hsl(142,70%,40%)] data-[state=active]:text-white"><MessageSquare className="h-4 w-4" />WhatsApp</TabsTrigger>
                 <TabsTrigger value="resend" className="gap-2 data-[state=active]:bg-[hsl(220,70%,50%)] data-[state=active]:text-white"><Mail className="h-4 w-4" />Resend</TabsTrigger>
                 <TabsTrigger value="gcalendar" className="gap-2 data-[state=active]:bg-[hsl(25,80%,50%)] data-[state=active]:text-white"><CalendarSync className="h-4 w-4" />Google Agenda</TabsTrigger>
+                <TabsTrigger value="canva" className="gap-2 data-[state=active]:bg-[hsl(180,60%,40%)] data-[state=active]:text-white"><Palette className="h-4 w-4" />Canva</TabsTrigger>
               </TabsList>
               <TabsContent value="whatsapp">
                 <AdminWhatsAppConfig />
@@ -1371,6 +1372,9 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
               </TabsContent>
               <TabsContent value="gcalendar">
                 <AdminGoogleCalendarConfig />
+              </TabsContent>
+              <TabsContent value="canva">
+                <AdminCanvaConfig />
               </TabsContent>
             </Tabs>
           </TabsContent>
