@@ -134,8 +134,53 @@ const DRAG_VARIABLES_SCRIPT = `
     input.value = currentText;
     input.style.cssText = 'width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:monospace;color:#1e293b;outline:none;box-sizing:border-box;transition:border-color 0.15s;';
     input.addEventListener('focus', function() { input.style.borderColor = '#3b82f6'; });
-    input.addEventListener('blur', function() { input.style.borderColor = '#e2e8f0'; });
+    input.addEventListener('blur', function() { setTimeout(function() { input.style.borderColor = '#e2e8f0'; }, 100); });
     modal.appendChild(input);
+
+    // Variable dropdown
+    var dropLabel = document.createElement('div');
+    dropLabel.textContent = 'Ou selecione uma variável';
+    dropLabel.style.cssText = 'font-size:12px;font-weight:500;color:#475569;margin-top:12px;margin-bottom:6px;';
+    modal.appendChild(dropLabel);
+
+    var searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.placeholder = 'Buscar variável...';
+    searchInput.style.cssText = 'width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px 8px 0 0;font-size:12px;color:#1e293b;outline:none;box-sizing:border-box;border-bottom:none;';
+    modal.appendChild(searchInput);
+
+    var varList = document.createElement('div');
+    varList.style.cssText = 'max-height:150px;overflow-y:auto;border:1.5px solid #e2e8f0;border-radius:0 0 8px 8px;box-sizing:border-box;';
+
+    var sorted = ALL_VARIABLES.slice().sort(function(a, b) { return a.var.localeCompare(b.var); });
+
+    function renderVarList(filter) {
+      varList.innerHTML = '';
+      var items = filter ? sorted.filter(function(v) { return v.var.toLowerCase().indexOf(filter.toLowerCase()) >= 0 || v.desc.toLowerCase().indexOf(filter.toLowerCase()) >= 0; }) : sorted;
+      items.forEach(function(v) {
+        var item = document.createElement('div');
+        item.style.cssText = 'padding:6px 10px;cursor:pointer;transition:background 0.1s;border-bottom:1px solid #f1f5f9;';
+        item.innerHTML = '<div style="font-size:12px;font-family:monospace;color:#2563eb;">' + v.var + '</div><div style="font-size:10px;color:#94a3b8;">' + v.desc + '</div>';
+        item.addEventListener('mouseenter', function() { item.style.background = '#f0f9ff'; });
+        item.addEventListener('mouseleave', function() { item.style.background = '#fff'; });
+        item.addEventListener('click', function() {
+          input.value = v.var;
+          input.style.borderColor = '#3b82f6';
+        });
+        varList.appendChild(item);
+      });
+      if (items.length === 0) {
+        var empty = document.createElement('div');
+        empty.style.cssText = 'padding:10px;text-align:center;color:#94a3b8;font-size:11px;';
+        empty.textContent = 'Nenhuma variável encontrada';
+        varList.appendChild(empty);
+      }
+    }
+
+    searchInput.addEventListener('input', function() { renderVarList(searchInput.value); });
+    renderVarList('');
+    modal.appendChild(varList);
+
     // Buttons
     var btnRow = document.createElement('div');
     btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin-top:20px;';
@@ -144,7 +189,7 @@ const DRAG_VARIABLES_SCRIPT = `
     cancelBtn.style.cssText = 'padding:8px 16px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:13px;font-weight:500;cursor:pointer;transition:background 0.1s;';
     cancelBtn.addEventListener('mouseenter', function() { cancelBtn.style.background = '#f8fafc'; });
     cancelBtn.addEventListener('mouseleave', function() { cancelBtn.style.background = '#fff'; });
-    cancelBtn.addEventListener('click', function() { backdrop.remove(); });
+    cancelBtn.addEventListener('click', function() { backdrop.remove(); document.removeEventListener('keydown', keyHandler); });
     var saveBtn = document.createElement('button');
     saveBtn.textContent = 'Salvar';
     saveBtn.style.cssText = 'padding:8px 20px;border-radius:8px;border:none;background:#3b82f6;color:#fff;font-size:13px;font-weight:500;cursor:pointer;transition:background 0.1s;';
@@ -159,20 +204,18 @@ const DRAG_VARIABLES_SCRIPT = `
         notifyPositionChange(targetEl);
       }
       backdrop.remove();
+      document.removeEventListener('keydown', keyHandler);
     });
     btnRow.appendChild(cancelBtn);
     btnRow.appendChild(saveBtn);
     modal.appendChild(btnRow);
     backdrop.appendChild(modal);
-    // Close on backdrop click
-    backdrop.addEventListener('click', function(e) { if (e.target === backdrop) backdrop.remove(); });
-    // Close on Escape, confirm on Enter
+    backdrop.addEventListener('click', function(e) { if (e.target === backdrop) { backdrop.remove(); document.removeEventListener('keydown', keyHandler); } });
     var keyHandler = function(e) {
       if (e.key === 'Escape') { backdrop.remove(); document.removeEventListener('keydown', keyHandler); }
-      if (e.key === 'Enter') { saveBtn.click(); document.removeEventListener('keydown', keyHandler); }
+      if (e.key === 'Enter') { saveBtn.click(); }
     };
     document.addEventListener('keydown', keyHandler);
-    // Inject animation styles
     if (!document.getElementById('edit-modal-anim')) {
       var animStyle = document.createElement('style');
       animStyle.id = 'edit-modal-anim';
