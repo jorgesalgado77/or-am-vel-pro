@@ -526,7 +526,110 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     }
   };
 
-  const filteredVars = variables
+  const [exportingDocx, setExportingDocx] = useState(false);
+
+  const handleExportDocx = async () => {
+    setExportingDocx(true);
+    try {
+      const sections = [];
+
+      for (let pageIdx = 0; pageIdx < pages.length; pageIdx++) {
+        const page = pages[pageIdx];
+        const sortedEls = [...page.elements].sort((a, b) => a.zIndex - b.zIndex);
+        const children: (Paragraph)[] = [];
+
+        // Group elements roughly by vertical position for document flow
+        const textEls = sortedEls.filter(el => el.type === "text" || ((el.type === "rect" || el.type === "circle") && el.text));
+        const imageEls = sortedEls.filter(el => el.type === "image" && el.imageUrl);
+        const lineEls = sortedEls.filter(el => el.type === "line");
+
+        // Sort by Y position for natural reading order
+        const flowEls = [...textEls, ...imageEls, ...lineEls].sort((a, b) => a.y - b.y || a.x - b.x);
+
+        for (const el of flowEls) {
+          if (el.type === "line") {
+            children.push(new Paragraph({
+              border: { bottom: { style: BorderStyle.SINGLE, size: el.strokeWidth * 4, color: el.stroke.replace("#", "") } },
+              children: [],
+            }));
+            continue;
+          }
+
+          if (el.type === "image" && el.imageUrl) {
+            try {
+              // Convert data URL to buffer
+              const base64 = el.imageUrl.split(",")[1];
+              const binary = atob(base64);
+              const bytes = new Uint8Array(binary.length);
+              for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+              const ext = el.imageUrl.includes("image/png") ? "png" : "jpg";
+              children.push(new Paragraph({
+                children: [new ImageRun({
+                  type: ext as "png" | "jpg",
+                  data: bytes,
+                  transformation: { width: el.width * 0.75, height: el.height * 0.75 },
+                })],
+              }));
+            } catch { /* skip broken images */ }
+            continue;
+          }
+
+          // Text elements
+          const text = el.text || "";
+          if (!text.trim()) continue;
+
+          const alignment = el.textAlign === "center" ? AlignmentType.CENTER
+            : el.textAlign === "right" ? AlignmentType.RIGHT
+            : el.textAlign === "justify" ? AlignmentType.JUSTIFIED
+            : AlignmentType.LEFT;
+
+          const textLines = text.split("\n");
+          for (const line of textLines) {
+            children.push(new Paragraph({
+              alignment,
+              spacing: { after: 80 },
+              children: [new TextRun({
+                text: line,
+                font: el.fontFamily,
+                size: Math.round(el.fontSize * 1.5), // px to half-points
+                bold: el.fontWeight === "bold",
+                italics: el.fontStyle === "italic",
+                underline: el.textDecoration?.includes("underline") ? {} : undefined,
+                strike: el.textDecoration?.includes("line-through") || false,
+                color: el.color?.replace("#", "") || "000000",
+              })],
+            }));
+          }
+        }
+
+        if (children.length === 0) {
+          children.push(new Paragraph({ children: [] }));
+        }
+
+        sections.push({
+          properties: {
+            page: {
+              size: { width: 11906, height: 16838 }, // A4 in DXA
+              margin: { top: 720, right: 720, bottom: 720, left: 720 },
+            },
+          },
+          children,
+        });
+      }
+
+      const doc = new Document({ sections });
+      const blob = await Packer.toBlob(doc);
+      saveAs(blob, "contrato.docx");
+      toast.success("DOCX exportado com sucesso! Abra no Word para editar.");
+    } catch (err) {
+      console.error("Export DOCX error:", err);
+      toast.error("Erro ao exportar DOCX");
+    } finally {
+      setExportingDocx(false);
+    }
+  };
+
+
     .filter(v => !varSearch || v.var.toLowerCase().includes(varSearch.toLowerCase()) || v.desc.toLowerCase().includes(varSearch.toLowerCase()))
     .sort((a, b) => a.var.localeCompare(b.var));
 
