@@ -1029,6 +1029,10 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     await deleteTemplate(id);
   };
 
+  const handleDuplicateCustom = async (ct: CustomTemplate) => {
+    await saveTemplate(`${ct.name} (cópia)`, ct.description || "", ct.pages_data);
+  };
+
   const handleRenameCustom = async (id: string) => {
     if (!editName.trim()) return;
     await updateTemplate(id, { name: editName.trim() });
@@ -1081,6 +1085,9 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                       {ct.description && <span className="text-xs text-muted-foreground leading-tight">{ct.description}</span>}
                     </button>
                     <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleDuplicateCustom(ct); }} title="Duplicar">
+                        <Copy className="h-3 w-3" />
+                      </Button>
                       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setEditingCustomId(ct.id); setEditName(ct.name); }} title="Renomear">
                         <Pencil className="h-3 w-3" />
                       </Button>

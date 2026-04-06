@@ -358,6 +358,122 @@ export function getContractTemplates(): ContractTemplate[] {
       ],
     },
     {
+      id: "ordem-servico",
+      name: "Ordem de Serviço",
+      description: "Modelo completo de OS com checklist de serviços e materiais",
+      icon: "🔧",
+      pages: [
+        {
+          id: tplId(), backgroundOpacity: 0.5, elements: [
+            makeRect(0, 0, 794, 70, { fill: "#b45309", stroke: "transparent" }),
+            makeText(40, 18, 400, 30, "ORDEM DE SERVIÇO", { fontSize: 20, fontWeight: "bold", color: "#ffffff" }),
+            makeText(40, 48, 200, 18, "OS Nº {{numero_os}}", { fontSize: 11, color: "#fde68a" }),
+            makeText(500, 25, 254, 20, "Data: {{data_os}}", { fontSize: 12, color: "#fde68a", textAlign: "right" }),
+            makeText(500, 48, 254, 18, "Prioridade: {{prioridade}}", { fontSize: 11, color: "#fde68a", textAlign: "right" }),
+
+            makeText(40, 90, 714, 20, "SOLICITANTE", { fontSize: 12, fontWeight: "bold", color: "#b45309" }),
+            makeLine(40, 108, 714, { stroke: "#b45309" }),
+            makeText(40, 115, 350, 20, "Nome: {{cliente_nome}}"),
+            makeText(400, 115, 350, 20, "Tel: {{cliente_telefone}}"),
+            makeText(40, 138, 714, 20, "Endereço: {{cliente_endereco}}"),
+
+            makeText(40, 175, 714, 20, "DESCRIÇÃO DO SERVIÇO", { fontSize: 12, fontWeight: "bold", color: "#b45309" }),
+            makeLine(40, 193, 714, { stroke: "#b45309" }),
+            makeText(40, 200, 714, 60, "{{descricao_servico}}", { fontSize: 11, color: "#374151" }),
+
+            makeText(40, 275, 714, 20, "SERVIÇOS REALIZADOS", { fontSize: 12, fontWeight: "bold", color: "#b45309" }),
+            makeLine(40, 293, 714, { stroke: "#b45309" }),
+            makeTable(40, 300, 714, 140, [
+              ["Serviço", "Qtd", "Valor Unit.", "Subtotal"],
+              ["{{servico_1}}", "{{qtd_1}}", "{{valor_unit_1}}", "{{subtotal_1}}"],
+              ["{{servico_2}}", "{{qtd_2}}", "{{valor_unit_2}}", "{{subtotal_2}}"],
+              ["{{servico_3}}", "{{qtd_3}}", "{{valor_unit_3}}", "{{subtotal_3}}"],
+            ]),
+
+            makeText(40, 460, 714, 20, "MATERIAIS UTILIZADOS", { fontSize: 12, fontWeight: "bold", color: "#b45309" }),
+            makeLine(40, 478, 714, { stroke: "#b45309" }),
+            makeTable(40, 485, 714, 110, [
+              ["Material", "Qtd", "Valor"],
+              ["{{material_1}}", "{{qtd_mat_1}}", "{{valor_mat_1}}"],
+              ["{{material_2}}", "{{qtd_mat_2}}", "{{valor_mat_2}}"],
+            ]),
+
+            makeText(40, 615, 714, 20, "RESUMO FINANCEIRO", { fontSize: 12, fontWeight: "bold", color: "#b45309" }),
+            makeLine(40, 633, 714, { stroke: "#b45309" }),
+            makeText(40, 640, 350, 20, "Mão de Obra: {{valor_mao_obra}}"),
+            makeText(400, 640, 350, 20, "Materiais: {{valor_materiais}}"),
+            makeRect(40, 670, 714, 45, { fill: "#fffbeb", stroke: "#b45309", borderRadius: 6, text: "TOTAL: {{valor_total}}", fontSize: 18, fontWeight: "bold", color: "#b45309", textAlign: "center" }),
+
+            makeText(40, 735, 714, 20, "OBSERVAÇÕES", { fontSize: 12, fontWeight: "bold", color: "#b45309" }),
+            makeLine(40, 753, 714, { stroke: "#b45309" }),
+            makeText(40, 760, 714, 60, "{{observacoes}}", { fontSize: 11, color: "#374151" }),
+
+            makeText(40, 850, 230, 20, "______________________________", { textAlign: "center" }),
+            makeText(40, 875, 230, 15, "Técnico Responsável", { textAlign: "center", fontSize: 10, color: "#6b7280" }),
+            makeText(282, 850, 230, 20, "______________________________", { textAlign: "center" }),
+            makeText(282, 875, 230, 15, "Solicitante", { textAlign: "center", fontSize: 10, color: "#6b7280" }),
+            makeText(524, 850, 230, 20, "______________________________", { textAlign: "center" }),
+            makeText(524, 875, 230, 15, "Aprovação", { textAlign: "center", fontSize: 10, color: "#6b7280" }),
+          ],
+        },
+      ],
+    },
+    {
+      id: "recibo-pagamento",
+      name: "Recibo de Pagamento",
+      description: "Recibo comprovante de pagamento com dados do pagador e beneficiário",
+      icon: "💰",
+      pages: [
+        {
+          id: tplId(), backgroundOpacity: 0.5, elements: [
+            makeRect(0, 0, 794, 60, { fill: "#15803d", stroke: "transparent" }),
+            makeText(40, 15, 500, 28, "RECIBO DE PAGAMENTO", { fontSize: 20, fontWeight: "bold", color: "#ffffff" }),
+            makeText(550, 20, 204, 20, "Nº {{numero_recibo}}", { fontSize: 12, color: "#bbf7d0", textAlign: "right" }),
+
+            makeRect(40, 80, 714, 55, { fill: "#f0fdf4", stroke: "#15803d", borderRadius: 8, text: "VALOR: {{valor_total}}", fontSize: 28, fontWeight: "bold", color: "#15803d", textAlign: "center" }),
+            makeText(40, 140, 714, 18, "({{valor_extenso}})", { fontSize: 11, color: "#6b7280", textAlign: "center" }),
+
+            makeText(40, 180, 714, 20, "PAGADOR", { fontSize: 12, fontWeight: "bold", color: "#15803d" }),
+            makeLine(40, 198, 714, { stroke: "#15803d" }),
+            makeText(40, 205, 714, 20, "Nome: {{cliente_nome}}"),
+            makeText(40, 228, 350, 20, "CPF/CNPJ: {{cliente_cpf}}"),
+            makeText(400, 228, 350, 20, "Tel: {{cliente_telefone}}"),
+            makeText(40, 251, 714, 20, "Endereço: {{cliente_endereco}}"),
+
+            makeText(40, 290, 714, 20, "BENEFICIÁRIO", { fontSize: 12, fontWeight: "bold", color: "#15803d" }),
+            makeLine(40, 308, 714, { stroke: "#15803d" }),
+            makeText(40, 315, 714, 20, "Razão Social: {{empresa_nome}}"),
+            makeText(40, 338, 350, 20, "CNPJ: {{empresa_cnpj}}"),
+            makeText(400, 338, 350, 20, "Tel: {{empresa_telefone}}"),
+
+            makeText(40, 378, 714, 20, "DETALHAMENTO", { fontSize: 12, fontWeight: "bold", color: "#15803d" }),
+            makeLine(40, 396, 714, { stroke: "#15803d" }),
+            makeTable(40, 403, 714, 110, [
+              ["Descrição", "Referência", "Valor"],
+              ["{{descricao_pagamento}}", "{{referencia}}", "{{valor_item}}"],
+              ["Desconto", "—", "{{desconto}}"],
+              ["Total Pago", "—", "{{valor_total}}"],
+            ]),
+
+            makeText(40, 535, 714, 20, "FORMA DE PAGAMENTO", { fontSize: 12, fontWeight: "bold", color: "#15803d" }),
+            makeLine(40, 553, 714, { stroke: "#15803d" }),
+            makeText(40, 560, 350, 20, "Forma: {{forma_pagamento}}"),
+            makeText(400, 560, 350, 20, "Data: {{data_pagamento}}"),
+            makeText(40, 583, 714, 20, "Observações: {{observacoes_pagamento}}"),
+
+            makeRect(40, 625, 714, 50, { fill: "#f0fdf4", stroke: "#15803d", borderRadius: 6 }),
+            makeText(50, 635, 694, 30, "Declaro ter recebido a importância acima especificada, referente aos serviços/produtos descritos, dando plena e total quitação.", { fontSize: 10, color: "#374151" }),
+
+            makeText(40, 710, 714, 18, "{{cidade_foro}}, {{data_pagamento}}", { fontSize: 12, color: "#374151", textAlign: "center" }),
+
+            makeText(200, 770, 394, 20, "______________________________", { textAlign: "center" }),
+            makeText(200, 795, 394, 15, "{{empresa_nome}}", { textAlign: "center", fontSize: 10, color: "#6b7280" }),
+            makeText(200, 810, 394, 15, "Beneficiário", { textAlign: "center", fontSize: 9, color: "#9ca3af" }),
+          ],
+        },
+      ],
+    },
+    {
       id: "em-branco",
       name: "Em Branco",
       description: "Página em branco para criar seu contrato do zero",
