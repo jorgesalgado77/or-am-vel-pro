@@ -148,6 +148,11 @@ export function ContratosTab() {
         });
       } else if (e.data?.type === 'all-variable-positions') {
         setVarPositions(e.data.positions);
+      } else if (e.data?.type === 'variable-dropped') {
+        const pos = e.data;
+        setVarPositions((prev) => [...prev, { idx: pos.idx, varText: pos.varText, left: pos.left, top: pos.top, width: pos.width, height: pos.height }]);
+        // Also insert variable into the HTML content so it persists
+        setHtmlContent((prev) => prev + pos.varText);
       }
     };
     window.addEventListener('message', handler);
