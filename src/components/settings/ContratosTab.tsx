@@ -116,6 +116,7 @@ export function ContratosTab() {
   const [viewMode, setViewMode] = useState<"editor" | "preview">("editor");
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState("");
   const [editorKey, setEditorKey] = useState(0);
   const [showHighlights, setShowHighlights] = useState(true);
   const [autoReplace, setAutoReplace] = useState(true);
@@ -271,9 +272,11 @@ export function ContratosTab() {
     // PDF/DOCX import — extract, auto-replace variables, show preview modal
     if (extension === "pdf" || extension === "docx") {
       setImporting(true);
-      toast.info(`Importando ${file.name}... Aguarde.`);
+      setImportProgress("Iniciando importação...");
       try {
-        const imported = await importContractFile(file);
+        const imported = await importContractFile(file, (info) => {
+          setImportProgress(info.label);
+        });
         const result = replaceDetectedFieldsWithPlaceholders(imported.html);
 
         setPdfPreview({
@@ -288,12 +291,14 @@ export function ContratosTab() {
           fileName: file.name,
         });
         toast.dismiss();
+        setImportProgress("");
       } catch (err) {
         const message = err instanceof Error ? err.message : "Erro ao importar arquivo";
         toast.error(message);
         console.error("[Import Template Error]", err);
       } finally {
         setImporting(false);
+        setImportProgress("");
         e.target.value = "";
       }
       return;
