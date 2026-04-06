@@ -630,7 +630,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       for (let pageIdx = 0; pageIdx < pages.length; pageIdx++) {
         const page = pages[pageIdx];
         const sortedEls = [...page.elements].sort((a, b) => a.zIndex - b.zIndex);
-        const children: (Paragraph)[] = [];
+        const children: (Paragraph | Table)[] = [];
 
         // Group elements roughly by vertical position for document flow
         const textEls = sortedEls.filter(el => el.type === "text" || ((el.type === "rect" || el.type === "circle") && el.text));
