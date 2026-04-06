@@ -45,7 +45,32 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
     setLinkCopied(false);
     setFieldReplacements([]);
     setShowSummary(false);
+    setDragMode(false);
+    setVarPositions([]);
   }, [initialHtml, externalContractId]);
+
+  // Listen for position changes from iframe
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === 'variable-position-change') {
+        const pos = e.data as VariablePosition & { type: string };
+        setVarPositions((prev) => {
+          const idx = prev.findIndex((p) => p.idx === pos.idx);
+          const updated = { idx: pos.idx, varText: pos.varText, left: pos.left, top: pos.top, width: pos.width, height: pos.height };
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = updated;
+            return next;
+          }
+          return [...prev, updated];
+        });
+      } else if (e.data?.type === 'all-variable-positions') {
+        setVarPositions(e.data.positions);
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, []);
 
   useEffect(() => {
     if (viewMode === "editor" && editorRef.current) {
