@@ -683,14 +683,22 @@ export function ContratosTab() {
               <div className="mb-2 flex items-center gap-2">
                 <Info className="h-4 w-4 text-muted-foreground" />
                 <span className="text-xs font-medium text-foreground">Variáveis disponíveis</span>
-                <span className="text-xs text-muted-foreground">(clique para inserir)</span>
+                <span className="text-xs text-muted-foreground">
+                  {dragMode ? "(arraste para o contrato)" : "(clique para inserir)"}
+                </span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {AVAILABLE_VARIABLES.map((v) => (
                   <button
                     key={v.var}
-                    onClick={() => insertVariable(v.var)}
-                    className="rounded-md bg-primary/10 px-2 py-1 font-mono text-xs text-primary transition-colors hover:bg-primary/20"
+                    onClick={() => !dragMode && insertVariable(v.var)}
+                    draggable={dragMode}
+                    onDragStart={(e) => {
+                      if (!dragMode) return;
+                      e.dataTransfer.setData("text/plain", v.var);
+                      e.dataTransfer.effectAllowed = "copy";
+                    }}
+                    className={`rounded-md bg-primary/10 px-2 py-1 font-mono text-xs text-primary transition-colors hover:bg-primary/20 ${dragMode ? "cursor-grab active:cursor-grabbing" : ""}`}
                     title={v.desc}
                   >
                     {v.var}
