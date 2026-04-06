@@ -400,10 +400,12 @@ export function MetasTetosTab() {
               <Input
                 type="text"
                 inputMode="numeric"
-                value={form.valor ? (form.valor / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}
+                value={form.valor ? form.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}
                 onChange={e => {
+                  // Remove tudo exceto dígitos, trata como centavos
                   const raw = e.target.value.replace(/\D/g, '');
-                  setForm(f => ({ ...f, valor: Number(raw) }));
+                  const cents = Number(raw);
+                  setForm(f => ({ ...f, valor: cents / 100 }));
                 }}
                 placeholder="0,00"
               />
