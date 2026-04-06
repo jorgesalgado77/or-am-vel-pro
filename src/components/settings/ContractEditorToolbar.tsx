@@ -6,11 +6,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import {
   Undo2, Redo2, Bold, Italic, Underline, Strikethrough, Type, Paintbrush,
   AlignLeft, AlignCenter, AlignRight, AlignJustify, List, ListOrdered,
-  RemoveFormatting, Square, Circle, Minus, Image, MousePointer
+  RemoveFormatting, Square, Circle, Minus, Image, MousePointer, Table2
 } from "lucide-react";
 
 export type ShapeType = "rect" | "circle" | "line";
-export type ToolType = "select" | "shape" | "text" | "image";
+export type ToolType = "select" | "shape" | "text" | "image" | "table";
 
 interface ContractEditorToolbarProps {
   activeTool: ToolType;
