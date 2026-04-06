@@ -636,9 +636,10 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         const textEls = sortedEls.filter(el => el.type === "text" || ((el.type === "rect" || el.type === "circle") && el.text));
         const imageEls = sortedEls.filter(el => el.type === "image" && el.imageUrl);
         const lineEls = sortedEls.filter(el => el.type === "line");
+        const tableEls = sortedEls.filter(el => el.type === "table" && el.tableData);
 
         // Sort by Y position for natural reading order
-        const flowEls = [...textEls, ...imageEls, ...lineEls].sort((a, b) => a.y - b.y || a.x - b.x);
+        const flowEls = [...textEls, ...imageEls, ...lineEls, ...tableEls].sort((a, b) => a.y - b.y || a.x - b.x);
 
         for (const el of flowEls) {
           if (el.type === "line") {
