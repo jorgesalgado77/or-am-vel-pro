@@ -188,18 +188,8 @@ export const renderPageToBase64 = async (
   canvas.width = viewport.width;
   canvas.height = viewport.height;
   const ctx = canvas.getContext("2d")!;
-  try {
-    await page.render({ canvasContext: ctx, viewport } as any).promise;
-  } catch (renderErr) {
-    console.warn(`[PDF] page.render with .promise failed for page ${pageNumber}, trying without .promise`);
-    // Some pdfjs versions return a promise directly instead of RenderTask
-    const renderResult = page.render({ canvasContext: ctx, viewport } as any);
-    if (renderResult && typeof renderResult.then === "function") {
-      await renderResult;
-    } else if (renderResult && renderResult.promise) {
-      await renderResult.promise;
-    }
-  }
+  const renderTask = page.render({ canvasContext: ctx, viewport } as any);
+  await renderTask.promise;
   return canvas.toDataURL("image/png");
 };
 
