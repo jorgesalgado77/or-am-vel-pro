@@ -150,11 +150,17 @@ export function ContractEditorToolbar(props: ContractEditorToolbarProps) {
 
       {/* Font family */}
       <Select value={fontFamily} onValueChange={onFontFamilyChange}>
-        <SelectTrigger className="h-8 w-[120px] text-xs">
+        <SelectTrigger className="h-8 w-[150px] text-xs">
           <SelectValue />
         </SelectTrigger>
-        <SelectContent>
-          {FONTS.map(f => (
+        <SelectContent className="max-h-[300px]">
+          <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Sistema</div>
+          {SYSTEM_FONTS.map(f => (
+            <SelectItem key={f} value={f} className="text-xs" style={{ fontFamily: f }}>{f}</SelectItem>
+          ))}
+          <div className="h-px bg-border my-1" />
+          <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Google Fonts</div>
+          {GOOGLE_FONTS.sort().map(f => (
             <SelectItem key={f} value={f} className="text-xs" style={{ fontFamily: f }}>{f}</SelectItem>
           ))}
         </SelectContent>
