@@ -30,6 +30,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Undo2,
 } from "lucide-react";
 import { removeHighlights } from "@/lib/contractImport";
 import { EditorToolbar } from "./EditorToolbar";
@@ -140,6 +141,18 @@ export function PdfImportPreviewModal({
   const editorRef = useRef<HTMLDivElement>(null);
   const [editorKey, setEditorKey] = useState(0);
   const [varSearch, setVarSearch] = useState("");
+  const [revertedVars, setRevertedVars] = useState<Set<number>>(new Set());
+
+  const undoReplacement = useCallback((index: number) => {
+    const r = replacements[index];
+    if (!r) return;
+    setRevertedVars((prev) => new Set(prev).add(index));
+    setEditedHtml((prev) => {
+      const html = prev !== null ? prev : (useAutoReplace ? processedHtml : imported.html);
+      return html.split(r.variable).join(r.originalValue);
+    });
+    setEditorKey((k) => k + 1);
+  }, [replacements, useAutoReplace, processedHtml, imported.html]);
 
   const insertVariableAtCursor = useCallback((variable: string) => {
     if (!editorRef.current) return;
@@ -170,6 +183,7 @@ export function PdfImportPreviewModal({
   const handleAutoReplaceChange = (val: boolean) => {
     setUseAutoReplace(val);
     setEditedHtml(null);
+    setRevertedVars(new Set());
     setEditorKey((k) => k + 1);
   };
 
@@ -376,20 +390,37 @@ export function PdfImportPreviewModal({
                       Campos detectados e substituídos
                     </h4>
                     <div className="space-y-1.5">
-                      {replacements.map((r, i) => (
+                      {replacements.map((r, i) => {
+                        const isReverted = revertedVars.has(i);
+                        return (
                         <div
                           key={i}
-                          className="flex items-center gap-2 rounded-md bg-secondary/50 px-3 py-2 text-sm"
+                          className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm ${isReverted ? "bg-muted/50 opacity-60" : "bg-secondary/50"}`}
                         >
-                          <Badge variant="secondary" className="text-xs font-mono shrink-0">
+                          <Badge variant="secondary" className={`text-xs font-mono shrink-0 ${isReverted ? "line-through" : ""}`}>
                             {r.variable}
                           </Badge>
                           <span className="text-muted-foreground">←</span>
-                          <span className="text-xs text-muted-foreground truncate">
+                          <span className="text-xs text-muted-foreground truncate flex-1">
                             {r.label}: <span className="text-foreground">{r.originalValue}</span>
                           </span>
+                          {!isReverted && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 shrink-0 text-xs gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => undoReplacement(i)}
+                            >
+                              <Undo2 className="h-3 w-3" />
+                              Desfazer
+                            </Button>
+                          )}
+                          {isReverted && (
+                            <span className="text-xs text-muted-foreground italic shrink-0">Revertido</span>
+                          )}
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
