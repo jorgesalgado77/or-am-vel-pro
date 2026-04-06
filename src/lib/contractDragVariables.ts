@@ -511,7 +511,7 @@ const DRAG_VARIABLES_STYLES = `
 /**
  * Inject drag & resize scripts/styles into contract preview HTML.
  */
-export function injectDragVariablesIntoHtml(previewHtml: string, gridSize: number = 8): string {
+export function injectDragVariablesIntoHtml(previewHtml: string, gridSize: number = 8, variables?: { var: string; desc: string }[]): string {
   let result = previewHtml;
 
   const gridCSS = `.contract-page, [data-contract-page] { position: relative !important; } .contract-page::after, [data-contract-page]::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 50; background-image: linear-gradient(to right, hsl(210 20% 80% / 0.15) 1px, transparent 1px), linear-gradient(to bottom, hsl(210 20% 80% / 0.15) 1px, transparent 1px); background-size: ${gridSize}px ${gridSize}px; background-position: 0 0; }`;
@@ -521,7 +521,10 @@ export function injectDragVariablesIntoHtml(previewHtml: string, gridSize: numbe
     `<style>${DRAG_VARIABLES_STYLES}</style>\n<style id="drag-grid-style">${gridCSS}</style>\n</head>`
   );
 
-  const scriptWithGrid = DRAG_VARIABLES_SCRIPT.replace('__GRID_SIZE__', String(gridSize));
+  const varsJson = JSON.stringify(variables || []);
+  const scriptWithGrid = DRAG_VARIABLES_SCRIPT
+    .replace('__GRID_SIZE__', String(gridSize))
+    .replace('__ALL_VARIABLES__', varsJson);
 
   result = result.replace(
     '</body>',
