@@ -375,6 +375,7 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
             />
           ) : (
             <iframe
+              ref={iframeRef}
               title={`Preview do contrato de ${clientName}`}
               className="h-[70vh] w-full bg-muted/20"
               srcDoc={previewDocument}
