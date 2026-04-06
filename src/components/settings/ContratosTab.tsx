@@ -612,15 +612,6 @@ export function ContratosTab() {
                     >
                       <Trash2 className="h-4 w-4" />
                 </Button>
-                <Button
-                  variant={dragMode ? "default" : "outline"}
-                  size="sm"
-                  className="gap-1"
-                  onClick={handleToggleDragMode}
-                >
-                  <Move className="h-4 w-4" />
-                  {dragMode ? "Aplicar Posições" : "Mover Variáveis"}
-                </Button>
                   </div>
                 </div>
               ))}
