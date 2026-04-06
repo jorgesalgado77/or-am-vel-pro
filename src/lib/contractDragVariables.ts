@@ -132,14 +132,7 @@ const DRAG_VARIABLES_SCRIPT = `
     editBtn.addEventListener('mouseleave', function() { editBtn.style.background = 'transparent'; });
     editBtn.addEventListener('click', function() {
       if (menu._targetEl) {
-        var currentText = menu._targetEl.getAttribute('data-var-text') || '';
-        var newText = prompt('Editar texto da variável:', currentText);
-        if (newText !== null && newText.trim() !== '') {
-          menu._targetEl.setAttribute('data-var-text', newText);
-          var inner = menu._targetEl.querySelector('.drag-variable-inner');
-          if (inner) inner.textContent = newText;
-          notifyPositionChange(menu._targetEl);
-        }
+        showEditModal(menu._targetEl);
       }
       menu.style.display = 'none';
     });
