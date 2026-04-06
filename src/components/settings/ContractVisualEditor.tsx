@@ -78,6 +78,11 @@ function createDefaultElement(type: CanvasElement["type"], x: number, y: number)
     case "line": return { ...base, width: 200, height: 2, strokeWidth: 2, stroke: "#000000" };
     case "text": return { ...base, text: "Texto", width: 200, height: 40, stroke: "transparent", strokeWidth: 0 };
     case "image": return { ...base, width: 200, height: 150, stroke: "#cccccc" };
+    case "table": return {
+      ...base, width: 500, height: 160, fill: "#ffffff", stroke: "#333333",
+      tableData: [["Coluna 1", "Coluna 2", "Coluna 3"], ["", "", ""], ["", "", ""]],
+      tableRows: 3, tableCols: 3,
+    };
     default: return base;
   }
 }
