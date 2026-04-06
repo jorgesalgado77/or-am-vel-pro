@@ -1412,6 +1412,93 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         </div>
       )}
 
+      {/* PDF Import Settings Dialog */}
+      {showPdfSettings && pendingPdfFile && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => { setShowPdfSettings(false); setPendingPdfFile(null); }}>
+          <div className="bg-background rounded-xl border border-border p-6 w-[440px] shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-foreground mb-1">Configurações de Importação</h3>
+            <p className="text-xs text-muted-foreground mb-5">
+              Arquivo: <span className="font-medium text-foreground">{pendingPdfFile.name}</span>
+              {" "}({(pendingPdfFile.size / 1024 / 1024).toFixed(1)} MB)
+            </p>
+
+            <div className="space-y-5">
+              {/* Scale / Resolution */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-foreground">Resolução (escala)</label>
+                  <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-0.5 rounded">{pdfImportSettings.scale}x</span>
+                </div>
+                <input
+                  type="range" min={0.5} max={3} step={0.25}
+                  value={pdfImportSettings.scale}
+                  onChange={e => setPdfImportSettings(s => ({ ...s, scale: Number(e.target.value) }))}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-[10px] text-muted-foreground">
+                  <span>0.5x — Rápido</span>
+                  <span>1.5x — Padrão</span>
+                  <span>3x — Alta qualidade</span>
+                </div>
+              </div>
+
+              {/* Format */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Formato da imagem</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPdfImportSettings(s => ({ ...s, format: "jpeg" }))}
+                    className={`flex-1 rounded-lg border-2 px-3 py-2 text-xs font-medium transition-all ${pdfImportSettings.format === "jpeg" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-muted-foreground/50"}`}
+                  >
+                    JPEG <span className="block text-[10px] font-normal mt-0.5">Menor tamanho, leve perda</span>
+                  </button>
+                  <button
+                    onClick={() => setPdfImportSettings(s => ({ ...s, format: "png" }))}
+                    className={`flex-1 rounded-lg border-2 px-3 py-2 text-xs font-medium transition-all ${pdfImportSettings.format === "png" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-muted-foreground/50"}`}
+                  >
+                    PNG <span className="block text-[10px] font-normal mt-0.5">Sem perda, maior tamanho</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* JPEG Quality */}
+              {pdfImportSettings.format === "jpeg" && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-foreground">Qualidade JPEG</label>
+                    <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-0.5 rounded">{Math.round(pdfImportSettings.quality * 100)}%</span>
+                  </div>
+                  <input
+                    type="range" min={0.3} max={1} step={0.05}
+                    value={pdfImportSettings.quality}
+                    onChange={e => setPdfImportSettings(s => ({ ...s, quality: Number(e.target.value) }))}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-[10px] text-muted-foreground">
+                    <span>30% — Comprimido</span>
+                    <span>85% — Padrão</span>
+                    <span>100% — Máxima</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Estimated info */}
+              <div className="rounded-lg bg-muted/40 border border-border px-3 py-2 text-[11px] text-muted-foreground">
+                💡 Escala maior = imagem mais nítida, mas importação mais lenta e maior uso de memória.
+                {pdfImportSettings.scale >= 2.5 && " ⚠️ Escalas acima de 2.5x podem causar lentidão em PDFs grandes."}
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-6 justify-end">
+              <Button variant="outline" size="sm" onClick={() => { setShowPdfSettings(false); setPendingPdfFile(null); }}>Cancelar</Button>
+              <Button size="sm" onClick={executePdfImport}>
+                <FileUp className="h-3.5 w-3.5 mr-1" /> Importar PDF
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* PDF Import Progress Overlay */}
       {importingPdf && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
