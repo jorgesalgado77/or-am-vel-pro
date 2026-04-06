@@ -205,11 +205,14 @@ const importPdf = async (file: File): Promise<ImportedContractContent> => {
   let structure: StructureBlock[] = [];
 
   try {
+    console.log("[PDF Import] Starting pdfjs extraction...");
     const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
+    console.log(`[PDF Import] PDF loaded: ${pdf.numPages} pages`);
     const pages: string[] = [];
     const allStructure: StructureBlock[] = [];
 
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+      console.log(`[PDF Import] Processing page ${pageNumber}/${pdf.numPages}...`);
       const page = await pdf.getPage(pageNumber);
       const viewport = page.getViewport({ scale: 1 });
       const textContent = await page.getTextContent();
@@ -228,10 +231,10 @@ const importPdf = async (file: File): Promise<ImportedContractContent> => {
         console.warn(`Image extraction failed for page ${pageNumber}:`, err);
       }
 
-      // Try canvas background for complex PDFs
+      // Try canvas background for complex PDFs (use scale 1.5 to avoid memory issues)
       let bgBase64: string | null = null;
       try {
-        bgBase64 = await renderPageToBase64(pdf, pageNumber, 2);
+        bgBase64 = await renderPageToBase64(pdf, pageNumber, 1.5);
       } catch (err) {
         console.warn(`Canvas render failed for page ${pageNumber}:`, err);
       }
@@ -246,6 +249,7 @@ const importPdf = async (file: File): Promise<ImportedContractContent> => {
 
     html = pages.join("");
     structure = allStructure;
+    console.log(`[PDF Import] Extraction complete. HTML length: ${html.length}`);
   } catch (err) {
     console.warn("pdfjs extraction failed, will try OCR:", err);
   }
