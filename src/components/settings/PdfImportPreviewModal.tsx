@@ -293,7 +293,64 @@ export function PdfImportPreviewModal({
               />
             ) : viewMode === "html" ? (
               <div className="p-4">
-                <EditorToolbar editorRef={editorRef as React.RefObject<HTMLDivElement>} />
+                <div className="flex items-center gap-2 mb-1">
+                  <EditorToolbar editorRef={editorRef as React.RefObject<HTMLDivElement>} />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="gap-1.5 shrink-0">
+                        <Plus className="h-3.5 w-3.5" />
+                        Inserir variável
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-0" align="end">
+                      <div className="p-2 border-b border-border">
+                        <div className="relative">
+                          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                          <Input
+                            placeholder="Buscar variável..."
+                            value={varSearch}
+                            onChange={(e) => setVarSearch(e.target.value)}
+                            className="h-8 pl-8 text-xs"
+                          />
+                        </div>
+                      </div>
+                      <ScrollArea className="h-64">
+                        <div className="p-1">
+                          {(() => {
+                            const filtered = ALL_VARIABLES.filter(
+                              (v) =>
+                                v.var.toLowerCase().includes(varSearch.toLowerCase()) ||
+                                v.desc.toLowerCase().includes(varSearch.toLowerCase())
+                            );
+                            const groups = [...new Set(filtered.map((v) => v.group))];
+                            return groups.map((group) => (
+                              <div key={group} className="mb-1">
+                                <p className="text-[10px] font-semibold text-muted-foreground px-2 py-1 uppercase tracking-wider">
+                                  {group}
+                                </p>
+                                {filtered
+                                  .filter((v) => v.group === group)
+                                  .map((v) => (
+                                    <button
+                                      key={v.var}
+                                      onClick={() => {
+                                        insertVariableAtCursor(v.var);
+                                        setVarSearch("");
+                                      }}
+                                      className="w-full text-left px-2 py-1.5 rounded-sm text-xs hover:bg-accent flex items-center justify-between gap-2"
+                                    >
+                                      <span className="font-mono text-primary truncate">{v.var}</span>
+                                      <span className="text-muted-foreground text-[10px] shrink-0">{v.desc}</span>
+                                    </button>
+                                  ))}
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                      </ScrollArea>
+                    </PopoverContent>
+                  </Popover>
+                </div>
                 <div
                   key={editorKey}
                   ref={editorRef}
