@@ -23,14 +23,14 @@ export function useCustomTemplates() {
     if (!tenantId) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("custom_contract_templates")
         .select("*")
         .eq("tenant_id", tenantId)
         .order("updated_at", { ascending: false });
 
       if (error) throw error;
-      setTemplates((data as CustomTemplate[]) || []);
+      setTemplates((data || []) as CustomTemplate[]);
     } catch (err: any) {
       console.error("Erro ao carregar templates:", err);
     } finally {
@@ -53,7 +53,7 @@ export function useCustomTemplates() {
       return false;
     }
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("custom_contract_templates")
         .insert({
           tenant_id: tenantId,
@@ -79,7 +79,7 @@ export function useCustomTemplates() {
     updates: { name?: string; description?: string; icon?: string; pages_data?: any[] }
   ): Promise<boolean> => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("custom_contract_templates")
         .update({ ...updates, updated_at: new Date().toISOString() })
         .eq("id", id);
@@ -97,7 +97,7 @@ export function useCustomTemplates() {
 
   const deleteTemplate = useCallback(async (id: string): Promise<boolean> => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("custom_contract_templates")
         .delete()
         .eq("id", id);
