@@ -190,8 +190,109 @@ const DRAG_VARIABLES_SCRIPT = `
   window.addEventListener('message', (e) => {
     if (e.data?.type === 'get-all-positions') {
       collectAllPositions();
+    } else if (e.data?.type === 'drop-variable') {
+      handleDropVariable(e.data.varText, e.data.x, e.data.y);
     }
   });
+
+  function handleDropVariable(varText, x, y) {
+    // Find the first contract-page or body to place the variable
+    const page = document.querySelector('.contract-page') || document.body;
+    if (!page) return;
+    page.style.position = 'relative';
+
+    const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+    const pageRect = page.getBoundingClientRect();
+    const left = x - pageRect.left;
+    const top = y - pageRect.top + scrollTop;
+
+    // Count existing wrappers for new idx
+    const existing = document.querySelectorAll('.drag-variable-wrapper');
+    const idx = existing.length;
+
+    const wrapper = document.createElement('span');
+    wrapper.className = 'drag-variable-wrapper';
+    wrapper.setAttribute('data-var-idx', idx.toString());
+    wrapper.setAttribute('data-var-text', varText);
+    wrapper.setAttribute('draggable', 'false');
+    wrapper.style.position = 'absolute';
+    wrapper.style.left = left + 'px';
+    wrapper.style.top = top + 'px';
+    wrapper.style.cursor = 'move';
+    wrapper.style.zIndex = '100';
+    wrapper.style.display = 'inline-block';
+    wrapper.style.minWidth = '40px';
+    wrapper.style.minHeight = '20px';
+    wrapper.style.userSelect = 'none';
+    wrapper.style.webkitUserSelect = 'none';
+
+    const inner = document.createElement('span');
+    inner.className = 'drag-variable-inner';
+    inner.style.cssText = 'display:inline-block;background:hsl(210 80% 55%/0.15);color:hsl(210 80% 45%);border:2px dashed hsl(210 80% 55%/0.5);border-radius:4px;padding:2px 6px;font-family:monospace;font-size:0.9em;white-space:nowrap;pointer-events:none;width:100%;height:100%;box-sizing:border-box;';
+    inner.textContent = varText;
+    wrapper.appendChild(inner);
+
+    const resizeHandle = document.createElement('span');
+    resizeHandle.className = 'drag-variable-resize';
+    resizeHandle.style.cssText = 'position:absolute;bottom:-' + (HANDLE_SIZE/2) + 'px;right:-' + (HANDLE_SIZE/2) + 'px;width:' + HANDLE_SIZE + 'px;height:' + HANDLE_SIZE + 'px;background:hsl(210 80% 55%);border-radius:2px;cursor:nwse-resize;z-index:101;opacity:0;transition:opacity 0.15s;';
+    wrapper.appendChild(resizeHandle);
+
+    wrapper.addEventListener('mouseenter', () => {
+      resizeHandle.style.opacity = '1';
+      wrapper.style.outline = '2px solid hsl(210 80% 55% / 0.6)';
+      wrapper.style.outlineOffset = '1px';
+    });
+    wrapper.addEventListener('mouseleave', () => {
+      if (!dragState) {
+        resizeHandle.style.opacity = '0';
+        wrapper.style.outline = 'none';
+      }
+    });
+
+    wrapper.addEventListener('mousedown', (ev) => {
+      if (ev.target === resizeHandle) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      activeEl = wrapper;
+      dragState = {
+        type: 'move',
+        startX: ev.clientX,
+        startY: ev.clientY,
+        startLeft: parseFloat(wrapper.style.left) || 0,
+        startTop: parseFloat(wrapper.style.top) || 0,
+      };
+      wrapper.style.zIndex = '200';
+      wrapper.style.opacity = '0.85';
+    });
+
+    resizeHandle.addEventListener('mousedown', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      activeEl = wrapper;
+      dragState = {
+        type: 'resize',
+        startX: ev.clientX,
+        startY: ev.clientY,
+        startW: wrapper.offsetWidth,
+        startH: wrapper.offsetHeight,
+      };
+    });
+
+    page.appendChild(wrapper);
+
+    // Notify parent of new variable
+    window.parent.postMessage({
+      type: 'variable-dropped',
+      varText,
+      idx,
+      left,
+      top,
+      width: wrapper.offsetWidth,
+      height: wrapper.offsetHeight,
+    }, '*');
+
+    notifyPositionChange(wrapper);
+  }
 
   // Wait for DOM to be ready
   if (document.readyState === 'loading') {

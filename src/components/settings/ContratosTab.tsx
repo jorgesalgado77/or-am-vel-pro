@@ -148,6 +148,11 @@ export function ContratosTab() {
         });
       } else if (e.data?.type === 'all-variable-positions') {
         setVarPositions(e.data.positions);
+      } else if (e.data?.type === 'variable-dropped') {
+        const pos = e.data;
+        setVarPositions((prev) => [...prev, { idx: pos.idx, varText: pos.varText, left: pos.left, top: pos.top, width: pos.width, height: pos.height }]);
+        // Also insert variable into the HTML content so it persists
+        setHtmlContent((prev) => prev + pos.varText);
       }
     };
     window.addEventListener('message', handler);
@@ -683,14 +688,22 @@ export function ContratosTab() {
               <div className="mb-2 flex items-center gap-2">
                 <Info className="h-4 w-4 text-muted-foreground" />
                 <span className="text-xs font-medium text-foreground">Variáveis disponíveis</span>
-                <span className="text-xs text-muted-foreground">(clique para inserir)</span>
+                <span className="text-xs text-muted-foreground">
+                  {dragMode ? "(arraste para o contrato)" : "(clique para inserir)"}
+                </span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {AVAILABLE_VARIABLES.map((v) => (
                   <button
                     key={v.var}
-                    onClick={() => insertVariable(v.var)}
-                    className="rounded-md bg-primary/10 px-2 py-1 font-mono text-xs text-primary transition-colors hover:bg-primary/20"
+                    onClick={() => !dragMode && insertVariable(v.var)}
+                    draggable={dragMode}
+                    onDragStart={(e) => {
+                      if (!dragMode) return;
+                      e.dataTransfer.setData("text/plain", v.var);
+                      e.dataTransfer.effectAllowed = "copy";
+                    }}
+                    className={`rounded-md bg-primary/10 px-2 py-1 font-mono text-xs text-primary transition-colors hover:bg-primary/20 ${dragMode ? "cursor-grab active:cursor-grabbing" : ""}`}
                     title={v.desc}
                   >
                     {v.var}
@@ -860,12 +873,56 @@ export function ContratosTab() {
                 <VariableTooltip variables={AVAILABLE_VARIABLES} editorRef={editorRef} />
               </div>
             ) : (
-              <iframe
-                ref={iframeRef}
-                title="Preview fiel do contrato"
-                className="h-[75vh] w-full rounded-lg border border-border bg-muted/20"
-                srcDoc={previewDocument}
-              />
+              <div className="relative">
+                <iframe
+                  ref={iframeRef}
+                  title="Preview fiel do contrato"
+                  className="h-[75vh] w-full rounded-lg border border-border bg-muted/20"
+                  srcDoc={previewDocument}
+                />
+                {dragMode && (
+                  <div
+                    className="absolute inset-0 rounded-lg"
+                    style={{ pointerEvents: "auto", zIndex: 10 }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "copy";
+                    }}
+                    onDragEnter={(e) => {
+                      e.preventDefault();
+                      (e.currentTarget as HTMLElement).style.outline = "2px dashed hsl(210 80% 55%)";
+                      (e.currentTarget as HTMLElement).style.outlineOffset = "-2px";
+                      (e.currentTarget as HTMLElement).style.background = "hsl(210 80% 55% / 0.05)";
+                    }}
+                    onDragLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.outline = "none";
+                      (e.currentTarget as HTMLElement).style.background = "none";
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      (e.currentTarget as HTMLElement).style.outline = "none";
+                      (e.currentTarget as HTMLElement).style.background = "none";
+                      const varText = e.dataTransfer.getData("text/plain");
+                      if (!varText || !varText.startsWith("{{")) return;
+
+                      // Calculate drop position relative to iframe
+                      const iframeEl = iframeRef.current;
+                      if (!iframeEl) return;
+                      const iframeRect = iframeEl.getBoundingClientRect();
+                      const dropX = e.clientX - iframeRect.left;
+                      const dropY = e.clientY - iframeRect.top;
+
+                      // Send drop info to iframe
+                      iframeEl.contentWindow?.postMessage({
+                        type: "drop-variable",
+                        varText,
+                        x: dropX,
+                        y: dropY,
+                      }, "*");
+                    }}
+                  />
+                )}
+              </div>
             )}
 
             {showHighlights && (
