@@ -34,7 +34,37 @@ const DRAG_VARIABLES_SCRIPT = `
   function createContextMenu() {
     var menu = document.createElement('div');
     menu.id = 'var-context-menu';
-    menu.style.cssText = 'display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:4px 0;min-width:140px;font-family:system-ui,sans-serif;font-size:13px;';
+    menu.style.cssText = 'display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:4px 0;min-width:160px;font-family:system-ui,sans-serif;font-size:13px;';
+
+    var duplicateBtn = document.createElement('div');
+    duplicateBtn.textContent = 'Duplicar variável';
+    duplicateBtn.style.cssText = 'padding:6px 12px;cursor:pointer;color:#2563eb;transition:background 0.1s;';
+    duplicateBtn.addEventListener('mouseenter', function() { duplicateBtn.style.background = '#dbeafe'; });
+    duplicateBtn.addEventListener('mouseleave', function() { duplicateBtn.style.background = 'transparent'; });
+    duplicateBtn.addEventListener('click', function() {
+      if (menu._targetEl) {
+        var varText = menu._targetEl.getAttribute('data-var-text');
+        var isAbs = menu._targetEl.getAttribute('data-pos-mode') === 'absolute';
+        var offsetLeft = isAbs ? (parseFloat(menu._targetEl.style.left) || 0) + 20 : (parseFloat(menu._targetEl.getAttribute('data-tx')) || 0) + 20;
+        var offsetTop = isAbs ? (parseFloat(menu._targetEl.style.top) || 0) + 20 : (parseFloat(menu._targetEl.getAttribute('data-ty')) || 0) + 20;
+        if (isAbs) {
+          handleDropVariable(varText, offsetLeft + (menu._targetEl.closest('.contract-page') || document.body).getBoundingClientRect().left, offsetTop + (menu._targetEl.closest('.contract-page') || document.body).getBoundingClientRect().top);
+        } else {
+          // Duplicate as absolute at the same visual position
+          var rect = menu._targetEl.getBoundingClientRect();
+          var page = document.querySelector('.contract-page') || document.body;
+          var pageRect = page.getBoundingClientRect();
+          handleDropVariable(varText, rect.left - pageRect.left + 20 + pageRect.left, rect.top - pageRect.top + 20 + pageRect.top);
+        }
+      }
+      menu.style.display = 'none';
+    });
+    menu.appendChild(duplicateBtn);
+
+    var sep = document.createElement('div');
+    sep.style.cssText = 'height:1px;background:#e5e7eb;margin:4px 0;';
+    menu.appendChild(sep);
+
     var removeBtn = document.createElement('div');
     removeBtn.textContent = 'Remover variável';
     removeBtn.style.cssText = 'padding:6px 12px;cursor:pointer;color:#ef4444;transition:background 0.1s;';
