@@ -1394,10 +1394,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             <AdminApiKeys />
           </TabsContent>
 
-          {/* TAB: Canva */}
-          <TabsContent value="canva">
-            <AdminCanvaConfig />
-          </TabsContent>
+
 
           {/* TAB: Afiliados */}
           <TabsContent value="affiliates">
