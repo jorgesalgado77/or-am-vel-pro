@@ -398,10 +398,13 @@ export function MetasTetosTab() {
             <div>
               <Label>Valor (R$)</Label>
               <Input
-                type="number"
-                min={0}
-                value={form.valor || ""}
-                onChange={e => setForm(f => ({ ...f, valor: Number(e.target.value) }))}
+                type="text"
+                inputMode="numeric"
+                value={form.valor ? (form.valor / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}
+                onChange={e => {
+                  const raw = e.target.value.replace(/\D/g, '');
+                  setForm(f => ({ ...f, valor: Number(raw) }));
+                }}
                 placeholder="0,00"
               />
             </div>
