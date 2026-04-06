@@ -188,7 +188,8 @@ export const renderPageToBase64 = async (
   canvas.width = viewport.width;
   canvas.height = viewport.height;
   const ctx = canvas.getContext("2d")!;
-  await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
+  const renderTask = page.render({ canvasContext: ctx, viewport } as any);
+  await renderTask.promise;
   return canvas.toDataURL("image/png");
 };
 
@@ -248,12 +249,17 @@ export const extractEmbeddedImages = async (
       } else if (fn === OPS.paintImageXObject || fn === OPS.paintXObject) {
         const imgName = args[0] as string;
         try {
-          const imgData = await new Promise<any>((resolve, reject) => {
-            page.objs.get(imgName, (obj: any) => {
-              if (obj) resolve(obj);
-              else reject(new Error("Image not found"));
-            });
-          });
+          const imgData = await Promise.race([
+            new Promise<any>((resolve, reject) => {
+              page.objs.get(imgName, (obj: any) => {
+                if (obj) resolve(obj);
+                else reject(new Error("Image not found"));
+              });
+            }),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error("Image load timeout")), 3000)
+            ),
+          ]);
 
           // imgData can be an ImageBitmap or an object with {data, width, height}
           const imgWidth = imgData.width || 0;

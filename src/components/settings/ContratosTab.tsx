@@ -271,6 +271,7 @@ export function ContratosTab() {
     // PDF/DOCX import — extract, auto-replace variables, show preview modal
     if (extension === "pdf" || extension === "docx") {
       setImporting(true);
+      toast.info(`Importando ${file.name}... Aguarde.`);
       try {
         const imported = await importContractFile(file);
         const result = replaceDetectedFieldsWithPlaceholders(imported.html);
@@ -286,10 +287,11 @@ export function ContratosTab() {
           replacedCount: result.replacedCount,
           fileName: file.name,
         });
+        toast.dismiss();
       } catch (err) {
         const message = err instanceof Error ? err.message : "Erro ao importar arquivo";
         toast.error(message);
-        console.error(err);
+        console.error("[Import Template Error]", err);
       } finally {
         setImporting(false);
         e.target.value = "";
@@ -491,17 +493,18 @@ export function ContratosTab() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">Modelos de Contrato</CardTitle>
             <div className="flex gap-2">
-              <label className="cursor-pointer">
+              <label className={importing ? "pointer-events-none opacity-60" : "cursor-pointer"}>
                 <input
                   type="file"
                   accept=".json,.pdf,.docx"
                   className="hidden"
                   onChange={handleImportTemplate}
+                  disabled={importing}
                 />
-                <Button variant="outline" size="sm" className="gap-2" asChild>
+                <Button variant="outline" size="sm" className="gap-2" asChild disabled={importing}>
                   <span>
-                    <FolderInput className="h-4 w-4" />
-                    Importar (PDF, DOCX, JSON)
+                    <FolderInput className={`h-4 w-4 ${importing ? "animate-spin" : ""}`} />
+                    {importing ? "Importando..." : "Importar (PDF, DOCX, JSON)"}
                   </span>
                 </Button>
               </label>
