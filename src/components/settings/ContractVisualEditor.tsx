@@ -780,6 +780,48 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           </div>
         );
         break;
+      case "table":
+        if (el.tableData) {
+          const colW = el.width / (el.tableData[0]?.length || 1);
+          const rowH = el.height / el.tableData.length;
+          content = (
+            <div style={{ ...style, overflow: "hidden" }} onMouseDown={e => handleElementMouseDown(e, el)}>
+              <table style={{ width: "100%", height: "100%", borderCollapse: "collapse", fontFamily: el.fontFamily, fontSize: el.fontSize, color: el.color, tableLayout: "fixed" }}>
+                <tbody>
+                  {el.tableData.map((row, ri) => (
+                    <tr key={ri}>
+                      {row.map((cell, ci) => (
+                        <td key={ci} style={{
+                          border: `1px solid ${el.stroke}`,
+                          padding: "2px 6px",
+                          background: ri === 0 ? el.stroke : el.fill,
+                          color: ri === 0 ? "#ffffff" : el.color,
+                          fontWeight: ri === 0 ? "bold" : "normal",
+                          textAlign: el.textAlign as any,
+                          verticalAlign: "middle",
+                        }}>
+                          <input
+                            type="text" value={cell}
+                            onChange={e => updateTableCell(el.id, ri, ci, e.target.value)}
+                            onClick={e => e.stopPropagation()}
+                            style={{
+                              width: "100%", border: "none", outline: "none",
+                              background: "transparent", color: "inherit", fontFamily: "inherit",
+                              fontSize: "inherit", fontWeight: "inherit", textAlign: "inherit",
+                              padding: 0,
+                            }}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {resizeHandles}
+            </div>
+          );
+        }
+        break;
     }
     return <div key={el.id}>{content}</div>;
   };
