@@ -339,7 +339,7 @@ export function AdminKanbanTasks() {
                                     </span>
                                   )}
                                   {task.google_event_id && (
-                                    <CalendarSync className="h-3 w-3 text-muted-foreground" title="Sincronizado com Google Agenda" />
+                                    <CalendarSync className="h-3 w-3 text-muted-foreground" />
                                   )}
                                 </div>
                                 <p className="text-[9px] text-muted-foreground/70 mt-1">
