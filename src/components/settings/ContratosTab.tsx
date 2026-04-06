@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
-import { Upload, Save, Trash2, Plus, FileText, Eye, Code, Info, Sparkles, ImageOff, Download, FolderInput, CheckCircle2, AlertTriangle, XCircle, Move } from "lucide-react";
+import { Upload, Save, Trash2, Plus, FileText, Eye, Code, Info, Sparkles, ImageOff, Download, FolderInput, CheckCircle2, AlertTriangle, XCircle, Move, Grid3X3 } from "lucide-react";
 import { Wand2 } from "lucide-react";
 import { importContractFile, highlightSuggestedFields, removeHighlights } from "@/lib/contractImport";
 import { replaceDetectedFieldsWithPlaceholders } from "@/lib/contractImport";
@@ -132,6 +132,7 @@ export function ContratosTab() {
   const [savingImport, setSavingImport] = useState(false);
   const [dragMode, setDragMode] = useState(false);
   const [varPositions, setVarPositions] = useState<VariablePosition[]>([]);
+  const [gridSize, setGridSize] = useState(8);
   const [isDraggingPaletteVariable, setIsDraggingPaletteVariable] = useState(false);
   const [isPreviewDropActive, setIsPreviewDropActive] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -182,9 +183,16 @@ export function ContratosTab() {
 
   const previewDocument = useMemo(() => {
     const base = buildContractDocumentHtml(removeHighlights(htmlContent), nome || "Preview do contrato");
-    return dragMode ? injectDragVariablesIntoHtml(base) : base;
-  }, [htmlContent, nome, dragMode],
+    return dragMode ? injectDragVariablesIntoHtml(base, gridSize) : base;
+  }, [htmlContent, nome, dragMode, gridSize],
   );
+
+  // Send grid size changes to iframe
+  useEffect(() => {
+    if (dragMode && iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage({ type: 'set-grid-size', gridSize }, '*');
+    }
+  }, [gridSize, dragMode]);
 
   const variableReport = useMemo(() => {
     const cleanHtml = removeHighlights(htmlContent);
@@ -680,6 +688,22 @@ export function ContratosTab() {
                   <Move className="h-4 w-4" />
                   {dragMode ? "Aplicar Posições" : "Mover Variáveis"}
                 </Button>
+                {dragMode && (
+                  <div className="flex items-center gap-1.5 ml-1">
+                    <Grid3X3 className="h-3.5 w-3.5 text-muted-foreground" />
+                    {[8, 16, 32].map((s) => (
+                      <Button
+                        key={s}
+                        variant={gridSize === s ? "default" : "outline"}
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => setGridSize(s)}
+                      >
+                        {s}px
+                      </Button>
+                    ))}
+                  </div>
+                )}
                 <Button size="sm" className="gap-2" onClick={handleSave} disabled={saving}>
                   <Save className="h-4 w-4" />
                   {saving ? "Salvando..." : "Salvar"}

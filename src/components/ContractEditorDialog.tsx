@@ -1,7 +1,7 @@
 import {useState, useRef, useEffect, useMemo, useCallback} from "react";
 import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import {Button} from "@/components/ui/button";
-import {Printer, Eye, Code, Lock, LockOpen, Save, Download, Send, Copy, Check, Wand2, Undo2, X, ChevronDown, ChevronUp, Move} from "lucide-react";
+import {Printer, Eye, Code, Lock, LockOpen, Save, Download, Send, Copy, Check, Wand2, Undo2, X, ChevronDown, ChevronUp, Move, Grid3X3} from "lucide-react";
 import {Badge} from "@/components/ui/badge";
 import {buildContractDocumentHtml, openContractPrintWindow} from "@/lib/contractDocument";
 import {supabase} from "@/lib/supabaseClient";
@@ -34,6 +34,7 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
   const [showSummary, setShowSummary] = useState(false);
   const [dragMode, setDragMode] = useState(false);
   const [varPositions, setVarPositions] = useState<VariablePosition[]>([]);
+  const [gridSize, setGridSize] = useState(8);
   const editorRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -86,8 +87,14 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
 
   const previewDocument = useMemo(() => {
     const base = buildContractDocumentHtml(html, `Contrato - ${clientName}`);
-    return dragMode ? injectDragVariablesIntoHtml(base) : base;
-  }, [html, clientName, dragMode]);
+    return dragMode ? injectDragVariablesIntoHtml(base, gridSize) : base;
+  }, [html, clientName, dragMode, gridSize]);
+
+  useEffect(() => {
+    if (dragMode && iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage({ type: 'set-grid-size', gridSize }, '*');
+    }
+  }, [gridSize, dragMode]);
 
   const handleToggleDragMode = () => {
     if (dragMode && varPositions.length > 0) {
@@ -267,6 +274,23 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
               <Move className="h-3.5 w-3.5" />
               {dragMode ? "Aplicar Posições" : "Mover Variáveis"}
             </Button>
+          )}
+
+          {dragMode && (
+            <div className="flex items-center gap-1">
+              <Grid3X3 className="h-3.5 w-3.5 text-muted-foreground" />
+              {[8, 16, 32].map((s) => (
+                <Button
+                  key={s}
+                  variant={gridSize === s ? "default" : "outline"}
+                  size="sm"
+                  className="h-6 px-1.5 text-xs"
+                  onClick={() => setGridSize(s)}
+                >
+                  {s}px
+                </Button>
+              ))}
+            </div>
           )}
 
           <Button

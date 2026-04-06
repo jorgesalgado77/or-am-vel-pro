@@ -7,8 +7,11 @@
 const DRAG_VARIABLES_SCRIPT = `
 (function() {
   const HANDLE_SIZE = 8;
-  const GRID_SIZE = 8; // snap-to-grid in pixels
+  let GRID_SIZE = __GRID_SIZE__; // snap-to-grid in pixels (updated via message)
   function snap(v) { return Math.round(v / GRID_SIZE) * GRID_SIZE; }
+  function buildGridCSS(size) {
+    return '.contract-page, [data-contract-page] { background-image: linear-gradient(to right, hsl(210 20% 80% / 0.15) 1px, transparent 1px), linear-gradient(to bottom, hsl(210 20% 80% / 0.15) 1px, transparent 1px) !important; background-size: ' + size + 'px ' + size + 'px !important; background-position: 0 0 !important; }';
+  }
   let activeEl = null;
   let dragState = null; // { type: 'move'|'resize', startX, startY, startLeft, startTop, startW, startH }
 
@@ -194,6 +197,13 @@ const DRAG_VARIABLES_SCRIPT = `
       collectAllPositions();
     } else if (e.data?.type === 'drop-variable') {
       handleDropVariable(e.data.varText, e.data.x, e.data.y);
+    } else if (e.data?.type === 'set-grid-size') {
+      GRID_SIZE = e.data.gridSize || 8;
+      // Update CSS grid overlay
+      const style = document.getElementById('drag-grid-style');
+      if (style) {
+        style.textContent = buildGridCSS(GRID_SIZE);
+      }
     }
   });
 
@@ -320,34 +330,30 @@ const DRAG_VARIABLES_STYLES = `
     user-select: none !important;
     -webkit-user-select: none !important;
   }
-  /* Subtle grid overlay for alignment reference */
-  .contract-page, [data-contract-page] {
-    background-image:
-      linear-gradient(to right, hsl(210 20% 80% / 0.15) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(210 20% 80% / 0.15) 1px, transparent 1px) !important;
-    background-size: 8px 8px !important;
-    background-position: 0 0 !important;
-  }
 `;
 
 /**
  * Inject drag & resize scripts/styles into contract preview HTML.
  */
-export function injectDragVariablesIntoHtml(previewHtml: string): string {
-  // Insert styles before </head> and script before </body>
+export function injectDragVariablesIntoHtml(previewHtml: string, gridSize: number = 8): string {
   let result = previewHtml;
+
+  // Build grid CSS for initial size
+  const gridCSS = `.contract-page, [data-contract-page] { background-image: linear-gradient(to right, hsl(210 20% 80% / 0.15) 1px, transparent 1px), linear-gradient(to bottom, hsl(210 20% 80% / 0.15) 1px, transparent 1px) !important; background-size: ${gridSize}px ${gridSize}px !important; background-position: 0 0 !important; }`;
 
   result = result.replace(
     '</head>',
-    `<style>${DRAG_VARIABLES_STYLES}</style>\n</head>`
+    `<style>${DRAG_VARIABLES_STYLES}</style>\n<style id="drag-grid-style">${gridCSS}</style>\n</head>`
   );
+
+  // Replace placeholder with actual grid size
+  const scriptWithGrid = DRAG_VARIABLES_SCRIPT.replace('__GRID_SIZE__', String(gridSize));
 
   result = result.replace(
     '</body>',
-    `<script>${DRAG_VARIABLES_SCRIPT}<\/script>\n</body>`
+    `<script>${scriptWithGrid}<\/script>\n</body>`
   );
 
-  // Add class to body
   result = result.replace(
     'class="contract-document-root"',
     'class="contract-document-root drag-mode-active"'
