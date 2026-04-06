@@ -136,6 +136,7 @@ export function ContratosTab() {
   const [gridSize, setGridSize] = useState(8);
   const [isDraggingPaletteVariable, setIsDraggingPaletteVariable] = useState(false);
   const [isPreviewDropActive, setIsPreviewDropActive] = useState(false);
+  const [visualEditorMode, setVisualEditorMode] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
