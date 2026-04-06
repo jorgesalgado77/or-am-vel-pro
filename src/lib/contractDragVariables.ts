@@ -32,10 +32,101 @@ const DRAG_VARIABLES_SCRIPT = `
     return inner;
   }
 
+  function createVariableListPanel() {
+    var panel = document.createElement('div');
+    panel.id = 'var-list-panel';
+    panel.style.cssText = 'display:none;position:fixed;z-index:10000;background:#fff;border:1px solid #d1d5db;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.18);width:260px;max-height:400px;font-family:system-ui,sans-serif;font-size:13px;overflow:hidden;';
+
+    var header = document.createElement('div');
+    header.style.cssText = 'padding:10px 12px;font-weight:600;font-size:13px;color:#1e293b;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;';
+    header.innerHTML = '<span>Variáveis disponíveis</span>';
+    var closeBtn = document.createElement('span');
+    closeBtn.textContent = '✕';
+    closeBtn.style.cssText = 'cursor:pointer;color:#94a3b8;font-size:16px;line-height:1;';
+    closeBtn.addEventListener('click', function() { panel.style.display = 'none'; });
+    header.appendChild(closeBtn);
+    panel.appendChild(header);
+
+    var searchBox = document.createElement('input');
+    searchBox.type = 'text';
+    searchBox.placeholder = 'Buscar variável...';
+    searchBox.style.cssText = 'width:100%;padding:8px 12px;border:none;border-bottom:1px solid #e5e7eb;outline:none;font-size:12px;box-sizing:border-box;';
+    panel.appendChild(searchBox);
+
+    var listContainer = document.createElement('div');
+    listContainer.style.cssText = 'overflow-y:auto;max-height:300px;padding:4px 0;';
+    panel.appendChild(listContainer);
+
+    var sorted = ALL_VARIABLES.slice().sort(function(a, b) { return a.var.localeCompare(b.var); });
+
+    function renderList(filter) {
+      listContainer.innerHTML = '';
+      var items = filter ? sorted.filter(function(v) { return v.var.toLowerCase().indexOf(filter.toLowerCase()) >= 0 || v.desc.toLowerCase().indexOf(filter.toLowerCase()) >= 0; }) : sorted;
+      items.forEach(function(v) {
+        var item = document.createElement('div');
+        item.setAttribute('draggable', 'true');
+        item.style.cssText = 'padding:6px 12px;cursor:grab;transition:background 0.1s;border-bottom:1px solid #f1f5f9;';
+        item.innerHTML = '<div style="font-size:12px;font-weight:500;color:#2563eb;font-family:monospace;">' + v.var + '</div><div style="font-size:11px;color:#64748b;margin-top:1px;">' + v.desc + '</div>';
+        item.addEventListener('mouseenter', function() { item.style.background = '#f0f9ff'; });
+        item.addEventListener('mouseleave', function() { item.style.background = 'transparent'; });
+        item.addEventListener('dragstart', function(e) {
+          e.dataTransfer.setData('text/plain', v.var);
+          e.dataTransfer.effectAllowed = 'copy';
+          panel.style.display = 'none';
+        });
+        item.addEventListener('dragend', function(e) {
+          if (e.dataTransfer.dropEffect !== 'none') return;
+          // If dropped inside iframe area, compute position
+          var page = document.querySelector('.contract-page') || document.body;
+          if (!page) return;
+          var pageRect = page.getBoundingClientRect();
+          var x = e.clientX;
+          var y = e.clientY;
+          if (x >= pageRect.left && x <= pageRect.right && y >= pageRect.top && y <= pageRect.bottom) {
+            handleDropVariable(v.var, x, y);
+          }
+        });
+        listContainer.appendChild(item);
+      });
+      if (items.length === 0) {
+        var empty = document.createElement('div');
+        empty.style.cssText = 'padding:12px;text-align:center;color:#94a3b8;font-size:12px;';
+        empty.textContent = 'Nenhuma variável encontrada';
+        listContainer.appendChild(empty);
+      }
+    }
+
+    searchBox.addEventListener('input', function() { renderList(searchBox.value); });
+    renderList('');
+
+    document.body.appendChild(panel);
+    return panel;
+  }
+
+  var varListPanel = null;
+
   function createContextMenu() {
     var menu = document.createElement('div');
     menu.id = 'var-context-menu';
     menu.style.cssText = 'display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:4px 0;min-width:160px;font-family:system-ui,sans-serif;font-size:13px;';
+
+    var listBtn = document.createElement('div');
+    listBtn.textContent = '📋 Lista de variáveis';
+    listBtn.style.cssText = 'padding:6px 12px;cursor:pointer;color:#1e293b;transition:background 0.1s;';
+    listBtn.addEventListener('mouseenter', function() { listBtn.style.background = '#f1f5f9'; });
+    listBtn.addEventListener('mouseleave', function() { listBtn.style.background = 'transparent'; });
+    listBtn.addEventListener('click', function() {
+      if (!varListPanel) varListPanel = createVariableListPanel();
+      varListPanel.style.display = 'block';
+      varListPanel.style.left = Math.min(parseInt(menu.style.left), window.innerWidth - 280) + 'px';
+      varListPanel.style.top = Math.min(parseInt(menu.style.top), window.innerHeight - 420) + 'px';
+      menu.style.display = 'none';
+    });
+    menu.appendChild(listBtn);
+
+    var sep0 = document.createElement('div');
+    sep0.style.cssText = 'height:1px;background:#e5e7eb;margin:4px 0;';
+    menu.appendChild(sep0);
 
     var duplicateBtn = document.createElement('div');
     duplicateBtn.textContent = 'Duplicar variável';
@@ -51,7 +142,6 @@ const DRAG_VARIABLES_SCRIPT = `
         if (isAbs) {
           handleDropVariable(varText, offsetLeft + (menu._targetEl.closest('.contract-page') || document.body).getBoundingClientRect().left, offsetTop + (menu._targetEl.closest('.contract-page') || document.body).getBoundingClientRect().top);
         } else {
-          // Duplicate as absolute at the same visual position
           var rect = menu._targetEl.getBoundingClientRect();
           var page = document.querySelector('.contract-page') || document.body;
           var pageRect = page.getBoundingClientRect();
@@ -82,7 +172,7 @@ const DRAG_VARIABLES_SCRIPT = `
     });
     menu.appendChild(removeBtn);
     document.body.appendChild(menu);
-    document.addEventListener('click', function() { menu.style.display = 'none'; });
+    document.addEventListener('click', function(e) { if (!menu.contains(e.target)) menu.style.display = 'none'; });
     return menu;
   }
 
