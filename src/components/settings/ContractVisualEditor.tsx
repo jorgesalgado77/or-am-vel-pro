@@ -6,7 +6,7 @@ import { getContractTemplates, type ContractTemplate } from "./contractTemplates
 import { toast } from "sonner";
 import * as pdfjsLib from "pdfjs-dist";
 import { jsPDF } from "jspdf";
-import { Document, Packer, Paragraph, TextRun, ImageRun, PageBreak, AlignmentType, BorderStyle } from "docx";
+import { Document, Packer, Paragraph, TextRun, ImageRun, PageBreak, AlignmentType, BorderStyle, Table, TableRow, TableCell, WidthType, ShadingType } from "docx";
 import { saveAs } from "file-saver";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
