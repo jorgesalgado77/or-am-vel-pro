@@ -372,7 +372,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           const ctx = canvas.getContext("2d");
           if (!ctx) throw new Error("Canvas context unavailable");
 
-          await page.render({ canvasContext: ctx, viewport }).promise;
+          await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
           const bgImage = canvas.toDataURL("image/jpeg", 0.85);
           newPages.push({ id: pageId(), elements: [], backgroundImage: bgImage, backgroundOpacity: 0.5 });
 
