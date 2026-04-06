@@ -183,6 +183,7 @@ export function PdfImportPreviewModal({
   const handleAutoReplaceChange = (val: boolean) => {
     setUseAutoReplace(val);
     setEditedHtml(null);
+    setRevertedVars(new Set());
     setEditorKey((k) => k + 1);
   };
 
