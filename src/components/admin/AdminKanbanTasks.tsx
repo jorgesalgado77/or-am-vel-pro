@@ -15,7 +15,7 @@ import {
 } from "@hello-pangea/dnd";
 import {
   Plus, Trash2, GripVertical, AlertTriangle, CalendarSync, Clock,
-  Search, Filter, CalendarClock,
+  Search, Filter, CalendarClock, Pencil,
 } from "lucide-react";
 import { differenceInDays, format, isPast, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -102,6 +102,13 @@ export function AdminKanbanTasks() {
   const [overdueAlerts, setOverdueAlerts] = useState<AdminTask[]>([]);
   const [alertsDismissed, setAlertsDismissed] = useState(false);
   const [gcalSyncing, setGcalSyncing] = useState(false);
+
+  // Edit state
+  const [editingTask, setEditingTask] = useState<AdminTask | null>(null);
+  const [editTitulo, setEditTitulo] = useState("");
+  const [editDescricao, setEditDescricao] = useState("");
+  const [editPrioridade, setEditPrioridade] = useState<AdminTask["prioridade"]>("media");
+  const [editVencimento, setEditVencimento] = useState("");
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -208,6 +215,31 @@ export function AdminKanbanTasks() {
     toast.success("Tarefa criada!");
     setNewTitulo(""); setNewDescricao(""); setNewPrioridade("media"); setNewVencimento("");
     setShowNewDialog(false);
+  };
+
+  const openEditDialog = (task: AdminTask) => {
+    setEditingTask(task);
+    setEditTitulo(task.titulo);
+    setEditDescricao(task.descricao || "");
+    setEditPrioridade(task.prioridade);
+    setEditVencimento(task.vencimento ? format(new Date(task.vencimento), "yyyy-MM-dd") : "");
+  };
+
+  const updateTask = async () => {
+    if (!editingTask) return;
+    if (!editTitulo.trim()) { toast.error("Título é obrigatório"); return; }
+    const { error } = await supabase
+      .from("admin_tasks" as any)
+      .update({
+        titulo: editTitulo.trim(),
+        descricao: editDescricao.trim() || null,
+        prioridade: editPrioridade,
+        vencimento: editVencimento ? new Date(editVencimento).toISOString() : null,
+      } as any)
+      .eq("id", editingTask.id);
+    if (error) { toast.error("Erro ao atualizar tarefa: " + error.message); return; }
+    toast.success("Tarefa atualizada!");
+    setEditingTask(null);
   };
 
   const deleteTask = async (id: string) => {
@@ -360,14 +392,29 @@ export function AdminKanbanTasks() {
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between gap-1">
-                                  <p className="text-sm font-medium text-foreground truncate">{task.titulo}</p>
-                                  <Button
-                                    variant="ghost" size="icon"
-                                    className="h-5 w-5 shrink-0 text-muted-foreground hover:text-destructive"
-                                    onClick={() => deleteTask(task.id)}
+                                  <p
+                                    className="text-sm font-medium text-foreground truncate cursor-pointer hover:underline"
+                                    onClick={() => openEditDialog(task)}
+                                    title="Clique para editar"
                                   >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
+                                    {task.titulo}
+                                  </p>
+                                  <div className="flex items-center gap-0.5 shrink-0">
+                                    <Button
+                                      variant="ghost" size="icon"
+                                      className="h-5 w-5 text-muted-foreground hover:text-primary"
+                                      onClick={() => openEditDialog(task)}
+                                    >
+                                      <Pencil className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost" size="icon"
+                                      className="h-5 w-5 text-muted-foreground hover:text-destructive"
+                                      onClick={() => deleteTask(task.id)}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
                                 </div>
                                 {task.descricao && (
                                   <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{task.descricao}</p>
@@ -465,6 +512,58 @@ export function AdminKanbanTasks() {
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setShowNewDialog(false)}>Cancelar</Button>
             <Button size="sm" onClick={createTask}>Criar Tarefa</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Task Dialog */}
+      <Dialog open={!!editingTask} onOpenChange={(open) => { if (!open) setEditingTask(null); }}>
+        <DialogContent className="max-w-[95vw] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Tarefa</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Título *</Label>
+              <Input
+                value={editTitulo} onChange={(e) => setEditTitulo(e.target.value)}
+                className="mt-1 h-9 text-sm" placeholder="Título da tarefa..."
+                onKeyDown={(e) => e.key === "Enter" && updateTask()}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Descrição</Label>
+              <Textarea
+                value={editDescricao} onChange={(e) => setEditDescricao(e.target.value)}
+                className="mt-1 text-sm min-h-[80px]" placeholder="Detalhes opcionais..."
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Prioridade</Label>
+                <Select value={editPrioridade} onValueChange={(v) => setEditPrioridade(v as any)}>
+                  <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="baixa">Baixa</SelectItem>
+                    <SelectItem value="media">Média</SelectItem>
+                    <SelectItem value="alta">Alta</SelectItem>
+                    <SelectItem value="urgente">Urgente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Vencimento</Label>
+                <Input
+                  type="date" value={editVencimento}
+                  onChange={(e) => setEditVencimento(e.target.value)}
+                  className="mt-1 h-9 text-sm"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setEditingTask(null)}>Cancelar</Button>
+            <Button size="sm" onClick={updateTask}>Salvar Alterações</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -44,6 +44,7 @@ import {AdminKpiCharts} from "@/components/admin/AdminKpiCharts";
 import {AdminCollapsibleSection} from "@/components/admin/AdminCollapsibleSection";
 import {AdminRevenueDetailModal} from "@/components/admin/AdminRevenueDetailModal";
 import {useTheme} from "@/hooks/useTheme";
+import {useAdminPushNotifications} from "@/hooks/useAdminPushNotifications";
 import {AdminKanbanSection} from "@/components/admin/AdminKanbanSection";
 import {BillingDashboard} from "@/components/billing/BillingDashboard";
 import {format, isAfter, isBefore, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths, subDays} from "date-fns";
@@ -149,6 +150,7 @@ interface TenantStats {
 
 export default function AdminDashboard({ adminName, onLogout }: AdminDashboardProps) {
   const { mode: themeMode, setMode: setThemeMode } = useTheme();
+  useAdminPushNotifications(true);
   const [showRevenueModal, setShowRevenueModal] = useState(false);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [payments, setPayments] = useState<PaymentSetting[]>([]);
