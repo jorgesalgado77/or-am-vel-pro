@@ -116,7 +116,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   }, [currentPageIdx]);
 
   const addPage = () => {
-    const newPage: PageData = { id: pageId(), elements: [] };
+    const newPage: PageData = { id: pageId(), elements: [], backgroundOpacity: 0.5 };
     setPages(prev => [...prev.slice(0, currentPageIdx + 1), newPage, ...prev.slice(currentPageIdx + 1)]);
     setCurrentPageIdx(currentPageIdx + 1);
     setSelectedId(null);
@@ -127,6 +127,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       id: pageId(),
       elements: currentPage.elements.map(el => ({ ...el, id: genId() })),
       backgroundImage: currentPage.backgroundImage,
+      backgroundOpacity: currentPage.backgroundOpacity,
     };
     setPages(prev => [...prev.slice(0, currentPageIdx + 1), dup, ...prev.slice(currentPageIdx + 1)]);
     setCurrentPageIdx(currentPageIdx + 1);
@@ -255,7 +256,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         const ctx = canvas.getContext("2d")!;
         await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
         const bgImage = canvas.toDataURL("image/png");
-        newPages.push({ id: pageId(), elements: [], backgroundImage: bgImage });
+        newPages.push({ id: pageId(), elements: [], backgroundImage: bgImage, backgroundOpacity: 0.5 });
       }
 
       setPages(prev => {
