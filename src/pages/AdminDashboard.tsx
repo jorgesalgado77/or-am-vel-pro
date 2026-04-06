@@ -1,4 +1,4 @@
-import {useState, useEffect, useMemo, useCallback} from "react";
+import React, {useState, useEffect, useMemo, useCallback, useRef} from "react";
 import {supabase} from "@/lib/supabaseClient";
 import {maskPhone} from "@/lib/masks";
 import {toast} from "sonner";
@@ -17,7 +17,7 @@ import {ScrollArea, ScrollBar} from "@/components/ui/scroll-area";
 import {
   Shield, Store, CreditCard, LogOut, Users, Crown, Zap, Eye, EyeOff,
   Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, MessageCircle, Globe, Handshake, Bot, Mail, Activity, Palette, Gift, Film, StoreIcon, XCircle, Box, KeyRound, Server, TrendingUp,
-  Sun, Moon, Monitor, ClipboardList, CalendarSync,
+  Sun, Moon, Monitor, ClipboardList, CalendarSync, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import {AdminUsersModal} from "@/components/admin/AdminUsersModal";
 import {AdminStoreUsersModal} from "@/components/admin/AdminStoreUsersModal";
@@ -153,6 +153,10 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const { mode: themeMode, setMode: setThemeMode } = useTheme();
   useAdminPushNotifications(true);
   const [showRevenueModal, setShowRevenueModal] = useState(false);
+  const tabsScrollRef = useRef<HTMLDivElement>(null);
+  const scrollTabs = (dir: number) => {
+    tabsScrollRef.current?.scrollBy({ left: dir * 200, behavior: "smooth" });
+  };
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [payments, setPayments] = useState<PaymentSetting[]>([]);
   const [planPrices, setPlanPrices] = useState<PlanPriceMap>({});
@@ -1048,8 +1052,15 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
 
         <AdminCollapsibleSection title="Gerenciamento" icon={Shield}>
         <Tabs defaultValue="lojas" className="space-y-4">
-          <ScrollArea className="w-full">
-            <div className="w-max min-w-full">
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline" size="icon"
+              className="h-8 w-8 shrink-0 rounded-full border-border/50 hover:bg-muted"
+              onClick={() => scrollTabs(-1)}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div ref={tabsScrollRef} className="flex-1 overflow-x-auto scrollbar-thin scrollbar-thumb-muted-foreground/30 scrollbar-track-transparent pb-1">
               <TabsList className="inline-flex w-max gap-1 p-1 min-w-max">
                 <TabsTrigger value="lojas" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Store className="h-4 w-4" />Lojas</TabsTrigger>
                 <TabsTrigger value="dealroom" className="gap-2 data-[state=active]:bg-[hsl(270,60%,50%)] data-[state=active]:text-white"><Handshake className="h-4 w-4" />Deal Room</TabsTrigger>
@@ -1067,19 +1078,23 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                 </TabsTrigger>
                 <TabsTrigger value="landing" className="gap-2 data-[state=active]:bg-[hsl(30,80%,50%)] data-[state=active]:text-white"><Globe className="h-4 w-4" />Landing Page</TabsTrigger>
                 <TabsTrigger value="apis-config" className="gap-2 data-[state=active]:bg-[hsl(220,70%,50%)] data-[state=active]:text-white"><KeyRound className="h-4 w-4" />APIs (Config)</TabsTrigger>
-                
                 <TabsTrigger value="affiliates" className="gap-2 data-[state=active]:bg-[hsl(45,80%,45%)] data-[state=active]:text-white"><Gift className="h-4 w-4" />Afiliados</TabsTrigger>
                 <TabsTrigger value="tutorials" className="gap-2 data-[state=active]:bg-[hsl(0,60%,50%)] data-[state=active]:text-white"><Film className="h-4 w-4" />Tutoriais</TabsTrigger>
                 <TabsTrigger value="diagnostics" className="gap-2 data-[state=active]:bg-[hsl(280,60%,50%)] data-[state=active]:text-white"><Activity className="h-4 w-4" />Diagnóstico Login</TabsTrigger>
                 <TabsTrigger value="sysdiag" className="gap-2 data-[state=active]:bg-[hsl(200,70%,45%)] data-[state=active]:text-white"><Server className="h-4 w-4" />Saúde do Sistema</TabsTrigger>
                 <TabsTrigger value="apikeys" className="gap-2 data-[state=active]:bg-[hsl(25,80%,50%)] data-[state=active]:text-white"><KeyRound className="h-4 w-4" />APIs</TabsTrigger>
                 <TabsTrigger value="usage-billing" className="gap-2 data-[state=active]:bg-[hsl(260,60%,50%)] data-[state=active]:text-white"><TrendingUp className="h-4 w-4" />Consumo</TabsTrigger>
-                
                 <TabsTrigger value="wa-funnel" className="gap-2 data-[state=active]:bg-[hsl(142,70%,40%)] data-[state=active]:text-white"><MessageCircle className="h-4 w-4" />Funil WA</TabsTrigger>
               </TabsList>
             </div>
-            <ScrollBar orientation="horizontal" className="h-2.5 mt-1" />
-          </ScrollArea>
+            <Button
+              variant="outline" size="icon"
+              className="h-8 w-8 shrink-0 rounded-full border-border/50 hover:bg-muted"
+              onClick={() => scrollTabs(1)}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
 
 
 
