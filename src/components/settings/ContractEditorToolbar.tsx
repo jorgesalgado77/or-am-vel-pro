@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -41,10 +42,19 @@ interface ContractEditorToolbarProps {
   onImageUpload: () => void;
 }
 
-const FONTS = [
+const SYSTEM_FONTS = [
   "Arial", "Times New Roman", "Courier New", "Georgia", "Verdana",
   "Helvetica", "Tahoma", "Trebuchet MS", "Palatino", "Garamond"
 ];
+
+const GOOGLE_FONTS = [
+  "Roboto", "Open Sans", "Lato", "Montserrat", "Poppins",
+  "Raleway", "Nunito", "Playfair Display", "Merriweather", "Source Sans 3",
+  "Oswald", "Inter", "Rubik", "Work Sans", "Libre Baskerville",
+  "Cormorant Garamond", "Dancing Script", "Pacifico", "Bebas Neue", "Caveat"
+];
+
+const FONTS = [...SYSTEM_FONTS, ...GOOGLE_FONTS].sort();
 
 const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 64, 72];
 
@@ -64,6 +74,19 @@ export function ContractEditorToolbar(props: ContractEditorToolbarProps) {
     textColor, onTextColorChange, textAlign, onTextAlignChange,
     onUndo, onRedo, canUndo, canRedo, onImageUpload,
   } = props;
+
+  // Load Google Fonts dynamically
+  useEffect(() => {
+    const families = GOOGLE_FONTS.map(f => f.replace(/ /g, "+")).join("&family=");
+    const linkId = "google-fonts-editor";
+    if (!document.getElementById(linkId)) {
+      const link = document.createElement("link");
+      link.id = linkId;
+      link.rel = "stylesheet";
+      link.href = `https://fonts.googleapis.com/css2?family=${families}&display=swap`;
+      document.head.appendChild(link);
+    }
+  }, []);
 
   return (
     <div className="flex flex-wrap items-center gap-1 rounded-t-lg border border-border bg-muted/30 px-2 py-1.5">
@@ -127,11 +150,17 @@ export function ContractEditorToolbar(props: ContractEditorToolbarProps) {
 
       {/* Font family */}
       <Select value={fontFamily} onValueChange={onFontFamilyChange}>
-        <SelectTrigger className="h-8 w-[120px] text-xs">
+        <SelectTrigger className="h-8 w-[150px] text-xs">
           <SelectValue />
         </SelectTrigger>
-        <SelectContent>
-          {FONTS.map(f => (
+        <SelectContent className="max-h-[300px]">
+          <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Sistema</div>
+          {SYSTEM_FONTS.map(f => (
+            <SelectItem key={f} value={f} className="text-xs" style={{ fontFamily: f }}>{f}</SelectItem>
+          ))}
+          <div className="h-px bg-border my-1" />
+          <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Google Fonts</div>
+          {GOOGLE_FONTS.sort().map(f => (
             <SelectItem key={f} value={f} className="text-xs" style={{ fontFamily: f }}>{f}</SelectItem>
           ))}
         </SelectContent>
