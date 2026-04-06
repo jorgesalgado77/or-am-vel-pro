@@ -1022,7 +1022,6 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       setSaveTemplateDesc("");
       setOverwriteTemplateId(null);
     }
-    }
   };
 
   const handleDeleteCustom = async (id: string, name: string) => {
