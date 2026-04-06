@@ -1214,52 +1214,41 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         onTableInsert={handleTableInsert}
       />
 
-      {/* Action bar with page navigation */}
-      <div className="flex items-center justify-between border-x border-border bg-muted/20 px-3 py-1.5">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => setShowTemplates(true)} title="Templates">
-            <LayoutTemplate className="h-3.5 w-3.5" /> Templates
-          </Button>
-          <div className="h-5 w-px bg-border mx-1" />
-          {/* Zoom */}
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setZoom(z => Math.max(0.25, z - 0.1))} title="Zoom -"><ZoomOut className="h-3.5 w-3.5" /></Button>
-          <span className="text-xs text-muted-foreground w-12 text-center">{Math.round(zoom * 100)}%</span>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setZoom(z => Math.min(2, z + 0.1))} title="Zoom +"><ZoomIn className="h-3.5 w-3.5" /></Button>
-
-          <div className="h-5 w-px bg-border mx-1" />
-
-          {/* Page navigation */}
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={goToPrevPage} disabled={currentPageIdx === 0} title="Página anterior"><ChevronLeft className="h-3.5 w-3.5" /></Button>
-          <span className="text-xs text-foreground font-medium min-w-[60px] text-center">
-            Pág. {currentPageIdx + 1} / {pages.length}
-          </span>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={goToNextPage} disabled={currentPageIdx >= pages.length - 1} title="Próxima página"><ChevronRight className="h-3.5 w-3.5" /></Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={addPage} title="Adicionar página"><Plus className="h-3.5 w-3.5" /></Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={duplicatePage} title="Duplicar página"><Copy className="h-3.5 w-3.5" /></Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={deletePage} disabled={pages.length <= 1} title="Excluir página"><Trash2 className="h-3.5 w-3.5" /></Button>
-
-          <div className="h-5 w-px bg-border mx-1" />
-
-          {/* PDF import */}
-          <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={handlePdfImport} disabled={importingPdf} title="Importar PDF como fundo">
-            <FileUp className="h-3.5 w-3.5" />
-            {importingPdf ? "Importando..." : "PDF como fundo"}
-          </Button>
-          <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => setShowSaveDialog(true)} title="Salvar como Template">
-            <BookmarkPlus className="h-3.5 w-3.5" /> Salvar Template
-          </Button>
-        </div>
-
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={onCancel}><X className="h-3 w-3" /> Cancelar</Button>
-          <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={handleExportPdf} disabled={exporting}>
-            <Download className="h-3 w-3" /> {exporting ? "Exportando..." : "PDF"}
-          </Button>
-          <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={handleExportDocx} disabled={exportingDocx}>
-            <FileText className="h-3 w-3" /> {exportingDocx ? "Exportando..." : "DOCX"}
-          </Button>
-          <Button size="sm" className="h-7 gap-1 text-xs" onClick={handleSave}><Save className="h-3 w-3" /> Salvar Contrato</Button>
-        </div>
+      {/* Action bar - row 1: tools */}
+      <div className="flex items-center flex-wrap gap-1 border-x border-border bg-muted/20 px-2 py-1">
+        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={() => setShowTemplates(true)} title="Templates">
+          <LayoutTemplate className="h-3.5 w-3.5" /> Templates
+        </Button>
+        <div className="h-5 w-px bg-border" />
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setZoom(z => Math.max(0.25, z - 0.1))} title="Zoom -"><ZoomOut className="h-3.5 w-3.5" /></Button>
+        <span className="text-xs text-muted-foreground w-10 text-center shrink-0">{Math.round(zoom * 100)}%</span>
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setZoom(z => Math.min(2, z + 0.1))} title="Zoom +"><ZoomIn className="h-3.5 w-3.5" /></Button>
+        <div className="h-5 w-px bg-border" />
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={goToPrevPage} disabled={currentPageIdx === 0}><ChevronLeft className="h-3.5 w-3.5" /></Button>
+        <span className="text-xs text-foreground font-medium shrink-0">Pág. {currentPageIdx + 1}/{pages.length}</span>
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={goToNextPage} disabled={currentPageIdx >= pages.length - 1}><ChevronRight className="h-3.5 w-3.5" /></Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={addPage} title="Adicionar página"><Plus className="h-3.5 w-3.5" /></Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={duplicatePage} title="Duplicar página"><Copy className="h-3.5 w-3.5" /></Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={deletePage} disabled={pages.length <= 1} title="Excluir página"><Trash2 className="h-3.5 w-3.5" /></Button>
+        <div className="h-5 w-px bg-border" />
+        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handlePdfImport} disabled={importingPdf} title="Importar PDF como fundo">
+          <FileUp className="h-3.5 w-3.5" /> {importingPdf ? "Importando..." : "PDF fundo"}
+        </Button>
+        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleInsertCompanyLogo} title="Inserir logo da empresa">
+          <ImageIcon className="h-3.5 w-3.5" /> Logo
+        </Button>
+        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={() => setShowSaveDialog(true)} title="Salvar como Template">
+          <BookmarkPlus className="h-3.5 w-3.5" /> Salvar Template
+        </Button>
+        <div className="flex-1" />
+        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={onCancel}><X className="h-3 w-3" /> Cancelar</Button>
+        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleExportPdf} disabled={exporting}>
+          <Download className="h-3 w-3" /> PDF
+        </Button>
+        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleExportDocx} disabled={exportingDocx}>
+          <FileText className="h-3 w-3" /> DOCX
+        </Button>
+        <Button size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleSave}><Save className="h-3 w-3" /> Salvar</Button>
       </div>
 
       {/* Save as Template Dialog */}
