@@ -336,20 +336,24 @@ const DRAG_VARIABLES_STYLES = `
  * Inject drag & resize scripts/styles into contract preview HTML.
  */
 export function injectDragVariablesIntoHtml(previewHtml: string, gridSize: number = 8): string {
-  // Insert styles before </head> and script before </body>
   let result = previewHtml;
+
+  // Build grid CSS for initial size
+  const gridCSS = `.contract-page, [data-contract-page] { background-image: linear-gradient(to right, hsl(210 20% 80% / 0.15) 1px, transparent 1px), linear-gradient(to bottom, hsl(210 20% 80% / 0.15) 1px, transparent 1px) !important; background-size: ${gridSize}px ${gridSize}px !important; background-position: 0 0 !important; }`;
 
   result = result.replace(
     '</head>',
-    `<style>${DRAG_VARIABLES_STYLES}</style>\n</head>`
+    `<style>${DRAG_VARIABLES_STYLES}</style>\n<style id="drag-grid-style">${gridCSS}</style>\n</head>`
   );
+
+  // Replace placeholder with actual grid size
+  const scriptWithGrid = DRAG_VARIABLES_SCRIPT.replace('__GRID_SIZE__', String(gridSize));
 
   result = result.replace(
     '</body>',
-    `<script>${DRAG_VARIABLES_SCRIPT}<\/script>\n</body>`
+    `<script>${scriptWithGrid}<\/script>\n</body>`
   );
 
-  // Add class to body
   result = result.replace(
     'class="contract-document-root"',
     'class="contract-document-root drag-mode-active"'
