@@ -185,7 +185,7 @@ export function ContratosTab() {
 
   const previewDocument = useMemo(() => {
     const base = buildContractDocumentHtml(removeHighlights(htmlContent), nome || "Preview do contrato");
-    return dragMode ? injectDragVariablesIntoHtml(base, gridSize) : base;
+    return dragMode ? injectDragVariablesIntoHtml(base, gridSize, AVAILABLE_VARIABLES) : base;
   }, [htmlContent, nome, dragMode, gridSize],
   );
 
