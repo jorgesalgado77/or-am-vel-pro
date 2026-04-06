@@ -153,6 +153,10 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const { mode: themeMode, setMode: setThemeMode } = useTheme();
   useAdminPushNotifications(true);
   const [showRevenueModal, setShowRevenueModal] = useState(false);
+  const tabsScrollRef = useRef<HTMLDivElement>(null);
+  const scrollTabs = (dir: number) => {
+    tabsScrollRef.current?.scrollBy({ left: dir * 200, behavior: "smooth" });
+  };
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [payments, setPayments] = useState<PaymentSetting[]>([]);
   const [planPrices, setPlanPrices] = useState<PlanPriceMap>({});
