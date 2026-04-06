@@ -34,7 +34,8 @@ interface CanvasElement {
 interface PageData {
   id: string;
   elements: CanvasElement[];
-  backgroundImage?: string; // data URL for PDF page background
+  backgroundImage?: string;
+  backgroundOpacity: number;
 }
 
 interface VariableInfo {
@@ -76,7 +77,7 @@ function createDefaultElement(type: CanvasElement["type"], x: number, y: number)
 }
 
 export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVisualEditorProps) {
-  const [pages, setPages] = useState<PageData[]>([{ id: pageId(), elements: [] }]);
+  const [pages, setPages] = useState<PageData[]>([{ id: pageId(), elements: [], backgroundOpacity: 0.5 }]);
   const [currentPageIdx, setCurrentPageIdx] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<ToolType>("select");
@@ -88,6 +89,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [varSearch, setVarSearch] = useState("");
   const [importingPdf, setImportingPdf] = useState(false);
+  const [dragPageIdx, setDragPageIdx] = useState<number | null>(null);
+  const [dragOverPageIdx, setDragOverPageIdx] = useState<number | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -113,7 +116,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   }, [currentPageIdx]);
 
   const addPage = () => {
-    const newPage: PageData = { id: pageId(), elements: [] };
+    const newPage: PageData = { id: pageId(), elements: [], backgroundOpacity: 0.5 };
     setPages(prev => [...prev.slice(0, currentPageIdx + 1), newPage, ...prev.slice(currentPageIdx + 1)]);
     setCurrentPageIdx(currentPageIdx + 1);
     setSelectedId(null);
@@ -124,6 +127,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       id: pageId(),
       elements: currentPage.elements.map(el => ({ ...el, id: genId() })),
       backgroundImage: currentPage.backgroundImage,
+      backgroundOpacity: currentPage.backgroundOpacity,
     };
     setPages(prev => [...prev.slice(0, currentPageIdx + 1), dup, ...prev.slice(currentPageIdx + 1)]);
     setCurrentPageIdx(currentPageIdx + 1);
@@ -252,7 +256,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         const ctx = canvas.getContext("2d")!;
         await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
         const bgImage = canvas.toDataURL("image/png");
-        newPages.push({ id: pageId(), elements: [], backgroundImage: bgImage });
+        newPages.push({ id: pageId(), elements: [], backgroundImage: bgImage, backgroundOpacity: 0.5 });
       }
 
       setPages(prev => {
@@ -482,51 +486,73 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   };
 
   const renderPropertiesPanel = () => {
-    if (!selected) return null;
     return (
       <div className="w-56 border-l border-border bg-background p-3 overflow-y-auto text-xs space-y-3">
-        <h3 className="font-semibold text-sm text-foreground">Propriedades</h3>
-        <div className="space-y-1.5">
-          <label className="text-muted-foreground">Posição</label>
-          <div className="grid grid-cols-2 gap-1">
-            <div><span className="text-muted-foreground">X</span><input type="number" value={Math.round(selected.x)} onChange={e => updateSelected({ x: Number(e.target.value) })} className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" /></div>
-            <div><span className="text-muted-foreground">Y</span><input type="number" value={Math.round(selected.y)} onChange={e => updateSelected({ y: Number(e.target.value) })} className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" /></div>
-          </div>
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-muted-foreground">Tamanho</label>
-          <div className="grid grid-cols-2 gap-1">
-            <div><span className="text-muted-foreground">L</span><input type="number" value={Math.round(selected.width)} onChange={e => updateSelected({ width: Number(e.target.value) })} className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" /></div>
-            <div><span className="text-muted-foreground">A</span><input type="number" value={Math.round(selected.height)} onChange={e => updateSelected({ height: Number(e.target.value) })} className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" /></div>
-          </div>
-        </div>
-        {(selected.type === "rect" || selected.type === "circle") && (
+        {/* Page background opacity */}
+        {currentPage?.backgroundImage && (
           <>
+            <h3 className="font-semibold text-sm text-foreground">Fundo da Página</h3>
             <div className="space-y-1.5">
-              <label className="text-muted-foreground">Preenchimento</label>
-              <input type="color" value={selected.fill} onChange={e => updateSelected({ fill: e.target.value })} className="h-7 w-full cursor-pointer rounded border border-border" />
+              <label className="text-muted-foreground">Opacidade: {Math.round((currentPage.backgroundOpacity) * 100)}%</label>
+              <input type="range" min={0} max={100} value={Math.round(currentPage.backgroundOpacity * 100)}
+                onChange={e => {
+                  const val = Number(e.target.value) / 100;
+                  setPages(prev => prev.map((p, i) => i === currentPageIdx ? { ...p, backgroundOpacity: val } : p));
+                }}
+                className="w-full" />
+            </div>
+            <div className="h-px bg-border" />
+          </>
+        )}
+
+        {selected ? (
+          <>
+            <h3 className="font-semibold text-sm text-foreground">Propriedades</h3>
+            <div className="space-y-1.5">
+              <label className="text-muted-foreground">Posição</label>
+              <div className="grid grid-cols-2 gap-1">
+                <div><span className="text-muted-foreground">X</span><input type="number" value={Math.round(selected.x)} onChange={e => updateSelected({ x: Number(e.target.value) })} className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" /></div>
+                <div><span className="text-muted-foreground">Y</span><input type="number" value={Math.round(selected.y)} onChange={e => updateSelected({ y: Number(e.target.value) })} className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" /></div>
+              </div>
             </div>
             <div className="space-y-1.5">
-              <label className="text-muted-foreground">Borda</label>
-              <input type="color" value={selected.stroke} onChange={e => updateSelected({ stroke: e.target.value })} className="h-7 w-full cursor-pointer rounded border border-border" />
-              <input type="number" min={0} max={10} value={selected.strokeWidth} onChange={e => updateSelected({ strokeWidth: Number(e.target.value) })} className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" />
+              <label className="text-muted-foreground">Tamanho</label>
+              <div className="grid grid-cols-2 gap-1">
+                <div><span className="text-muted-foreground">L</span><input type="number" value={Math.round(selected.width)} onChange={e => updateSelected({ width: Number(e.target.value) })} className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" /></div>
+                <div><span className="text-muted-foreground">A</span><input type="number" value={Math.round(selected.height)} onChange={e => updateSelected({ height: Number(e.target.value) })} className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" /></div>
+              </div>
             </div>
-            {selected.type === "rect" && (
+            {(selected.type === "rect" || selected.type === "circle") && (
+              <>
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground">Preenchimento</label>
+                  <input type="color" value={selected.fill} onChange={e => updateSelected({ fill: e.target.value })} className="h-7 w-full cursor-pointer rounded border border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-muted-foreground">Borda</label>
+                  <input type="color" value={selected.stroke} onChange={e => updateSelected({ stroke: e.target.value })} className="h-7 w-full cursor-pointer rounded border border-border" />
+                  <input type="number" min={0} max={10} value={selected.strokeWidth} onChange={e => updateSelected({ strokeWidth: Number(e.target.value) })} className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" />
+                </div>
+                {selected.type === "rect" && (
+                  <div className="space-y-1.5">
+                    <label className="text-muted-foreground">Arredondamento</label>
+                    <input type="range" min={0} max={50} value={selected.borderRadius} onChange={e => updateSelected({ borderRadius: Number(e.target.value) })} className="w-full" />
+                  </div>
+                )}
+              </>
+            )}
+            {selected.type === "line" && (
               <div className="space-y-1.5">
-                <label className="text-muted-foreground">Arredondamento</label>
-                <input type="range" min={0} max={50} value={selected.borderRadius} onChange={e => updateSelected({ borderRadius: Number(e.target.value) })} className="w-full" />
+                <label className="text-muted-foreground">Cor da linha</label>
+                <input type="color" value={selected.stroke} onChange={e => updateSelected({ stroke: e.target.value })} className="h-7 w-full cursor-pointer rounded border border-border" />
+                <label className="text-muted-foreground">Espessura</label>
+                <input type="number" min={1} max={20} value={selected.strokeWidth} onChange={e => updateSelected({ strokeWidth: Number(e.target.value) })} className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" />
               </div>
             )}
           </>
-        )}
-        {selected.type === "line" && (
-          <div className="space-y-1.5">
-            <label className="text-muted-foreground">Cor da linha</label>
-            <input type="color" value={selected.stroke} onChange={e => updateSelected({ stroke: e.target.value })} className="h-7 w-full cursor-pointer rounded border border-border" />
-            <label className="text-muted-foreground">Espessura</label>
-            <input type="number" min={1} max={20} value={selected.strokeWidth} onChange={e => updateSelected({ strokeWidth: Number(e.target.value) })} className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" />
-          </div>
-        )}
+        ) : !currentPage?.backgroundImage ? (
+          <p className="text-muted-foreground text-center py-4">Selecione um elemento para ver suas propriedades</p>
+        ) : null}
       </div>
     );
   };
@@ -594,21 +620,39 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         {/* Page thumbnails sidebar */}
         <div className="w-24 border-r border-border bg-muted/20 overflow-y-auto p-2 space-y-2">
           {pages.map((page, idx) => (
-            <button
+            <div
               key={page.id}
+              draggable
+              onDragStart={() => setDragPageIdx(idx)}
+              onDragOver={(e) => { e.preventDefault(); setDragOverPageIdx(idx); }}
+              onDragLeave={() => setDragOverPageIdx(null)}
+              onDrop={() => {
+                if (dragPageIdx !== null && dragPageIdx !== idx) {
+                  setPages(prev => {
+                    const arr = [...prev];
+                    const [moved] = arr.splice(dragPageIdx, 1);
+                    arr.splice(idx, 0, moved);
+                    return arr;
+                  });
+                  setCurrentPageIdx(idx);
+                }
+                setDragPageIdx(null);
+                setDragOverPageIdx(null);
+              }}
+              onDragEnd={() => { setDragPageIdx(null); setDragOverPageIdx(null); }}
               onClick={() => { setCurrentPageIdx(idx); setSelectedId(null); }}
-              className={`w-full rounded border-2 transition-all ${idx === currentPageIdx ? "border-primary shadow-sm" : "border-border hover:border-muted-foreground/30"}`}
-              title={`Página ${idx + 1}`}
+              className={`w-full rounded border-2 transition-all cursor-pointer ${idx === currentPageIdx ? "border-primary shadow-sm" : "border-border hover:border-muted-foreground/30"} ${dragOverPageIdx === idx && dragPageIdx !== idx ? "border-primary/50 bg-primary/5" : ""} ${dragPageIdx === idx ? "opacity-40" : ""}`}
+              title={`Página ${idx + 1} — arraste para reordenar`}
             >
               <div className="relative w-full bg-background" style={{ aspectRatio: `${A4_WIDTH}/${A4_HEIGHT}` }}>
                 {page.backgroundImage && (
-                  <img src={page.backgroundImage} alt="" className="absolute inset-0 w-full h-full object-contain" />
+                  <img src={page.backgroundImage} alt="" className="absolute inset-0 w-full h-full object-contain" style={{ opacity: page.backgroundOpacity }} />
                 )}
                 <div className="absolute bottom-0 left-0 right-0 bg-foreground/60 text-background text-[9px] text-center py-0.5 font-medium">
                   {idx + 1}
                 </div>
               </div>
-            </button>
+            </div>
           ))}
         </div>
 
@@ -632,7 +676,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                 style={{
                   position: "absolute", top: 0, left: 0,
                   width: A4_WIDTH * zoom, height: A4_HEIGHT * zoom,
-                  objectFit: "contain", pointerEvents: "none", opacity: 0.5,
+                  objectFit: "contain", pointerEvents: "none",
+                  opacity: currentPage.backgroundOpacity,
                 }}
               />
             )}
