@@ -34,7 +34,8 @@ interface CanvasElement {
 interface PageData {
   id: string;
   elements: CanvasElement[];
-  backgroundImage?: string; // data URL for PDF page background
+  backgroundImage?: string;
+  backgroundOpacity: number;
 }
 
 interface VariableInfo {
@@ -76,7 +77,7 @@ function createDefaultElement(type: CanvasElement["type"], x: number, y: number)
 }
 
 export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVisualEditorProps) {
-  const [pages, setPages] = useState<PageData[]>([{ id: pageId(), elements: [] }]);
+  const [pages, setPages] = useState<PageData[]>([{ id: pageId(), elements: [], backgroundOpacity: 0.5 }]);
   const [currentPageIdx, setCurrentPageIdx] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<ToolType>("select");
@@ -88,6 +89,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [varSearch, setVarSearch] = useState("");
   const [importingPdf, setImportingPdf] = useState(false);
+  const [dragPageIdx, setDragPageIdx] = useState<number | null>(null);
+  const [dragOverPageIdx, setDragOverPageIdx] = useState<number | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
