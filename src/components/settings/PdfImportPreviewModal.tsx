@@ -188,12 +188,16 @@ export function PdfImportPreviewModal({
     return { used, unknown, total: usedSet.size };
   }, [finalHtml]);
 
-  // Highlight {{...}} variables in preview HTML
+  // Highlight {{...}} variables with green (known) or red (unknown)
   const highlightVariablesInHtml = (html: string): string => {
-    return html.replace(
-      /(\{\{[^}]+\}\})/g,
-      '<span style="background: linear-gradient(135deg, hsl(200 80% 85%), hsl(200 80% 75%)); padding: 2px 6px; border-radius: 4px; border: 1px dashed hsl(200 80% 50%); font-family: monospace; font-size: 0.85em; font-weight: 600; color: hsl(200 80% 30%); white-space: nowrap;">$1</span>'
-    );
+    const knownSet = new Set(KNOWN_VARIABLES);
+    return html.replace(/(\{\{[^}]+\}\})/g, (match) => {
+      const isKnown = knownSet.has(match);
+      if (isKnown) {
+        return `<span style="background: linear-gradient(135deg, hsl(142 60% 85%), hsl(142 60% 75%)); padding: 2px 6px; border-radius: 4px; border: 1px dashed hsl(142 70% 40%); font-family: monospace; font-size: 0.85em; font-weight: 600; color: hsl(142 70% 25%); white-space: nowrap;" title="✓ Variável reconhecida">${match}</span>`;
+      }
+      return `<span style="background: linear-gradient(135deg, hsl(0 70% 90%), hsl(0 70% 82%)); padding: 2px 6px; border-radius: 4px; border: 1px dashed hsl(0 70% 50%); font-family: monospace; font-size: 0.85em; font-weight: 600; color: hsl(0 70% 30%); white-space: nowrap;" title="⚠ Variável desconhecida">${match}</span>`;
+    });
   };
 
   const previewHtml = useMemo(() => {
@@ -357,7 +361,7 @@ export function PdfImportPreviewModal({
                   contentEditable
                   suppressContentEditableWarning
                   className="prose prose-sm min-h-[30vh] max-w-none rounded-b-lg border border-border bg-background p-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  dangerouslySetInnerHTML={{ __html: editedHtml !== null ? editedHtml : baseHtml }}
+                  dangerouslySetInnerHTML={{ __html: highlightVariablesInHtml(editedHtml !== null ? editedHtml : baseHtml) }}
                   onBlur={() => {
                     if (editorRef.current) setEditedHtml(editorRef.current.innerHTML);
                   }}
