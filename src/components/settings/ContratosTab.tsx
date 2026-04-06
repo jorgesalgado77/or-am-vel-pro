@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
-import { Upload, Save, Trash2, Plus, FileText, Eye, Code, Info, Sparkles, ImageOff, Download, FolderInput, CheckCircle2, AlertTriangle, XCircle, Move, Grid3X3 } from "lucide-react";
+import { Upload, Save, Trash2, Plus, FileText, Eye, Code, Info, Sparkles, ImageOff, Download, FolderInput, CheckCircle2, AlertTriangle, XCircle, Move, Grid3X3, PenTool } from "lucide-react";
 import { Wand2 } from "lucide-react";
 import { importContractFile, highlightSuggestedFields, removeHighlights } from "@/lib/contractImport";
 import { replaceDetectedFieldsWithPlaceholders } from "@/lib/contractImport";
