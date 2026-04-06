@@ -14,6 +14,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   CheckCircle2,
   AlertTriangle,
   Eye,
@@ -23,6 +28,8 @@ import {
   Save,
   X,
   Pencil,
+  Plus,
+  Search,
 } from "lucide-react";
 import { removeHighlights } from "@/lib/contractImport";
 import { EditorToolbar } from "./EditorToolbar";

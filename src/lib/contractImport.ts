@@ -204,6 +204,43 @@ export const replaceDetectedFieldsWithPlaceholders = (
     }
   }
 
+  // ── Pass 1.5: Table detection for {{itens_tabela}} / {{ambientes_detalhes_completos}} ──
+  const tables = Array.from(container.querySelectorAll("table"));
+  for (const table of tables) {
+    const tableText = (table.textContent || "").toLowerCase();
+    const hasAmb = /ambiente|c[oô]modo|espa[çc]o|quarto|cozinha|sala|banheiro|lavabo|closet|varanda/i.test(tableText);
+    const hasItem = /item|produto|descri[çc][ãa]o|quantidade|qtd|valor|pre[çc]o|un\b|total/i.test(tableText);
+    const hasPrazo = /prazo|entrega|fornecedor/i.test(tableText);
+
+    if (hasAmb && (hasPrazo || hasItem)) {
+      // Full environment table with details
+      const origHtml = table.outerHTML;
+      const placeholder = doc.createElement("div");
+      placeholder.textContent = "{{ambientes_detalhes_completos}}";
+      table.parentNode?.replaceChild(placeholder, table);
+      replacedCount++;
+      replacements.push({
+        id: `fr-table-${replacedCount}-${Date.now()}`,
+        originalValue: `[Tabela de ambientes: ${table.rows?.length || '?'} linhas]`,
+        variable: "{{ambientes_detalhes_completos}}",
+        label: "Tabela completa de ambientes",
+      });
+    } else if (hasItem || hasAmb) {
+      // Simple items table
+      const origHtml = table.outerHTML;
+      const placeholder = doc.createElement("div");
+      placeholder.textContent = "{{itens_tabela}}";
+      table.parentNode?.replaceChild(placeholder, table);
+      replacedCount++;
+      replacements.push({
+        id: `fr-table-${replacedCount}-${Date.now()}`,
+        originalValue: `[Tabela de itens: ${table.rows?.length || '?'} linhas]`,
+        variable: "{{itens_tabela}}",
+        label: "Tabela de itens/ambientes",
+      });
+    }
+  }
+
   // ── Pass 2: Regex-based detection on text nodes ──
   const walker = doc.createTreeWalker(container, NodeFilter.SHOW_TEXT);
   const textNodes: Text[] = [];
