@@ -421,7 +421,6 @@ export function PdfImportPreviewModal({
                         );
                       })}
                     </div>
-                    </div>
                   </div>
                 )}
 
