@@ -165,6 +165,46 @@ export const replaceDetectedFieldsWithPlaceholders = (
   const container = doc.body.firstElementChild;
   if (!container) return { html, replacedCount: 0, replacements: [] };
 
+  // ── Pass 1: Label-value pair detection ──
+  // Finds patterns where a label element is followed by a value element (common in PDF extractions)
+  const allElements = Array.from(container.querySelectorAll("*"));
+  const replacedElements = new Set<Element>();
+
+  for (let i = 0; i < allElements.length - 1; i++) {
+    const el = allElements[i];
+    const labelText = (el.textContent || "").trim();
+    if (!labelText || labelText.length > 60) continue;
+
+    for (const lv of LABEL_VALUE_MAP) {
+      if (lv.labels.test(labelText)) {
+        // Find the next sibling or adjacent element with value content
+        let valueEl: Element | null = null;
+        // Check next sibling element
+        let next = el.nextElementSibling;
+        if (next && next.textContent?.trim() && !replacedElements.has(next)) {
+          valueEl = next;
+        }
+        // Or check the next element in document order
+        if (!valueEl && i + 1 < allElements.length) {
+          const candidate = allElements[i + 1];
+          if (candidate.textContent?.trim() && !el.contains(candidate) && !replacedElements.has(candidate)) {
+            valueEl = candidate;
+          }
+        }
+
+        if (valueEl) {
+          const valueText = (valueEl.textContent || "").trim();
+          // Skip if the value looks like another label or is too long
+          if (valueText.length > 0 && valueText.length < 200 && !LABEL_VALUE_MAP.some(l => l.labels.test(valueText))) {
+            replacedElements.add(valueEl);
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // ── Pass 2: Regex-based detection on text nodes ──
   const walker = doc.createTreeWalker(container, NodeFilter.SHOW_TEXT);
   const textNodes: Text[] = [];
   while (walker.nextNode()) textNodes.push(walker.currentNode as Text);
@@ -172,15 +212,67 @@ export const replaceDetectedFieldsWithPlaceholders = (
   let replacedCount = 0;
   const replacements: FieldReplacement[] = [];
 
-  for (const textNode of textNodes) {
+  // First, do label-value replacements
+  for (let i = 0; i < allElements.length - 1; i++) {
+    const el = allElements[i];
+    const labelText = (el.textContent || "").trim();
+    if (!labelText || labelText.length > 60) continue;
+
+    for (const lv of LABEL_VALUE_MAP) {
+      if (lv.labels.test(labelText)) {
+        let valueEl: Element | null = null;
+        let next = el.nextElementSibling;
+        if (next && next.textContent?.trim()) {
+          valueEl = next;
+        }
+        if (!valueEl && i + 1 < allElements.length) {
+          const candidate = allElements[i + 1];
+          if (candidate.textContent?.trim() && !el.contains(candidate)) {
+            valueEl = candidate;
+          }
+        }
+
+        if (valueEl) {
+          const valueText = (valueEl.textContent || "").trim();
+          if (valueText.length > 0 && valueText.length < 200 && !LABEL_VALUE_MAP.some(l => l.labels.test(valueText))) {
+            // Don't replace if already contains a variable
+            if (!/\{\{[^}]+\}\}/.test(valueText)) {
+              const origValue = valueText;
+              valueEl.textContent = lv.variable;
+              replacedCount++;
+              replacements.push({
+                id: `fr-${replacedCount}-${Date.now()}`,
+                originalValue: origValue,
+                variable: lv.variable,
+                label: lv.label,
+              });
+            }
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // Then, do regex-based replacements on remaining text nodes
+  const walker2 = doc.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+  const textNodes2: Text[] = [];
+  while (walker2.nextNode()) textNodes2.push(walker2.currentNode as Text);
+
+  for (const textNode of textNodes2) {
     if (!isSafeTextContainer(textNode.parentElement)) continue;
     const text = textNode.textContent || "";
+    // Skip nodes that already have variables
+    if (/\{\{[^}]+\}\}/.test(text)) continue;
+
     let newText = text;
     let hasMatch = false;
 
     FIELD_PATTERNS.forEach((fp, idx) => {
       const regex = new RegExp(fp.pattern.source, fp.pattern.flags);
       if (regex.test(newText)) {
+        // Skip if this would replace inside already-replaced content
+        if (/\{\{[^}]+\}\}/.test(newText)) return;
         hasMatch = true;
         const regex2 = new RegExp(fp.pattern.source, fp.pattern.flags);
         newText = newText.replace(regex2, (match) => {
