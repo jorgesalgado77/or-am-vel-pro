@@ -32,7 +32,10 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
   const [linkCopied, setLinkCopied] = useState(false);
   const [fieldReplacements, setFieldReplacements] = useState<FieldReplacement[]>([]);
   const [showSummary, setShowSummary] = useState(false);
+  const [dragMode, setDragMode] = useState(false);
+  const [varPositions, setVarPositions] = useState<VariablePosition[]>([]);
   const editorRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     setHtml(initialHtml);
