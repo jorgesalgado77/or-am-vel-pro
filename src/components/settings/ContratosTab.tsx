@@ -19,6 +19,7 @@ import { VariableAutocomplete } from "./VariableAutocomplete";
 import { VariableTooltip } from "./VariableTooltip";
 import { PdfImportPreviewModal } from "./PdfImportPreviewModal";
 import { EditorToolbar } from "./EditorToolbar";
+import { ContractVisualEditor } from "./ContractVisualEditor";
 import type { ImportedContractContent } from "@/lib/contractImport";
 
 interface ContractTemplate {
