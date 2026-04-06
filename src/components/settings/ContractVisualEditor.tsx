@@ -1,18 +1,19 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { ContractEditorToolbar, type ToolType, type ShapeType } from "./ContractEditorToolbar";
 import { Button } from "@/components/ui/button";
-import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText } from "lucide-react";
+import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText, LayoutTemplate } from "lucide-react";
+import { getContractTemplates, type ContractTemplate } from "./contractTemplates";
 import { toast } from "sonner";
 import * as pdfjsLib from "pdfjs-dist";
 import { jsPDF } from "jspdf";
-import { Document, Packer, Paragraph, TextRun, ImageRun, PageBreak, AlignmentType, BorderStyle } from "docx";
+import { Document, Packer, Paragraph, TextRun, ImageRun, PageBreak, AlignmentType, BorderStyle, Table, TableRow, TableCell, WidthType, ShadingType } from "docx";
 import { saveAs } from "file-saver";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 interface CanvasElement {
   id: string;
-  type: "rect" | "circle" | "line" | "text" | "image";
+  type: "rect" | "circle" | "line" | "text" | "image" | "table";
   x: number;
   y: number;
   width: number;
@@ -32,6 +33,9 @@ interface CanvasElement {
   color: string;
   imageUrl?: string;
   zIndex: number;
+  tableData?: string[][];
+  tableCols?: number;
+  tableRows?: number;
 }
 
 interface PageData {
@@ -75,6 +79,11 @@ function createDefaultElement(type: CanvasElement["type"], x: number, y: number)
     case "line": return { ...base, width: 200, height: 2, strokeWidth: 2, stroke: "#000000" };
     case "text": return { ...base, text: "Texto", width: 200, height: 40, stroke: "transparent", strokeWidth: 0 };
     case "image": return { ...base, width: 200, height: 150, stroke: "#cccccc" };
+    case "table": return {
+      ...base, width: 500, height: 160, fill: "#ffffff", stroke: "#333333",
+      tableData: [["Coluna 1", "Coluna 2", "Coluna 3"], ["", "", ""], ["", "", ""]],
+      tableRows: 3, tableCols: 3,
+    };
     default: return base;
   }
 }
@@ -114,6 +123,7 @@ function drawText(doc: jsPDF, el: CanvasElement) {
 }
 
 export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVisualEditorProps) {
+  const [showTemplates, setShowTemplates] = useState(true);
   const [pages, setPages] = useState<PageData[]>([{ id: pageId(), elements: [], backgroundOpacity: 0.5 }]);
   const [currentPageIdx, setCurrentPageIdx] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -208,6 +218,45 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       setSelectedId(null);
       setEditingTextId(null);
     }
+  };
+
+  const handleTableInsert = () => {
+    const el = createDefaultElement("table", 100, 200);
+    setCurrentElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+    setActiveTool("select");
+  };
+
+  const updateTableCell = (elId: string, row: number, col: number, value: string) => {
+    setCurrentElements(prev => prev.map(el => {
+      if (el.id !== elId || !el.tableData) return el;
+      const newData = el.tableData.map((r, ri) => ri === row ? r.map((c, ci) => ci === col ? value : c) : [...r]);
+      return { ...el, tableData: newData };
+    }));
+  };
+
+  const addTableRow = () => {
+    if (!selected?.tableData) return;
+    const cols = selected.tableCols || selected.tableData[0]?.length || 2;
+    const newRow = Array(cols).fill("");
+    updateSelected({ tableData: [...selected.tableData, newRow], tableRows: (selected.tableRows || selected.tableData.length) + 1, height: selected.height + 30 });
+  };
+
+  const addTableCol = () => {
+    if (!selected?.tableData) return;
+    const newData = selected.tableData.map(row => [...row, ""]);
+    updateSelected({ tableData: newData, tableCols: (selected.tableCols || selected.tableData[0]?.length || 2) + 1, width: selected.width + 100 });
+  };
+
+  const removeTableRow = () => {
+    if (!selected?.tableData || selected.tableData.length <= 1) return;
+    updateSelected({ tableData: selected.tableData.slice(0, -1), tableRows: (selected.tableRows || selected.tableData.length) - 1, height: Math.max(60, selected.height - 30) });
+  };
+
+  const removeTableCol = () => {
+    if (!selected?.tableData || (selected.tableData[0]?.length || 0) <= 1) return;
+    const newData = selected.tableData.map(row => row.slice(0, -1));
+    updateSelected({ tableData: newData, tableCols: (selected.tableCols || 2) - 1, width: Math.max(100, selected.width - 100) });
   };
 
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -418,6 +467,21 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             if (el.imageUrl) html += `<img src="${el.imageUrl}" style="width:100%;height:100%;object-fit:contain;" />`;
             html += `</div>`;
             break;
+          case "table":
+            if (el.tableData) {
+              html += `<div style="${baseStyle}overflow:hidden;"><table style="width:100%;height:100%;border-collapse:collapse;font-family:${el.fontFamily};font-size:${el.fontSize}px;color:${el.color};">`;
+              el.tableData.forEach((row, ri) => {
+                html += `<tr>`;
+                row.forEach(cell => {
+                  const tag = ri === 0 ? "th" : "td";
+                  const bg = ri === 0 ? `background:${el.stroke};color:#fff;font-weight:bold;` : "";
+                  html += `<${tag} style="border:1px solid ${el.stroke};padding:4px 8px;text-align:${el.textAlign};${bg}">${cell}</${tag}>`;
+                });
+                html += `</tr>`;
+              });
+              html += `</table></div>`;
+            }
+            break;
         }
       }
       html += `</div>`;
@@ -512,6 +576,36 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
               }
               break;
             }
+            case "table": {
+              if (el.tableData) {
+                const rows = el.tableData.length;
+                const cols = el.tableData[0]?.length || 1;
+                const cellW = el.width / cols;
+                const cellH = el.height / rows;
+                doc.setLineWidth(0.5);
+                const sc = hexToRgb(el.stroke);
+                if (sc) doc.setDrawColor(sc.r, sc.g, sc.b);
+                for (let ri = 0; ri < rows; ri++) {
+                  for (let ci = 0; ci < cols; ci++) {
+                    const cx = el.x + ci * cellW;
+                    const cy = el.y + ri * cellH;
+                    if (ri === 0 && sc) {
+                      doc.setFillColor(sc.r, sc.g, sc.b);
+                      doc.rect(cx, cy, cellW, cellH, "FD");
+                      doc.setTextColor(255, 255, 255);
+                    } else {
+                      doc.rect(cx, cy, cellW, cellH, "S");
+                      doc.setTextColor(0, 0, 0);
+                    }
+                    doc.setFontSize(el.fontSize * 0.75);
+                    doc.setFont("helvetica", ri === 0 ? "bold" : "normal");
+                    const txt = el.tableData[ri][ci] || "";
+                    doc.text(txt, cx + 4, cy + cellH / 2 + 3, { maxWidth: cellW - 8 });
+                  }
+                }
+              }
+              break;
+            }
           }
         }
       }
@@ -536,15 +630,16 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       for (let pageIdx = 0; pageIdx < pages.length; pageIdx++) {
         const page = pages[pageIdx];
         const sortedEls = [...page.elements].sort((a, b) => a.zIndex - b.zIndex);
-        const children: (Paragraph)[] = [];
+        const children: (Paragraph | Table)[] = [];
 
         // Group elements roughly by vertical position for document flow
         const textEls = sortedEls.filter(el => el.type === "text" || ((el.type === "rect" || el.type === "circle") && el.text));
         const imageEls = sortedEls.filter(el => el.type === "image" && el.imageUrl);
         const lineEls = sortedEls.filter(el => el.type === "line");
+        const tableEls = sortedEls.filter(el => el.type === "table" && el.tableData);
 
         // Sort by Y position for natural reading order
-        const flowEls = [...textEls, ...imageEls, ...lineEls].sort((a, b) => a.y - b.y || a.x - b.x);
+        const flowEls = [...textEls, ...imageEls, ...lineEls, ...tableEls].sort((a, b) => a.y - b.y || a.x - b.x);
 
         for (const el of flowEls) {
           if (el.type === "line") {
@@ -571,6 +666,34 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                 })],
               }));
             } catch { /* skip broken images */ }
+            continue;
+          }
+
+          if (el.type === "table" && el.tableData) {
+            const colCount = el.tableData[0]?.length || 1;
+            const colW = Math.floor(9360 / colCount);
+            const cellBorder = { style: BorderStyle.SINGLE, size: 1, color: el.stroke?.replace("#", "") || "333333" };
+            const cellBorders = { top: cellBorder, bottom: cellBorder, left: cellBorder, right: cellBorder };
+            children.push(new Table({
+              width: { size: 9360, type: WidthType.DXA },
+              columnWidths: Array(colCount).fill(colW),
+              rows: el.tableData.map((row, ri) => new TableRow({
+                children: row.map(cell => new TableCell({
+                  borders: cellBorders,
+                  width: { size: colW, type: WidthType.DXA },
+                  shading: ri === 0 ? { fill: el.stroke?.replace("#", "") || "333333", type: ShadingType.CLEAR } : undefined,
+                  children: [new Paragraph({
+                    children: [new TextRun({
+                      text: cell,
+                      font: el.fontFamily,
+                      size: Math.round(el.fontSize * 1.5),
+                      bold: ri === 0,
+                      color: ri === 0 ? "FFFFFF" : el.color?.replace("#", "") || "000000",
+                    })],
+                  })],
+                })),
+              })),
+            }));
             continue;
           }
 
@@ -716,6 +839,48 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           </div>
         );
         break;
+      case "table":
+        if (el.tableData) {
+          const colW = el.width / (el.tableData[0]?.length || 1);
+          const rowH = el.height / el.tableData.length;
+          content = (
+            <div style={{ ...style, overflow: "hidden" }} onMouseDown={e => handleElementMouseDown(e, el)}>
+              <table style={{ width: "100%", height: "100%", borderCollapse: "collapse", fontFamily: el.fontFamily, fontSize: el.fontSize, color: el.color, tableLayout: "fixed" }}>
+                <tbody>
+                  {el.tableData.map((row, ri) => (
+                    <tr key={ri}>
+                      {row.map((cell, ci) => (
+                        <td key={ci} style={{
+                          border: `1px solid ${el.stroke}`,
+                          padding: "2px 6px",
+                          background: ri === 0 ? el.stroke : el.fill,
+                          color: ri === 0 ? "#ffffff" : el.color,
+                          fontWeight: ri === 0 ? "bold" : "normal",
+                          textAlign: el.textAlign as any,
+                          verticalAlign: "middle",
+                        }}>
+                          <input
+                            type="text" value={cell}
+                            onChange={e => updateTableCell(el.id, ri, ci, e.target.value)}
+                            onClick={e => e.stopPropagation()}
+                            style={{
+                              width: "100%", border: "none", outline: "none",
+                              background: "transparent", color: "inherit", fontFamily: "inherit",
+                              fontSize: "inherit", fontWeight: "inherit", textAlign: "inherit",
+                              padding: 0,
+                            }}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {resizeHandles}
+            </div>
+          );
+        }
+        break;
     }
     return <div key={el.id}>{content}</div>;
   };
@@ -784,6 +949,22 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                 <input type="number" min={1} max={20} value={selected.strokeWidth} onChange={e => updateSelected({ strokeWidth: Number(e.target.value) })} className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" />
               </div>
             )}
+            {selected.type === "table" && (
+              <div className="space-y-1.5">
+                <label className="text-muted-foreground">Cor do cabeçalho</label>
+                <input type="color" value={selected.stroke} onChange={e => updateSelected({ stroke: e.target.value })} className="h-7 w-full cursor-pointer rounded border border-border" />
+                <label className="text-muted-foreground">Linhas: {selected.tableData?.length || 0}</label>
+                <div className="flex gap-1">
+                  <Button variant="outline" size="sm" className="h-6 text-[10px] flex-1" onClick={addTableRow}>+ Linha</Button>
+                  <Button variant="outline" size="sm" className="h-6 text-[10px] flex-1" onClick={removeTableRow}>- Linha</Button>
+                </div>
+                <label className="text-muted-foreground">Colunas: {selected.tableData?.[0]?.length || 0}</label>
+                <div className="flex gap-1">
+                  <Button variant="outline" size="sm" className="h-6 text-[10px] flex-1" onClick={addTableCol}>+ Col</Button>
+                  <Button variant="outline" size="sm" className="h-6 text-[10px] flex-1" onClick={removeTableCol}>- Col</Button>
+                </div>
+              </div>
+            )}
           </>
         ) : !currentPage?.backgroundImage ? (
           <p className="text-muted-foreground text-center py-4">Selecione um elemento para ver suas propriedades</p>
@@ -791,6 +972,39 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       </div>
     );
   };
+
+  const applyTemplate = (tpl: ContractTemplate) => {
+    setPages(tpl.pages.map(p => ({ ...p, id: pageId(), elements: p.elements.map(e => ({ ...e, id: genId() })) })));
+    setCurrentPageIdx(0);
+    setSelectedId(null);
+    setShowTemplates(false);
+    if (tpl.id !== "em-branco") toast.success(`Template "${tpl.name}" aplicado!`);
+  };
+
+  if (showTemplates) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full bg-muted/20 p-8">
+        <h2 className="text-xl font-bold text-foreground mb-2">Escolha um modelo para começar</h2>
+        <p className="text-muted-foreground text-sm mb-6">Selecione um template pré-pronto ou comece do zero</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl">
+          {getContractTemplates().map(tpl => (
+            <button
+              key={tpl.id}
+              onClick={() => applyTemplate(tpl)}
+              className="flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-border bg-background hover:border-primary hover:shadow-lg transition-all text-center group"
+            >
+              <span className="text-4xl">{tpl.icon}</span>
+              <span className="font-semibold text-sm text-foreground group-hover:text-primary">{tpl.name}</span>
+              <span className="text-xs text-muted-foreground leading-tight">{tpl.description}</span>
+            </button>
+          ))}
+        </div>
+        <Button variant="ghost" className="mt-6 text-xs text-muted-foreground" onClick={onCancel}>
+          <X className="h-3 w-3 mr-1" /> Cancelar
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -813,11 +1027,16 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         textAlign={textAlign} onTextAlignChange={v => updateSelected({ textAlign: v })}
         onUndo={() => {}} onRedo={() => {}} canUndo={false} canRedo={false}
         onImageUpload={handleImageUpload}
+        onTableInsert={handleTableInsert}
       />
 
       {/* Action bar with page navigation */}
       <div className="flex items-center justify-between border-x border-border bg-muted/20 px-3 py-1.5">
         <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => setShowTemplates(true)} title="Templates">
+            <LayoutTemplate className="h-3.5 w-3.5" /> Templates
+          </Button>
+          <div className="h-5 w-px bg-border mx-1" />
           {/* Zoom */}
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setZoom(z => Math.max(0.25, z - 0.1))} title="Zoom -"><ZoomOut className="h-3.5 w-3.5" /></Button>
           <span className="text-xs text-muted-foreground w-12 text-center">{Math.round(zoom * 100)}%</span>

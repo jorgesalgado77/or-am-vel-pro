@@ -6,11 +6,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import {
   Undo2, Redo2, Bold, Italic, Underline, Strikethrough, Type, Paintbrush,
   AlignLeft, AlignCenter, AlignRight, AlignJustify, List, ListOrdered,
-  RemoveFormatting, Square, Circle, Minus, Image, MousePointer
+  RemoveFormatting, Square, Circle, Minus, Image, MousePointer, Table2
 } from "lucide-react";
 
 export type ShapeType = "rect" | "circle" | "line";
-export type ToolType = "select" | "shape" | "text" | "image";
+export type ToolType = "select" | "shape" | "text" | "image" | "table";
 
 interface ContractEditorToolbarProps {
   activeTool: ToolType;
@@ -40,6 +40,7 @@ interface ContractEditorToolbarProps {
   canUndo: boolean;
   canRedo: boolean;
   onImageUpload: () => void;
+  onTableInsert: () => void;
 }
 
 const SYSTEM_FONTS = [
@@ -72,7 +73,7 @@ export function ContractEditorToolbar(props: ContractEditorToolbarProps) {
     isBold, onBoldToggle, isItalic, onItalicToggle,
     isUnderline, onUnderlineToggle, isStrikethrough, onStrikethroughToggle,
     textColor, onTextColorChange, textAlign, onTextAlignChange,
-    onUndo, onRedo, canUndo, canRedo, onImageUpload,
+    onUndo, onRedo, canUndo, canRedo, onImageUpload, onTableInsert,
   } = props;
 
   // Load Google Fonts dynamically
@@ -144,6 +145,13 @@ export function ContractEditorToolbar(props: ContractEditorToolbarProps) {
         onClick={() => { onToolChange("image"); onImageUpload(); }} title="Inserir Imagem"
       >
         <Image className="h-4 w-4" />
+      </Button>
+      <Button
+        variant={activeTool === "table" ? "secondary" : "ghost"}
+        size="icon" className="h-8 w-8"
+        onClick={() => { onToolChange("table"); onTableInsert(); }} title="Inserir Tabela"
+      >
+        <Table2 className="h-4 w-4" />
       </Button>
 
       <Separator orientation="vertical" className="mx-1 h-6" />
