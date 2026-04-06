@@ -1048,8 +1048,8 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
 
         <AdminCollapsibleSection title="Gerenciamento" icon={Shield}>
         <Tabs defaultValue="lojas" className="space-y-4">
-          <ScrollArea className="w-full">
-            <TabsList className="inline-flex w-max gap-1 p-1">
+          <div className="w-full overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-muted-foreground/30 scrollbar-track-transparent">
+            <TabsList className="inline-flex w-max gap-1 p-1 min-w-max">
               <TabsTrigger value="lojas" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Store className="h-4 w-4" />Lojas</TabsTrigger>
               <TabsTrigger value="dealroom" className="gap-2 data-[state=active]:bg-[hsl(270,60%,50%)] data-[state=active]:text-white"><Handshake className="h-4 w-4" />Deal Room</TabsTrigger>
               <TabsTrigger value="vendazap" className="gap-2 data-[state=active]:bg-[hsl(120,50%,40%)] data-[state=active]:text-white"><Bot className="h-4 w-4" />VendaZap AI</TabsTrigger>
@@ -1076,8 +1076,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
               
               <TabsTrigger value="wa-funnel" className="gap-2 data-[state=active]:bg-[hsl(142,70%,40%)] data-[state=active]:text-white"><MessageCircle className="h-4 w-4" />Funil WA</TabsTrigger>
             </TabsList>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
+          </div>
 
 
 
