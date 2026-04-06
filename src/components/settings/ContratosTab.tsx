@@ -8,11 +8,12 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
-import { Upload, Save, Trash2, Plus, FileText, Eye, Code, Info, Sparkles, ImageOff, Download, FolderInput, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
+import { Upload, Save, Trash2, Plus, FileText, Eye, Code, Info, Sparkles, ImageOff, Download, FolderInput, CheckCircle2, AlertTriangle, XCircle, Move } from "lucide-react";
 import { Wand2 } from "lucide-react";
 import { importContractFile, highlightSuggestedFields, removeHighlights } from "@/lib/contractImport";
 import { replaceDetectedFieldsWithPlaceholders } from "@/lib/contractImport";
 import { buildContractDocumentHtml } from "@/lib/contractDocument";
+import { injectDragVariablesIntoHtml, applyVariablePositions, type VariablePosition } from "@/lib/contractDragVariables";
 import { getTenantId } from "@/lib/tenantState";
 import { VariableAutocomplete } from "./VariableAutocomplete";
 import { VariableTooltip } from "./VariableTooltip";
@@ -129,11 +130,51 @@ export function ContratosTab() {
     fileName: string;
   } | null>(null);
   const [savingImport, setSavingImport] = useState(false);
+  const [dragMode, setDragMode] = useState(false);
+  const [varPositions, setVarPositions] = useState<VariablePosition[]>([]);
   const editorRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const previewDocument = useMemo(
-    () => buildContractDocumentHtml(removeHighlights(htmlContent), nome || "Preview do contrato"),
-    [htmlContent, nome],
+  // Listen for drag position changes from iframe
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === 'variable-position-change') {
+        const pos = e.data as VariablePosition & { type: string };
+        setVarPositions((prev) => {
+          const idx = prev.findIndex((p) => p.idx === pos.idx);
+          const updated = { idx: pos.idx, varText: pos.varText, left: pos.left, top: pos.top, width: pos.width, height: pos.height };
+          if (idx >= 0) { const next = [...prev]; next[idx] = updated; return next; }
+          return [...prev, updated];
+        });
+      } else if (e.data?.type === 'all-variable-positions') {
+        setVarPositions(e.data.positions);
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  const handleToggleDragMode = () => {
+    if (dragMode && varPositions.length > 0) {
+      setHtmlContent((prev) => applyVariablePositions(prev, varPositions));
+      setVarPositions([]);
+      setEditorKey((k) => k + 1);
+      toast.success("Posições das variáveis aplicadas!");
+    }
+    setDragMode(!dragMode);
+    if (!dragMode) {
+      // Switch to preview when entering drag mode
+      if (viewMode === "editor" && editorRef.current) {
+        setHtmlContent(editorRef.current.innerHTML);
+      }
+      setViewMode("preview");
+    }
+  };
+
+  const previewDocument = useMemo(() => {
+    const base = buildContractDocumentHtml(removeHighlights(htmlContent), nome || "Preview do contrato");
+    return dragMode ? injectDragVariablesIntoHtml(base) : base;
+  }, [htmlContent, nome, dragMode],
   );
 
   const variableReport = useMemo(() => {
@@ -570,7 +611,7 @@ export function ContratosTab() {
                       title="Excluir"
                     >
                       <Trash2 className="h-4 w-4" />
-                    </Button>
+                </Button>
                   </div>
                 </div>
               ))}
@@ -620,6 +661,15 @@ export function ContratosTab() {
                 >
                   {viewMode === "editor" ? <Eye className="h-4 w-4" /> : <Code className="h-4 w-4" />}
                   {viewMode === "editor" ? "Visualizar" : "Editar"}
+                </Button>
+                <Button
+                  variant={dragMode ? "default" : "outline"}
+                  size="sm"
+                  className="gap-1"
+                  onClick={handleToggleDragMode}
+                >
+                  <Move className="h-4 w-4" />
+                  {dragMode ? "Aplicar Posições" : "Mover Variáveis"}
                 </Button>
                 <Button size="sm" className="gap-2" onClick={handleSave} disabled={saving}>
                   <Save className="h-4 w-4" />
@@ -811,6 +861,7 @@ export function ContratosTab() {
               </div>
             ) : (
               <iframe
+                ref={iframeRef}
                 title="Preview fiel do contrato"
                 className="h-[75vh] w-full rounded-lg border border-border bg-muted/20"
                 srcDoc={previewDocument}
