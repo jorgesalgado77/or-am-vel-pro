@@ -349,6 +349,17 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       return;
     }
 
+    setPendingPdfFile(file);
+    setShowPdfSettings(true);
+  };
+
+  const executePdfImport = async () => {
+    if (!pendingPdfFile) return;
+    const file = pendingPdfFile;
+    const { scale, quality, format } = pdfImportSettings;
+
+    setShowPdfSettings(false);
+    setPendingPdfFile(null);
     setImportingPdf(true);
     setPdfProgress({ current: 0, total: 0, status: "Lendo arquivo..." });
 
@@ -368,7 +379,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
         try {
           const page = await pdf.getPage(i);
-          const viewport = page.getViewport({ scale: 1.5 });
+          const viewport = page.getViewport({ scale });
           const canvas = document.createElement("canvas");
           canvas.width = viewport.width;
           canvas.height = viewport.height;
@@ -376,7 +387,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           if (!ctx) throw new Error("Canvas context unavailable");
 
           await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
-          const bgImage = canvas.toDataURL("image/jpeg", 0.85);
+          const mimeType = format === "png" ? "image/png" : "image/jpeg";
+          const bgImage = format === "png" ? canvas.toDataURL(mimeType) : canvas.toDataURL(mimeType, quality);
           newPages.push({ id: pageId(), elements: [], backgroundImage: bgImage, backgroundOpacity: 0.5 });
 
           setPdfProgress({ current: i, total: numPages, status: `Página ${i} de ${numPages} concluída` });
