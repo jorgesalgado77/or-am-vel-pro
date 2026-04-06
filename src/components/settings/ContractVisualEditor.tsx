@@ -418,7 +418,6 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       setImportingPdf(false);
       setPdfProgress({ current: 0, total: 0, status: "" });
     }
-    }
   };
 
   // --- Drag & Resize ---
