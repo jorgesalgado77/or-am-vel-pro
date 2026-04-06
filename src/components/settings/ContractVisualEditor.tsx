@@ -12,7 +12,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.j
 
 interface CanvasElement {
   id: string;
-  type: "rect" | "circle" | "line" | "text" | "image";
+  type: "rect" | "circle" | "line" | "text" | "image" | "table";
   x: number;
   y: number;
   width: number;
