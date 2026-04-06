@@ -148,6 +148,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [saveTemplateDesc, setSaveTemplateDesc] = useState("");
   const [editingCustomId, setEditingCustomId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [overwriteTemplateId, setOverwriteTemplateId] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
