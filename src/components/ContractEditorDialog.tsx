@@ -297,7 +297,9 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
           <span className="text-xs text-muted-foreground hidden sm:inline">
             {viewMode === "editor"
               ? layoutLocked ? "Apenas textos editáveis" : "Edição livre do HTML"
-              : "Preview fiel ao documento impresso"}
+              : dragMode
+                ? "Arraste as variáveis para reposicioná-las • Redimensione pelo canto inferior direito"
+                : "Preview fiel ao documento impresso"}
           </span>
 
           {layoutLocked && viewMode === "editor" && (
