@@ -41,10 +41,19 @@ interface ContractEditorToolbarProps {
   onImageUpload: () => void;
 }
 
-const FONTS = [
+const SYSTEM_FONTS = [
   "Arial", "Times New Roman", "Courier New", "Georgia", "Verdana",
   "Helvetica", "Tahoma", "Trebuchet MS", "Palatino", "Garamond"
 ];
+
+const GOOGLE_FONTS = [
+  "Roboto", "Open Sans", "Lato", "Montserrat", "Poppins",
+  "Raleway", "Nunito", "Playfair Display", "Merriweather", "Source Sans 3",
+  "Oswald", "Inter", "Rubik", "Work Sans", "Libre Baskerville",
+  "Cormorant Garamond", "Dancing Script", "Pacifico", "Bebas Neue", "Caveat"
+];
+
+const FONTS = [...SYSTEM_FONTS, ...GOOGLE_FONTS].sort();
 
 const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 64, 72];
 
