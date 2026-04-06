@@ -1040,6 +1040,84 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     setEditName("");
   };
 
+  // --- JSON Export/Import ---
+  const jsonInputRef = useRef<HTMLInputElement>(null);
+
+  const handleExportTemplatesJson = () => {
+    if (customTemplates.length === 0) {
+      toast.error("Nenhum template customizado para exportar");
+      return;
+    }
+    const exportData = customTemplates.map(ct => ({
+      name: ct.name,
+      description: ct.description,
+      icon: ct.icon,
+      pages_data: ct.pages_data,
+    }));
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `templates_contratos_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${exportData.length} template(s) exportado(s) como JSON!`);
+  };
+
+  const handleImportTemplatesJson = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const arr = Array.isArray(data) ? data : [data];
+      let count = 0;
+      for (const item of arr) {
+        if (item.name && item.pages_data) {
+          await saveTemplate(item.name, item.description || "", item.pages_data, item.icon || "📝");
+          count++;
+        }
+      }
+      if (count > 0) toast.success(`${count} template(s) importado(s) com sucesso!`);
+      else toast.error("Nenhum template válido encontrado no arquivo");
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao importar JSON. Verifique o formato do arquivo.");
+    }
+  };
+
+  // --- Insert company logo ---
+  const handleInsertCompanyLogo = async () => {
+    try {
+      const { data: { user } } = await (supabase as any).auth.getUser();
+      if (!user) { toast.error("Usuário não autenticado"); return; }
+      
+      const { data: tenant } = await (supabase as any)
+        .from("tenants")
+        .select("logo_url")
+        .eq("id", tenantId)
+        .single();
+      
+      if (!tenant?.logo_url) {
+        toast.error("Nenhum logo encontrado. Configure o logo da empresa nas configurações.");
+        return;
+      }
+      
+      const el = createDefaultElement("image", 40, 40);
+      el.imageUrl = tenant.logo_url;
+      el.width = 180;
+      el.height = 80;
+      setCurrentElements(prev => [...prev, el]);
+      setSelectedId(el.id);
+      setActiveTool("select");
+      toast.success("Logo da empresa inserido!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao buscar logo da empresa");
+    }
+  };
+
   if (showTemplates) {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-muted/20 p-8 overflow-y-auto">
