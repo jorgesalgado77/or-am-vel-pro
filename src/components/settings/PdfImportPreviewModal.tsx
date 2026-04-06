@@ -114,10 +114,18 @@ export function PdfImportPreviewModal({
     return { used, unknown, total: usedSet.size };
   }, [finalHtml]);
 
-  const previewHtml = useMemo(
-    () => buildContractDocumentHtml(removeHighlights(finalHtml), templateName || "Preview"),
-    [finalHtml, templateName]
-  );
+  // Highlight {{...}} variables in preview HTML
+  const highlightVariablesInHtml = (html: string): string => {
+    return html.replace(
+      /(\{\{[^}]+\}\})/g,
+      '<span style="background: linear-gradient(135deg, hsl(200 80% 85%), hsl(200 80% 75%)); padding: 2px 6px; border-radius: 4px; border: 1px dashed hsl(200 80% 50%); font-family: monospace; font-size: 0.85em; font-weight: 600; color: hsl(200 80% 30%); white-space: nowrap;">$1</span>'
+    );
+  };
+
+  const previewHtml = useMemo(() => {
+    const baseDoc = buildContractDocumentHtml(removeHighlights(finalHtml), templateName || "Preview");
+    return highlightVariablesInHtml(baseDoc);
+  }, [finalHtml, templateName]);
 
   const handleConfirm = () => {
     if (viewMode === "html") captureEditorContent();
