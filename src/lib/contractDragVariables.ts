@@ -327,6 +327,29 @@ const DRAG_VARIABLES_SCRIPT = `
         dragState = null;
       }
     });
+
+    // Page-level dragover/drop for variables dragged from the list panel
+    document.addEventListener('dragover', function(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+    document.addEventListener('drop', function(e) {
+      e.preventDefault();
+      var varText = e.dataTransfer.getData('text/plain');
+      if (!varText || varText.indexOf('{{') !== 0) return;
+      handleDropVariable(varText, e.clientX, e.clientY);
+    });
+
+    // Page-level right-click to open variable list
+    document.addEventListener('contextmenu', function(e) {
+      if (e.target.closest && e.target.closest('.drag-variable-wrapper')) return;
+      e.preventDefault();
+      if (!contextMenu) contextMenu = createContextMenu();
+      contextMenu._targetEl = null;
+      contextMenu.style.display = 'block';
+      contextMenu.style.left = e.clientX + 'px';
+      contextMenu.style.top = e.clientY + 'px';
+      // Hide variable-specific options when clicking empty area
+      var items = contextMenu.querySelectorAll('[data-var-action]');
+      items.forEach(function(el) { el.style.display = contextMenu._targetEl ? 'block' : 'none'; });
+    });
   }
 
   function notifyPositionChange(el) {
