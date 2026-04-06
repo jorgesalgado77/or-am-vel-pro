@@ -341,31 +341,59 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     if (!file) return;
     e.target.value = "";
 
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error("Arquivo muito grande. Máximo: 50MB");
+      return;
+    }
+
     setImportingPdf(true);
+    setPdfProgress({ current: 0, total: 0, status: "Lendo arquivo..." });
+
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      setPdfProgress({ current: 0, total: 0, status: "Carregando PDF..." });
+
+      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+      const pdf = await loadingTask.promise;
       const numPages = pdf.numPages;
       const newPages: PageData[] = [];
 
+      setPdfProgress({ current: 0, total: numPages, status: `Processando 0/${numPages} páginas...` });
+
       for (let i = 1; i <= numPages; i++) {
-        const page = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale: 2 });
-        const canvas = document.createElement("canvas");
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        const ctx = canvas.getContext("2d")!;
-        await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
-        const bgImage = canvas.toDataURL("image/png");
-        newPages.push({ id: pageId(), elements: [], backgroundImage: bgImage, backgroundOpacity: 0.5 });
+        setPdfProgress({ current: i - 1, total: numPages, status: `Renderizando página ${i} de ${numPages}...` });
+
+        try {
+          const page = await pdf.getPage(i);
+          const viewport = page.getViewport({ scale: 1.5 });
+          const canvas = document.createElement("canvas");
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("Canvas context unavailable");
+
+          await page.render({ canvasContext: ctx, viewport }).promise;
+          const bgImage = canvas.toDataURL("image/jpeg", 0.85);
+          newPages.push({ id: pageId(), elements: [], backgroundImage: bgImage, backgroundOpacity: 0.5 });
+
+          setPdfProgress({ current: i, total: numPages, status: `Página ${i} de ${numPages} concluída` });
+        } catch (pageErr) {
+          console.warn(`Erro na página ${i}, pulando:`, pageErr);
+          newPages.push({ id: pageId(), elements: [], backgroundOpacity: 0.5 });
+        }
       }
 
+      if (newPages.length === 0) {
+        toast.error("Nenhuma página pôde ser importada do PDF");
+        return;
+      }
+
+      setPdfProgress({ current: numPages, total: numPages, status: "Finalizando importação..." });
+
       setPages(prev => {
-        // If current page is empty and has no background, replace it
         if (prev.length === 1 && prev[0].elements.length === 0 && !prev[0].backgroundImage) {
           return newPages;
         }
-        // Otherwise insert after current page
         return [...prev.slice(0, currentPageIdx + 1), ...newPages, ...prev.slice(currentPageIdx + 1)];
       });
 
@@ -375,12 +403,21 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         setCurrentPageIdx(currentPageIdx + 1);
       }
 
-      toast.success(`PDF importado: ${numPages} página${numPages > 1 ? "s" : ""} adicionada${numPages > 1 ? "s" : ""}`);
-    } catch (err) {
-      console.error(err);
-      toast.error("Erro ao importar PDF");
+      toast.success(`PDF importado: ${newPages.length} página${newPages.length > 1 ? "s" : ""} adicionada${newPages.length > 1 ? "s" : ""}`);
+    } catch (err: any) {
+      console.error("Erro ao importar PDF:", err);
+      const msg = err?.message || "";
+      if (msg.includes("password")) {
+        toast.error("PDF protegido por senha. Remova a proteção antes de importar.");
+      } else if (msg.includes("Invalid PDF")) {
+        toast.error("Arquivo PDF inválido ou corrompido.");
+      } else {
+        toast.error("Erro ao importar PDF: " + (msg || "Tente novamente com outro arquivo."));
+      }
     } finally {
       setImportingPdf(false);
+      setPdfProgress({ current: 0, total: 0, status: "" });
+    }
     }
   };
 
