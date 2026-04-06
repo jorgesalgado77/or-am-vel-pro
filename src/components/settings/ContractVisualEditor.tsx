@@ -141,6 +141,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [varSearch, setVarSearch] = useState("");
   const [importingPdf, setImportingPdf] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState({ current: 0, total: 0, status: "" });
   const [dragPageIdx, setDragPageIdx] = useState<number | null>(null);
   const [dragOverPageIdx, setDragOverPageIdx] = useState<number | null>(null);
 
