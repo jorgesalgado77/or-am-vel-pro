@@ -142,6 +142,9 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [varSearch, setVarSearch] = useState("");
   const [importingPdf, setImportingPdf] = useState(false);
   const [pdfProgress, setPdfProgress] = useState({ current: 0, total: 0, status: "" });
+  const [pdfImportSettings, setPdfImportSettings] = useState({ scale: 1.5, quality: 0.85, format: "jpeg" as "jpeg" | "png" });
+  const [showPdfSettings, setShowPdfSettings] = useState(false);
+  const [pendingPdfFile, setPendingPdfFile] = useState<File | null>(null);
   const [dragPageIdx, setDragPageIdx] = useState<number | null>(null);
   const [dragOverPageIdx, setDragOverPageIdx] = useState<number | null>(null);
 
