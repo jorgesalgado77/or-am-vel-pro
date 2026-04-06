@@ -139,6 +139,22 @@ export function PdfImportPreviewModal({
   const [editedHtml, setEditedHtml] = useState<string | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const [editorKey, setEditorKey] = useState(0);
+  const [varSearch, setVarSearch] = useState("");
+
+  const insertVariableAtCursor = useCallback((variable: string) => {
+    if (!editorRef.current) return;
+    editorRef.current.focus();
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      range.insertNode(document.createTextNode(variable));
+      range.collapse(false);
+    } else {
+      editorRef.current.innerHTML += variable;
+    }
+    setEditedHtml(editorRef.current.innerHTML);
+  }, []);
 
   const baseHtml = useAutoReplace ? processedHtml : imported.html;
   const finalHtml = editedHtml !== null ? editedHtml : baseHtml;
