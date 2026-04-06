@@ -155,10 +155,12 @@ const DRAG_VARIABLES_SCRIPT = `
     menu.appendChild(duplicateBtn);
 
     var sep = document.createElement('div');
+    sep.setAttribute('data-var-action', 'true');
     sep.style.cssText = 'height:1px;background:#e5e7eb;margin:4px 0;';
     menu.appendChild(sep);
 
     var removeBtn = document.createElement('div');
+    removeBtn.setAttribute('data-var-action', 'true');
     removeBtn.textContent = 'Remover variável';
     removeBtn.style.cssText = 'padding:6px 12px;cursor:pointer;color:#ef4444;transition:background 0.1s;';
     removeBtn.addEventListener('mouseenter', function() { removeBtn.style.background = '#fee2e2'; });
