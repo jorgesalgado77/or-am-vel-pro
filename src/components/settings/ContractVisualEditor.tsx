@@ -888,6 +888,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
     const resizeHandles = isSelected ? (
       <>
+        {/* Corner handles */}
         {["se", "sw", "nw", "ne"].map(corner => {
           const pos: React.CSSProperties = {
             position: "absolute", width: 8, height: 8, background: "hsl(210 80% 55%)",
@@ -898,6 +899,15 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           };
           return <div key={corner} style={pos} onMouseDown={e => handleResizeMouseDown(e, el, corner)} />;
         })}
+        {/* Edge handles */}
+        {[
+          { key: "n", style: { top: -3, left: "50%", transform: "translateX(-50%)", width: 20, height: 6, cursor: "ns-resize" } },
+          { key: "s", style: { bottom: -3, left: "50%", transform: "translateX(-50%)", width: 20, height: 6, cursor: "ns-resize" } },
+          { key: "e", style: { right: -3, top: "50%", transform: "translateY(-50%)", width: 6, height: 20, cursor: "ew-resize" } },
+          { key: "w", style: { left: -3, top: "50%", transform: "translateY(-50%)", width: 6, height: 20, cursor: "ew-resize" } },
+        ].map(({ key, style }) => (
+          <div key={key} style={{ position: "absolute", background: "hsl(210 80% 55%)", borderRadius: 2, zIndex: 9999, ...style } as React.CSSProperties} onMouseDown={e => handleResizeMouseDown(e, el, key)} />
+        ))}
       </>
     ) : null;
 
