@@ -473,7 +473,18 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         const dy = (e.clientY - resizeState.startY) / zoom;
         setCurrentElements(prev => prev.map(el => {
           if (el.id !== resizeState.id) return el;
-          return { ...el, width: Math.max(20, resizeState.startW + dx), height: Math.max(10, resizeState.startH + dy) };
+          const c = resizeState.corner;
+          let newX = resizeState.startElX;
+          let newY = resizeState.startElY;
+          let newW = resizeState.startW;
+          let newH = resizeState.startH;
+
+          if (c.includes("e")) newW = Math.max(20, resizeState.startW + dx);
+          if (c.includes("s")) newH = Math.max(10, resizeState.startH + dy);
+          if (c.includes("w")) { newW = Math.max(20, resizeState.startW - dx); newX = resizeState.startElX + (resizeState.startW - newW); }
+          if (c.includes("n")) { newH = Math.max(10, resizeState.startH - dy); newY = resizeState.startElY + (resizeState.startH - newH); }
+
+          return { ...el, x: newX, y: newY, width: newW, height: newH };
         }));
       }
     };
