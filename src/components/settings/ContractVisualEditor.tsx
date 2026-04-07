@@ -136,7 +136,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [activeShapeType, setActiveShapeType] = useState<ShapeType>("rect");
   const [zoom, setZoom] = useState(0.75);
   const [dragState, setDragState] = useState<{ id: string; startX: number; startY: number; elX: number; elY: number } | null>(null);
-  const [resizeState, setResizeState] = useState<{ id: string; startX: number; startY: number; startW: number; startH: number; corner: string } | null>(null);
+  const [resizeState, setResizeState] = useState<{ id: string; startX: number; startY: number; startW: number; startH: number; corner: string; startElX: number; startElY: number } | null>(null);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [varSearch, setVarSearch] = useState("");
@@ -456,7 +456,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const handleResizeMouseDown = (e: React.MouseEvent, el: CanvasElement, corner: string) => {
     e.stopPropagation();
     e.preventDefault();
-    setResizeState({ id: el.id, startX: e.clientX, startY: e.clientY, startW: el.width, startH: el.height, corner });
+    setResizeState({ id: el.id, startX: e.clientX, startY: e.clientY, startW: el.width, startH: el.height, corner, startElX: el.x, startElY: el.y } as any);
   };
 
   useEffect(() => {
