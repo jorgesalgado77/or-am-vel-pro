@@ -1019,17 +1019,34 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             {(selected.type === "rect" || selected.type === "circle") && (
               <>
                 <div className="space-y-1.5">
-                  <label className="text-muted-foreground">Preenchimento</label>
-                  <input type="color" value={selected.fill} onChange={e => updateSelected({ fill: e.target.value })} className="h-7 w-full cursor-pointer rounded border border-border" />
+                  <div className="flex items-center justify-between">
+                    <label className="text-muted-foreground">Cor de fundo</label>
+                    <button
+                      onClick={() => updateSelected({ fill: selected.fill === "transparent" ? "#ffffff" : "transparent" })}
+                      className={`text-[10px] px-1.5 py-0.5 rounded border ${selected.fill === "transparent" ? "border-primary text-primary bg-primary/10" : "border-border text-muted-foreground"}`}
+                    >
+                      {selected.fill === "transparent" ? "Transparente" : "Colorido"}
+                    </button>
+                  </div>
+                  {selected.fill !== "transparent" && (
+                    <input type="color" value={selected.fill} onChange={e => updateSelected({ fill: e.target.value })} className="h-7 w-full cursor-pointer rounded border border-border" />
+                  )}
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-muted-foreground">Borda</label>
-                  <input type="color" value={selected.stroke} onChange={e => updateSelected({ stroke: e.target.value })} className="h-7 w-full cursor-pointer rounded border border-border" />
-                  <input type="number" min={0} max={10} value={selected.strokeWidth} onChange={e => updateSelected({ strokeWidth: Number(e.target.value) })} className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" />
+                  <label className="text-muted-foreground">Cor da borda</label>
+                  <input type="color" value={selected.stroke === "transparent" ? "#000000" : selected.stroke} onChange={e => updateSelected({ stroke: e.target.value })} className="h-7 w-full cursor-pointer rounded border border-border" />
+                  <div className="flex items-center justify-between">
+                    <label className="text-muted-foreground">Espessura</label>
+                    <span className="text-[10px] text-muted-foreground">{selected.strokeWidth}px</span>
+                  </div>
+                  <input type="range" min={0} max={10} value={selected.strokeWidth} onChange={e => updateSelected({ strokeWidth: Number(e.target.value) })} className="w-full" />
                 </div>
                 {selected.type === "rect" && (
                   <div className="space-y-1.5">
-                    <label className="text-muted-foreground">Arredondamento</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-muted-foreground">Arredondamento</label>
+                      <span className="text-[10px] text-muted-foreground">{selected.borderRadius}px</span>
+                    </div>
                     <input type="range" min={0} max={50} value={selected.borderRadius} onChange={e => updateSelected({ borderRadius: Number(e.target.value) })} className="w-full" />
                   </div>
                 )}
