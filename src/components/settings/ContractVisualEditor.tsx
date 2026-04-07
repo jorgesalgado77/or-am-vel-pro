@@ -850,6 +850,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       position: "absolute", left: el.x, top: el.y, width: el.width, height: el.height,
       zIndex: el.zIndex, cursor: activeTool === "select" ? "move" : "default",
       outline: isSelected ? "2px solid hsl(210 80% 55%)" : "none", outlineOffset: "1px",
+      opacity: el.opacity ?? 1,
     };
 
     const handleDoubleClick = (e: React.MouseEvent) => {
