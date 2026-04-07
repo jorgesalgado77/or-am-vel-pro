@@ -846,11 +846,17 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     const isSelected = el.id === selectedId;
     const isEditing = el.id === editingTextId;
 
-    const style: React.CSSProperties = {
+    // Outer wrapper handles positioning, selection outline, and resize handles
+    const wrapperStyle: React.CSSProperties = {
       position: "absolute", left: el.x, top: el.y, width: el.width, height: el.height,
       zIndex: el.zIndex, cursor: activeTool === "select" ? "move" : "default",
       outline: isSelected ? "2px solid hsl(210 80% 55%)" : "none", outlineOffset: "1px",
       opacity: el.opacity ?? 1,
+    };
+
+    // Inner style fills the wrapper — no position/size needed
+    const innerStyle: React.CSSProperties = {
+      width: "100%", height: "100%", boxSizing: "border-box",
     };
 
     const handleDoubleClick = (e: React.MouseEvent) => {
@@ -893,45 +899,44 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         {/* Corner handles */}
         {["se", "sw", "nw", "ne"].map(corner => {
           const pos: React.CSSProperties = {
-            position: "absolute", width: 8, height: 8, background: "hsl(210 80% 55%)",
-            borderRadius: 2, zIndex: 9999,
-            ...(corner.includes("s") ? { bottom: -4 } : { top: -4 }),
-            ...(corner.includes("e") ? { right: -4 } : { left: -4 }),
+            position: "absolute", width: 10, height: 10, background: "hsl(210 80% 55%)",
+            border: "1px solid white", borderRadius: 2, zIndex: 9999,
+            ...(corner.includes("s") ? { bottom: -5 } : { top: -5 }),
+            ...(corner.includes("e") ? { right: -5 } : { left: -5 }),
             cursor: corner === "se" || corner === "nw" ? "nwse-resize" : "nesw-resize",
           };
           return <div key={corner} style={pos} onMouseDown={e => handleResizeMouseDown(e, el, corner)} />;
         })}
         {/* Edge handles */}
         {[
-          { key: "n", style: { top: -3, left: "50%", transform: "translateX(-50%)", width: 20, height: 6, cursor: "ns-resize" } },
-          { key: "s", style: { bottom: -3, left: "50%", transform: "translateX(-50%)", width: 20, height: 6, cursor: "ns-resize" } },
-          { key: "e", style: { right: -3, top: "50%", transform: "translateY(-50%)", width: 6, height: 20, cursor: "ew-resize" } },
-          { key: "w", style: { left: -3, top: "50%", transform: "translateY(-50%)", width: 6, height: 20, cursor: "ew-resize" } },
+          { key: "n", style: { top: -4, left: "50%", transform: "translateX(-50%)", width: 24, height: 8, cursor: "ns-resize" } as React.CSSProperties },
+          { key: "s", style: { bottom: -4, left: "50%", transform: "translateX(-50%)", width: 24, height: 8, cursor: "ns-resize" } as React.CSSProperties },
+          { key: "e", style: { right: -4, top: "50%", transform: "translateY(-50%)", width: 8, height: 24, cursor: "ew-resize" } as React.CSSProperties },
+          { key: "w", style: { left: -4, top: "50%", transform: "translateY(-50%)", width: 8, height: 24, cursor: "ew-resize" } as React.CSSProperties },
         ].map(({ key, style }) => (
-          <div key={key} style={{ position: "absolute", background: "hsl(210 80% 55%)", borderRadius: 2, zIndex: 9999, ...style } as React.CSSProperties} onMouseDown={e => handleResizeMouseDown(e, el, key)} />
+          <div key={key} style={{ position: "absolute", background: "hsl(210 80% 55%)", border: "1px solid white", borderRadius: 2, zIndex: 9999, ...style }} onMouseDown={e => handleResizeMouseDown(e, el, key)} />
         ))}
       </>
     ) : null;
 
-    let content: React.ReactNode;
+    let innerContent: React.ReactNode;
     switch (el.type) {
       case "rect":
-        content = <div style={{ ...style, background: el.fill, border: `${el.strokeWidth}px solid ${el.stroke}`, borderRadius: el.borderRadius, boxSizing: "border-box" }} onMouseDown={e => handleElementMouseDown(e, el)} onDoubleClick={handleDoubleClick}>{textContent}{resizeHandles}</div>;
+        innerContent = <div style={{ ...innerStyle, background: el.fill, border: `${el.strokeWidth}px solid ${el.stroke}`, borderRadius: el.borderRadius }} onDoubleClick={handleDoubleClick}>{textContent}</div>;
         break;
       case "circle":
-        content = <div style={{ ...style, background: el.fill, border: `${el.strokeWidth}px solid ${el.stroke}`, borderRadius: "50%", boxSizing: "border-box" }} onMouseDown={e => handleElementMouseDown(e, el)} onDoubleClick={handleDoubleClick}>{textContent}{resizeHandles}</div>;
+        innerContent = <div style={{ ...innerStyle, background: el.fill, border: `${el.strokeWidth}px solid ${el.stroke}`, borderRadius: "50%", overflow: "hidden" }} onDoubleClick={handleDoubleClick}>{textContent}</div>;
         break;
       case "line":
-        content = <div style={{ ...style, borderTop: `${el.strokeWidth}px solid ${el.stroke}` }} onMouseDown={e => handleElementMouseDown(e, el)}>{resizeHandles}</div>;
+        innerContent = <div style={{ ...innerStyle, borderTop: `${el.strokeWidth}px solid ${el.stroke}` }} />;
         break;
       case "text":
-        content = <div style={style} onMouseDown={e => handleElementMouseDown(e, el)} onDoubleClick={handleDoubleClick}>{textContent}{resizeHandles}</div>;
+        innerContent = <div style={innerStyle} onDoubleClick={handleDoubleClick}>{textContent}</div>;
         break;
       case "image":
-        content = (
-          <div style={{ ...style, overflow: "hidden", border: isSelected ? undefined : "1px dashed #ccc" }} onMouseDown={e => handleElementMouseDown(e, el)}>
+        innerContent = (
+          <div style={{ ...innerStyle, overflow: "hidden", border: isSelected ? undefined : "1px dashed #ccc" }}>
             {el.imageUrl ? <img src={el.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} draggable={false} /> : <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">Imagem</div>}
-            {resizeHandles}
           </div>
         );
         break;
@@ -939,8 +944,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         if (el.tableData) {
           const colW = el.width / (el.tableData[0]?.length || 1);
           const rowH = el.height / el.tableData.length;
-          content = (
-            <div style={{ ...style, overflow: "hidden" }} onMouseDown={e => handleElementMouseDown(e, el)}>
+          innerContent = (
+            <div style={{ ...innerStyle, overflow: "hidden" }}>
               <table style={{ width: "100%", height: "100%", borderCollapse: "collapse", fontFamily: el.fontFamily, fontSize: el.fontSize, color: el.color, tableLayout: "fixed" }}>
                 <tbody>
                   {el.tableData.map((row, ri) => (
@@ -972,13 +977,19 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                   ))}
                 </tbody>
               </table>
-              {resizeHandles}
             </div>
           );
         }
         break;
     }
-    return <div key={el.id}>{content}</div>;
+
+    // Wrapper: positions element, captures mouse events, and renders handles OUTSIDE inner content
+    return (
+      <div key={el.id} style={wrapperStyle} onMouseDown={e => handleElementMouseDown(e, el)}>
+        {innerContent}
+        {resizeHandles}
+      </div>
+    );
   };
 
   const renderPropertiesPanel = () => {
