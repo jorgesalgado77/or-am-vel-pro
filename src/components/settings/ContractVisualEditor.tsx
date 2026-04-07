@@ -40,6 +40,7 @@ interface CanvasElement {
   tableData?: string[][];
   tableCols?: number;
   tableRows?: number;
+  opacity?: number;
 }
 
 interface PageData {
