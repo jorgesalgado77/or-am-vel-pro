@@ -78,8 +78,8 @@ function createDefaultElement(type: CanvasElement["type"], x: number, y: number)
     color: "#000000", zIndex: idCounter,
   };
   switch (type) {
-    case "rect": return { ...base, fill: "#ffffff", width: 200, height: 120 };
-    case "circle": return { ...base, fill: "#ffffff", width: 120, height: 120 };
+    case "rect": return { ...base, fill: "transparent", stroke: "#000000", strokeWidth: 1, width: 200, height: 120 };
+    case "circle": return { ...base, fill: "transparent", stroke: "#000000", strokeWidth: 1, width: 120, height: 120 };
     case "line": return { ...base, width: 200, height: 2, strokeWidth: 2, stroke: "#000000" };
     case "text": return { ...base, text: "Texto", width: 200, height: 40, stroke: "transparent", strokeWidth: 0 };
     case "image": return { ...base, width: 200, height: 150, stroke: "#cccccc" };
@@ -136,7 +136,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [activeShapeType, setActiveShapeType] = useState<ShapeType>("rect");
   const [zoom, setZoom] = useState(0.75);
   const [dragState, setDragState] = useState<{ id: string; startX: number; startY: number; elX: number; elY: number } | null>(null);
-  const [resizeState, setResizeState] = useState<{ id: string; startX: number; startY: number; startW: number; startH: number; corner: string } | null>(null);
+  const [resizeState, setResizeState] = useState<{ id: string; startX: number; startY: number; startW: number; startH: number; corner: string; startElX: number; startElY: number } | null>(null);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [varSearch, setVarSearch] = useState("");
@@ -456,7 +456,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const handleResizeMouseDown = (e: React.MouseEvent, el: CanvasElement, corner: string) => {
     e.stopPropagation();
     e.preventDefault();
-    setResizeState({ id: el.id, startX: e.clientX, startY: e.clientY, startW: el.width, startH: el.height, corner });
+    setResizeState({ id: el.id, startX: e.clientX, startY: e.clientY, startW: el.width, startH: el.height, corner, startElX: el.x, startElY: el.y } as any);
   };
 
   useEffect(() => {
@@ -473,7 +473,18 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         const dy = (e.clientY - resizeState.startY) / zoom;
         setCurrentElements(prev => prev.map(el => {
           if (el.id !== resizeState.id) return el;
-          return { ...el, width: Math.max(20, resizeState.startW + dx), height: Math.max(10, resizeState.startH + dy) };
+          const c = resizeState.corner;
+          let newX = resizeState.startElX;
+          let newY = resizeState.startElY;
+          let newW = resizeState.startW;
+          let newH = resizeState.startH;
+
+          if (c.includes("e")) newW = Math.max(20, resizeState.startW + dx);
+          if (c.includes("s")) newH = Math.max(10, resizeState.startH + dy);
+          if (c.includes("w")) { newW = Math.max(20, resizeState.startW - dx); newX = resizeState.startElX + (resizeState.startW - newW); }
+          if (c.includes("n")) { newH = Math.max(10, resizeState.startH - dy); newY = resizeState.startElY + (resizeState.startH - newH); }
+
+          return { ...el, x: newX, y: newY, width: newW, height: newH };
         }));
       }
     };
@@ -877,6 +888,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
     const resizeHandles = isSelected ? (
       <>
+        {/* Corner handles */}
         {["se", "sw", "nw", "ne"].map(corner => {
           const pos: React.CSSProperties = {
             position: "absolute", width: 8, height: 8, background: "hsl(210 80% 55%)",
@@ -887,6 +899,15 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           };
           return <div key={corner} style={pos} onMouseDown={e => handleResizeMouseDown(e, el, corner)} />;
         })}
+        {/* Edge handles */}
+        {[
+          { key: "n", style: { top: -3, left: "50%", transform: "translateX(-50%)", width: 20, height: 6, cursor: "ns-resize" } },
+          { key: "s", style: { bottom: -3, left: "50%", transform: "translateX(-50%)", width: 20, height: 6, cursor: "ns-resize" } },
+          { key: "e", style: { right: -3, top: "50%", transform: "translateY(-50%)", width: 6, height: 20, cursor: "ew-resize" } },
+          { key: "w", style: { left: -3, top: "50%", transform: "translateY(-50%)", width: 6, height: 20, cursor: "ew-resize" } },
+        ].map(({ key, style }) => (
+          <div key={key} style={{ position: "absolute", background: "hsl(210 80% 55%)", borderRadius: 2, zIndex: 9999, ...style } as React.CSSProperties} onMouseDown={e => handleResizeMouseDown(e, el, key)} />
+        ))}
       </>
     ) : null;
 
@@ -998,17 +1019,34 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             {(selected.type === "rect" || selected.type === "circle") && (
               <>
                 <div className="space-y-1.5">
-                  <label className="text-muted-foreground">Preenchimento</label>
-                  <input type="color" value={selected.fill} onChange={e => updateSelected({ fill: e.target.value })} className="h-7 w-full cursor-pointer rounded border border-border" />
+                  <div className="flex items-center justify-between">
+                    <label className="text-muted-foreground">Cor de fundo</label>
+                    <button
+                      onClick={() => updateSelected({ fill: selected.fill === "transparent" ? "#ffffff" : "transparent" })}
+                      className={`text-[10px] px-1.5 py-0.5 rounded border ${selected.fill === "transparent" ? "border-primary text-primary bg-primary/10" : "border-border text-muted-foreground"}`}
+                    >
+                      {selected.fill === "transparent" ? "Transparente" : "Colorido"}
+                    </button>
+                  </div>
+                  {selected.fill !== "transparent" && (
+                    <input type="color" value={selected.fill} onChange={e => updateSelected({ fill: e.target.value })} className="h-7 w-full cursor-pointer rounded border border-border" />
+                  )}
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-muted-foreground">Borda</label>
-                  <input type="color" value={selected.stroke} onChange={e => updateSelected({ stroke: e.target.value })} className="h-7 w-full cursor-pointer rounded border border-border" />
-                  <input type="number" min={0} max={10} value={selected.strokeWidth} onChange={e => updateSelected({ strokeWidth: Number(e.target.value) })} className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" />
+                  <label className="text-muted-foreground">Cor da borda</label>
+                  <input type="color" value={selected.stroke === "transparent" ? "#000000" : selected.stroke} onChange={e => updateSelected({ stroke: e.target.value })} className="h-7 w-full cursor-pointer rounded border border-border" />
+                  <div className="flex items-center justify-between">
+                    <label className="text-muted-foreground">Espessura</label>
+                    <span className="text-[10px] text-muted-foreground">{selected.strokeWidth}px</span>
+                  </div>
+                  <input type="range" min={0} max={10} value={selected.strokeWidth} onChange={e => updateSelected({ strokeWidth: Number(e.target.value) })} className="w-full" />
                 </div>
                 {selected.type === "rect" && (
                   <div className="space-y-1.5">
-                    <label className="text-muted-foreground">Arredondamento</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-muted-foreground">Arredondamento</label>
+                      <span className="text-[10px] text-muted-foreground">{selected.borderRadius}px</span>
+                    </div>
                     <input type="range" min={0} max={50} value={selected.borderRadius} onChange={e => updateSelected({ borderRadius: Number(e.target.value) })} className="w-full" />
                   </div>
                 )}
