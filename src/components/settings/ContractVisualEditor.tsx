@@ -40,6 +40,7 @@ interface CanvasElement {
   tableData?: string[][];
   tableCols?: number;
   tableRows?: number;
+  opacity?: number;
 }
 
 interface PageData {
@@ -849,6 +850,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       position: "absolute", left: el.x, top: el.y, width: el.width, height: el.height,
       zIndex: el.zIndex, cursor: activeTool === "select" ? "move" : "default",
       outline: isSelected ? "2px solid hsl(210 80% 55%)" : "none", outlineOffset: "1px",
+      opacity: el.opacity ?? 1,
     };
 
     const handleDoubleClick = (e: React.MouseEvent) => {
@@ -1050,6 +1052,13 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                     <input type="range" min={0} max={50} value={selected.borderRadius} onChange={e => updateSelected({ borderRadius: Number(e.target.value) })} className="w-full" />
                   </div>
                 )}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-muted-foreground">Opacidade</label>
+                    <span className="text-[10px] text-muted-foreground">{Math.round((selected.opacity ?? 1) * 100)}%</span>
+                  </div>
+                  <input type="range" min={0} max={100} value={Math.round((selected.opacity ?? 1) * 100)} onChange={e => updateSelected({ opacity: Number(e.target.value) / 100 })} className="w-full" />
+                </div>
               </>
             )}
             {selected.type === "line" && (
