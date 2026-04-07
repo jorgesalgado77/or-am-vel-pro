@@ -78,8 +78,8 @@ function createDefaultElement(type: CanvasElement["type"], x: number, y: number)
     color: "#000000", zIndex: idCounter,
   };
   switch (type) {
-    case "rect": return { ...base, fill: "#ffffff", width: 200, height: 120 };
-    case "circle": return { ...base, fill: "#ffffff", width: 120, height: 120 };
+    case "rect": return { ...base, fill: "transparent", stroke: "#000000", strokeWidth: 1, width: 200, height: 120 };
+    case "circle": return { ...base, fill: "transparent", stroke: "#000000", strokeWidth: 1, width: 120, height: 120 };
     case "line": return { ...base, width: 200, height: 2, strokeWidth: 2, stroke: "#000000" };
     case "text": return { ...base, text: "Texto", width: 200, height: 40, stroke: "transparent", strokeWidth: 0 };
     case "image": return { ...base, width: 200, height: 150, stroke: "#cccccc" };
