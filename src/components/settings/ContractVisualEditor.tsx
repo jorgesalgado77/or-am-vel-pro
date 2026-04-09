@@ -2042,71 +2042,74 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             </div>
           ))}
         </div>
-        {/* Canvas area with Word-like rulers feel */}
+        {/* Canvas area with Word-like feel */}
         <div className="flex-1 min-w-0 min-h-0 overflow-auto" style={{ background: "hsl(var(--muted) / 0.6)" }}>
           <div className="min-h-full flex justify-center py-6 px-4" style={{ minWidth: A4_WIDTH * zoom + 48 }}>
-            ref={canvasRef}
-            style={{
-              width: A4_WIDTH * zoom, height: A4_HEIGHT * zoom, margin: "0 auto",
-              position: "relative", background: "#fff",
-              boxShadow: "0 2px 16px rgba(0,0,0,0.1)", overflow: "hidden",
-            }}
-            onClick={handleCanvasClick}
-            onContextMenu={handleContextMenu}
-          >
-            {/* Background image */}
-            {currentPage?.backgroundImage && (
-              <img
-                src={currentPage.backgroundImage}
-                alt=""
-                style={{
-                  position: "absolute", top: 0, left: 0,
-                  width: A4_WIDTH * zoom, height: A4_HEIGHT * zoom,
-                  objectFit: "contain", pointerEvents: "none",
-                  opacity: currentPage.backgroundOpacity,
-                }}
-              />
-            )}
-            {/* Scaled inner */}
-            <div style={{ transform: `scale(${zoom})`, transformOrigin: "0 0", width: A4_WIDTH, height: A4_HEIGHT, position: "relative" }}>
-              {elements.map(renderElement)}
-            </div>
-
-            {/* Context menu */}
-            {contextMenu && (
-              <div
-                style={{ position: "absolute", left: contextMenu.x, top: contextMenu.y, zIndex: 99999 }}
-                onClick={e => e.stopPropagation()}
-                className="min-w-[200px] rounded-md border border-border bg-popover shadow-lg"
-              >
-                {selectedIds.size > 0 && (
-                  <>
-                    <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground" onClick={duplicateSelected}>Duplicar</button>
-                    <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-destructive/10 text-destructive" onClick={deleteSelected}>Excluir</button>
-                    <div className="h-px bg-border my-1" />
-                  </>
-                )}
-                <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground flex items-center gap-2" onClick={() => { setContextMenu(null); handleInsertCompanyLogo(); }}>
-                  <ImageIcon className="h-3.5 w-3.5" /> Inserir Logo da Empresa
-                </button>
-                <div className="h-px bg-border my-1" />
-                <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">Inserir Variável</div>
-                <div className="px-2 pb-1">
-                  <input type="text" placeholder="Buscar..." value={varSearch}
-                    onChange={e => setVarSearch(e.target.value)}
-                    className="w-full rounded border border-border bg-muted/30 px-2 py-1 text-xs outline-none"
-                    autoFocus onClick={e => e.stopPropagation()} />
-                </div>
-                <div className="max-h-[200px] overflow-y-auto">
-                  {filteredVars.map(v => (
-                    <button key={v.var} className="w-full px-3 py-1 text-left hover:bg-accent" onClick={() => insertVariable(v.var)}>
-                      <div className="text-xs font-mono text-primary">{v.var}</div>
-                      <div className="text-[10px] text-muted-foreground">{v.desc}</div>
-                    </button>
-                  ))}
-                </div>
+            <div
+              ref={canvasRef}
+              style={{
+                width: A4_WIDTH * zoom, height: A4_HEIGHT * zoom,
+                position: "relative", background: "#fff",
+                boxShadow: "0 4px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08)",
+                overflow: "hidden", flexShrink: 0,
+              }}
+              onClick={handleCanvasClick}
+              onContextMenu={handleContextMenu}
+            >
+              {/* Background image */}
+              {currentPage?.backgroundImage && (
+                <img
+                  src={currentPage.backgroundImage}
+                  alt=""
+                  style={{
+                    position: "absolute", top: 0, left: 0,
+                    width: A4_WIDTH * zoom, height: A4_HEIGHT * zoom,
+                    objectFit: "contain", pointerEvents: "none",
+                    opacity: currentPage.backgroundOpacity,
+                  }}
+                />
+              )}
+              {/* Scaled inner */}
+              <div style={{ transform: `scale(${zoom})`, transformOrigin: "0 0", width: A4_WIDTH, height: A4_HEIGHT, position: "relative" }}>
+                {elements.map(renderElement)}
               </div>
-            )}
+
+              {/* Context menu */}
+              {contextMenu && (
+                <div
+                  style={{ position: "absolute", left: contextMenu.x, top: contextMenu.y, zIndex: 99999 }}
+                  onClick={e => e.stopPropagation()}
+                  className="min-w-[200px] rounded-md border border-border bg-popover shadow-lg"
+                >
+                  {selectedIds.size > 0 && (
+                    <>
+                      <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground" onClick={duplicateSelected}>Duplicar</button>
+                      <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-destructive/10 text-destructive" onClick={deleteSelected}>Excluir</button>
+                      <div className="h-px bg-border my-1" />
+                    </>
+                  )}
+                  <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground flex items-center gap-2" onClick={() => { setContextMenu(null); handleInsertCompanyLogo(); }}>
+                    <ImageIcon className="h-3.5 w-3.5" /> Inserir Logo da Empresa
+                  </button>
+                  <div className="h-px bg-border my-1" />
+                  <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">Inserir Variável</div>
+                  <div className="px-2 pb-1">
+                    <input type="text" placeholder="Buscar..." value={varSearch}
+                      onChange={e => setVarSearch(e.target.value)}
+                      className="w-full rounded border border-border bg-muted/30 px-2 py-1 text-xs outline-none"
+                      autoFocus onClick={e => e.stopPropagation()} />
+                  </div>
+                  <div className="max-h-[200px] overflow-y-auto">
+                    {filteredVars.map(v => (
+                      <button key={v.var} className="w-full px-3 py-1 text-left hover:bg-accent" onClick={() => insertVariable(v.var)}>
+                        <div className="text-xs font-mono text-primary">{v.var}</div>
+                        <div className="text-[10px] text-muted-foreground">{v.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
