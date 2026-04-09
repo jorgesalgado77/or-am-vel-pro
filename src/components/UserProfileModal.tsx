@@ -695,7 +695,7 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
         </ScrollArea>
 
         {/* Save - fixed at bottom */}
-        <div className="flex justify-end p-4 pt-3 pb-4 border-t border-border">
+        <div className="flex justify-end p-4 pt-3 pb-4 border-t border-border shrink-0">
           <Button onClick={handleSave} disabled={saving || !form.nome_completo} className="gap-2 px-8">
             <Save className="h-4 w-4" />
             {saving ? "Salvando..." : "Salvar Perfil"}
