@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText, BookmarkPlus, Pencil, Trash, Upload, Image as ImageIcon, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, Eye, FileSpreadsheet, ToggleLeft, ToggleRight, Palette, Layers } from "lucide-react";
-// jsPDF import removed - now in exportHelpers
+// jsPDF/docx imports removed - now in contract-editor/exportHelpers
 import { ContractLayersPanel } from "./ContractLayersPanel";
 import { getContractTemplates, type ContractTemplate } from "./contractTemplates";
 import { useCustomTemplates, type CustomTemplate } from "@/hooks/useCustomTemplates";
