@@ -1090,7 +1090,52 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       }
     };
     const handleMouseUp = () => {
-      if (dragState) { setDragState(null); setSmartGuides({ x: [], y: [] }); }
+      // Cross-page drag: detect elements that moved beyond page bounds
+      if (dragState) {
+        setPages(prev => {
+          const srcPage = prev[currentPageIdx];
+          if (!srcPage) return prev;
+          const movedUp: CanvasElement[] = [];
+          const movedDown: CanvasElement[] = [];
+          const staying: CanvasElement[] = [];
+
+          for (const el of srcPage.elements) {
+            if (!dragState.ids.includes(el.id)) { staying.push(el); continue; }
+            if (el.y + el.height < -10) { movedUp.push(el); }
+            else if (el.y > A4_HEIGHT + 10) { movedDown.push(el); }
+            else { staying.push(el); }
+          }
+
+          if (movedUp.length === 0 && movedDown.length === 0) return prev;
+
+          const np = [...prev];
+          np[currentPageIdx] = { ...srcPage, elements: staying };
+
+          if (movedUp.length > 0 && currentPageIdx > 0) {
+            const tgtPage = np[currentPageIdx - 1];
+            const relocated = movedUp.map(el => ({ ...el, y: A4_HEIGHT + el.y }));
+            np[currentPageIdx - 1] = { ...tgtPage, elements: [...tgtPage.elements, ...relocated] };
+          }
+
+          if (movedDown.length > 0) {
+            const nextIdx = currentPageIdx + 1;
+            if (nextIdx >= np.length) np.push({ id: pageId(), elements: [], backgroundOpacity: 0.5 });
+            const tgtPage = np[nextIdx];
+            const relocated = movedDown.map(el => ({ ...el, y: el.y - A4_HEIGHT }));
+            np[nextIdx] = { ...tgtPage, elements: [...tgtPage.elements, ...relocated] };
+          }
+
+          if (movedUp.length > 0) {
+            setTimeout(() => { setCurrentPageIdx(currentPageIdx - 1); setSelectedIds(new Set(movedUp.map(e => e.id))); }, 0);
+          } else if (movedDown.length > 0) {
+            setTimeout(() => { setCurrentPageIdx(currentPageIdx + 1); setSelectedIds(new Set(movedDown.map(e => e.id))); }, 0);
+          }
+
+          return np;
+        });
+        setDragState(null);
+        setSmartGuides({ x: [], y: [] });
+      }
       if (resizeState) setResizeState(null);
       if (rotateState) setRotateState(null);
       if (draggingGuide) {
