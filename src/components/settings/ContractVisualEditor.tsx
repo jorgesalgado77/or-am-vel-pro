@@ -2108,7 +2108,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                 boxShadow: "0 4px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08)",
                 overflow: "hidden", flexShrink: 0,
               }}
-              onClick={handleCanvasClick}
+              onMouseDown={handleCanvasMouseDown}
               onContextMenu={handleContextMenu}
             >
               {/* Background image */}
