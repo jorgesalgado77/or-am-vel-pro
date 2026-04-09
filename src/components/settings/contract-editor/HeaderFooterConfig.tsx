@@ -57,7 +57,7 @@ export const HeaderFooterConfig = forwardRef<HTMLDivElement, Props>(function Hea
     onChange({ ...settings, ...partial });
 
   return (
-    <div className="space-y-1.5">
+    <div ref={ref} className="space-y-1.5">
       <div className="flex items-center justify-between">
         <button
           onClick={() => setExpanded(!expanded)}
@@ -211,4 +211,4 @@ export const HeaderFooterConfig = forwardRef<HTMLDivElement, Props>(function Hea
       )}
     </div>
   );
-}
+});
