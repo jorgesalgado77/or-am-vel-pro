@@ -2060,7 +2060,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             )}
           </div>
         </div>
-      )
+      )}
 
 
       {/* Eyedropper apply mode bar */}
