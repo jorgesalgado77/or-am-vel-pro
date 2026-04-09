@@ -1976,7 +1976,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                 onClick={e => e.stopPropagation()}
                 className="min-w-[200px] rounded-md border border-border bg-popover shadow-lg"
               >
-                {selectedId && (
+                {selectedIds.size > 0 && (
                   <>
                     <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground" onClick={duplicateSelected}>Duplicar</button>
                     <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-destructive/10 text-destructive" onClick={deleteSelected}>Excluir</button>
