@@ -46,6 +46,7 @@ interface CanvasElement {
   tableRows?: number;
   opacity?: number;
   groupId?: string;
+  locked?: boolean;
 }
 
 interface PageData {
@@ -240,6 +241,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [pendingPdfFile, setPendingPdfFile] = useState<File | null>(null);
   const [dragPageIdx, setDragPageIdx] = useState<number | null>(null);
   const [dragOverPageIdx, setDragOverPageIdx] = useState<number | null>(null);
+  const [smartGuides, setSmartGuides] = useState<{ x: number[]; y: number[] }>({ x: [], y: [] });
 
   // Custom templates state
   const { templates: customTemplates, loading: loadingCustom, saveTemplate, updateTemplate, deleteTemplate } = useCustomTemplates();
@@ -272,6 +274,39 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       y: Math.min(Math.max(snapToGrid(y), margins.top), maxY),
     };
   }, [margins, snapToGrid]);
+
+  const computeSmartGuides = useCallback((draggedIds: string[], currentElements: CanvasElement[]) => {
+    const others = currentElements.filter(el => !draggedIds.includes(el.id) && !el.locked);
+    const dragged = currentElements.filter(el => draggedIds.includes(el.id));
+    if (dragged.length === 0 || others.length === 0) return { x: [] as number[], y: [] as number[] };
+
+    const SNAP_THRESHOLD = 6;
+    const guideX: number[] = [];
+    const guideY: number[] = [];
+
+    for (const d of dragged) {
+      const dEdges = { left: d.x, right: d.x + d.width, cx: d.x + d.width / 2 };
+      const dEdgesY = { top: d.y, bottom: d.y + d.height, cy: d.y + d.height / 2 };
+
+      for (const o of others) {
+        const oEdges = { left: o.x, right: o.x + o.width, cx: o.x + o.width / 2 };
+        const oEdgesY = { top: o.y, bottom: o.y + o.height, cy: o.y + o.height / 2 };
+
+        for (const dv of [dEdges.left, dEdges.right, dEdges.cx]) {
+          for (const ov of [oEdges.left, oEdges.right, oEdges.cx]) {
+            if (Math.abs(dv - ov) < SNAP_THRESHOLD) guideX.push(ov);
+          }
+        }
+        for (const dv of [dEdgesY.top, dEdgesY.bottom, dEdgesY.cy]) {
+          for (const ov of [oEdgesY.top, oEdgesY.bottom, oEdgesY.cy]) {
+            if (Math.abs(dv - ov) < SNAP_THRESHOLD) guideY.push(ov);
+          }
+        }
+      }
+    }
+
+    return { x: [...new Set(guideX)], y: [...new Set(guideY)] };
+  }, []);
 
   const sanitizeClipboard = useCallback((htmlData: string, textData: string) => {
     const raw = (textData || (() => {
@@ -877,6 +912,13 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     if (activeTool !== "select") return;
     e.stopPropagation();
 
+    // Locked elements: select but don't drag or edit
+    if (el.locked) {
+      setSelectedIds(new Set([el.id]));
+      setEditingTextId(null);
+      return;
+    }
+
     // If text element is already selected, enter edit mode on single click
     if ((el.type === "text" || el.type === "rect" || el.type === "circle") && selectedIds.has(el.id) && editingTextId !== el.id) {
       setEditingTextId(el.id);
@@ -938,12 +980,14 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const handleResizeMouseDown = (e: React.MouseEvent, el: CanvasElement, corner: string) => {
     e.stopPropagation();
     e.preventDefault();
+    if (el.locked) return;
     setResizeState({ id: el.id, startX: e.clientX, startY: e.clientY, startW: el.width, startH: el.height, corner, startElX: el.x, startElY: el.y } as any);
   };
 
   const handleRotateMouseDown = (e: React.MouseEvent, el: CanvasElement) => {
     e.stopPropagation();
     e.preventDefault();
+    if (el.locked) return;
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
     const centerX = rect.left + (el.x + el.width / 2) * zoom;
@@ -957,12 +1001,16 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       if (dragState) {
         const dx = (e.clientX - dragState.startX) / zoom;
         const dy = (e.clientY - dragState.startY) / zoom;
-        setCurrentElements(prev => prev.map(el => {
-          const origin = dragState.origins[el.id];
-          if (!origin) return el;
-          const cp = clampToMargins(el, origin.x + dx, origin.y + dy);
-          return { ...el, x: cp.x, y: cp.y };
-        }));
+        setCurrentElements(prev => {
+          const updated = prev.map(el => {
+            const origin = dragState.origins[el.id];
+            if (!origin) return el;
+            const cp = clampToMargins(el, origin.x + dx, origin.y + dy);
+            return { ...el, x: cp.x, y: cp.y };
+          });
+          setSmartGuides(computeSmartGuides(dragState.ids, updated));
+          return updated;
+        });
       }
       if (resizeState) {
         const dx = (e.clientX - resizeState.startX) / zoom;
@@ -993,14 +1041,14 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       }
     };
     const handleMouseUp = () => {
-      if (dragState) setDragState(null);
+      if (dragState) { setDragState(null); setSmartGuides({ x: [], y: [] }); }
       if (resizeState) setResizeState(null);
       if (rotateState) setRotateState(null);
     };
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
     return () => { window.removeEventListener("mousemove", handleMouseMove); window.removeEventListener("mouseup", handleMouseUp); };
-  }, [dragState, resizeState, rotateState, zoom, clampToMargins, setCurrentElements]);
+  }, [dragState, resizeState, rotateState, zoom, clampToMargins, computeSmartGuides, setCurrentElements]);
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -1014,7 +1062,11 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       if (editingTextId) return;
 
       if (e.key === "Delete" || e.key === "Backspace") {
-        if (selectedIds.size > 0) { e.preventDefault(); deleteSelected(); }
+        if (selectedIds.size > 0) {
+          const hasLocked = elements.some(el => selectedIds.has(el.id) && el.locked);
+          if (hasLocked) { toast.error("Desbloqueie os elementos antes de excluir"); return; }
+          e.preventDefault(); deleteSelected();
+        }
       }
 
       // Copy
@@ -1112,7 +1164,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           setCurrentElements(prev => prev.map(el => selectedIds.has(el.id) ? { ...el, width: Math.max(20, el.width + dx), height: Math.max(10, el.height + dy) } : el));
         } else {
           setCurrentElements(prev => prev.map(el => {
-            if (!selectedIds.has(el.id)) return el;
+            if (!selectedIds.has(el.id) || el.locked) return el;
             const cp = clampToMargins(el, el.x + dx, el.y + dy);
             return { ...el, x: cp.x, y: cp.y };
           }));
@@ -1502,16 +1554,18 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
     // Outer wrapper handles positioning, selection outline, and resize handles
     const isGrouped = !!el.groupId;
+    const isLocked = !!el.locked;
     const groupColor = isGrouped ? `hsl(${(el.groupId!.charCodeAt(6) * 37) % 360} 70% 55%)` : "";
     const wrapperStyle: React.CSSProperties = {
       position: "absolute", left: el.x, top: el.y, width: el.width, height: el.height,
       outline: isSelected 
-        ? `2px ${isPrimary ? "solid" : "dashed"} hsl(210 80% 55%)` 
+        ? `2px ${isPrimary ? "solid" : "dashed"} ${isLocked ? "hsl(var(--destructive) / 0.6)" : "hsl(210 80% 55%)"}`
         : isGrouped ? `1px dashed ${groupColor}` : "none",
       outlineOffset: "1px",
       opacity: el.opacity ?? 1,
       transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
       transformOrigin: "center center",
+      cursor: isLocked ? "not-allowed" : undefined,
     };
 
     // Inner style fills the wrapper — no position/size needed
@@ -1969,7 +2023,16 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         onClick={e => e.stopPropagation()}
       >
         {innerContent}
-        {resizeHandles}
+        {!isLocked && resizeHandles}
+        {isLocked && (
+          <div style={{
+            position: "absolute", top: -8, right: -8, zIndex: 9999,
+            width: 16, height: 16, borderRadius: "50%",
+            background: "hsl(var(--destructive))", color: "white",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 9, pointerEvents: "none",
+          }}>🔒</div>
+        )}
       </div>
     );
   };
@@ -1998,9 +2061,18 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           <p className="text-muted-foreground text-center py-4">{selectedIds.size} elementos selecionados</p>
         ) : selected ? (
           <>
-            <h3 className="font-semibold text-sm text-foreground">
-              Propriedades {selectedIds.size > 1 ? `(${selectedIds.size} selecionados)` : ""}
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-sm text-foreground">
+                Propriedades {selectedIds.size > 1 ? `(${selectedIds.size} selecionados)` : ""}
+              </h3>
+              <button
+                onClick={() => updateSelected({ locked: !selected.locked })}
+                className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded border transition-colors ${selected.locked ? "border-destructive/40 bg-destructive/10 text-destructive" : "border-border text-muted-foreground hover:bg-muted"}`}
+                title={selected.locked ? "Desbloquear elemento" : "Bloquear elemento"}
+              >
+                {selected.locked ? "🔒 Bloqueado" : "🔓 Bloquear"}
+              </button>
+            </div>
             <div className="space-y-1.5">
               <label className="text-muted-foreground">Posição</label>
               <div className="grid grid-cols-2 gap-1">
@@ -3176,6 +3248,19 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                     </span>
                   </div>
                   {elements.map(renderElement)}
+                  {/* Smart alignment guides */}
+                  {smartGuides.x.map((gx, i) => (
+                    <div key={`sgx-${i}`} style={{
+                      position: "absolute", left: gx, top: 0, width: 1, height: A4_HEIGHT,
+                      background: "hsl(var(--primary) / 0.5)", pointerEvents: "none", zIndex: 9990,
+                    }} />
+                  ))}
+                  {smartGuides.y.map((gy, i) => (
+                    <div key={`sgy-${i}`} style={{
+                      position: "absolute", top: gy, left: 0, height: 1, width: A4_WIDTH,
+                      background: "hsl(var(--primary) / 0.5)", pointerEvents: "none", zIndex: 9990,
+                    }} />
+                  ))}
                   {/* Page number indicator */}
                   <div style={{
                     position: "absolute", bottom: Math.max(8, margins.bottom - 20), right: Math.max(12, margins.right),
@@ -3261,6 +3346,16 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                           🔗 Agrupar ({selectedIds.size} itens)
                         </button>
                       )}
+                      <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-popover-foreground" onClick={() => {
+                        const sel = elements.find(e => e.id === [...selectedIds][0]);
+                        if (sel) {
+                          updateSelected({ locked: !sel.locked });
+                          toast.success(sel.locked ? "Elemento desbloqueado!" : "Elemento bloqueado!");
+                        }
+                        setContextMenu(null);
+                      }}>
+                        {elements.find(e => e.id === [...selectedIds][0])?.locked ? "🔓 Desbloquear" : "🔒 Bloquear"}
+                      </button>
                       {hasGroupInSelection && (
                         <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-popover-foreground" onClick={ungroupSelected}>
                           ✂️ Desagrupar
