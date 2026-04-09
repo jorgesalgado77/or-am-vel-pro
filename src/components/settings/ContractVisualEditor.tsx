@@ -1770,7 +1770,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         <div className="h-5 w-px bg-border" />
         <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setZoom(z => Math.max(0.25, z - 0.1))} title="Zoom -"><ZoomOut className="h-3.5 w-3.5" /></Button>
         <span className="text-xs text-muted-foreground w-10 text-center shrink-0">{Math.round(zoom * 100)}%</span>
-        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setZoom(z => Math.min(2, z + 0.1))} title="Zoom +"><ZoomIn className="h-3.5 w-3.5" /></Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setZoom(z => Math.min(2, z + 0.1))} title="Aumentar zoom (Ctrl++)"><ZoomIn className="h-3.5 w-3.5" /></Button>
         <div className="h-5 w-px bg-border" />
         <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={goToPrevPage} disabled={currentPageIdx === 0} title="Página anterior"><ChevronLeft className="h-3.5 w-3.5" /></Button>
         <span className="text-xs text-foreground font-medium shrink-0" title={`Página ${currentPageIdx + 1} de ${pages.length}`}>Pág. {currentPageIdx + 1}/{pages.length}</span>
