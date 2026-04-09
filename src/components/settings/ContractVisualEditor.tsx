@@ -659,7 +659,17 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     e.stopPropagation();
     setEditingTextId(null);
 
-    // Shift+click: toggle multi-select
+    // Ctrl+click (or Cmd on Mac): toggle multi-select
+    if (e.ctrlKey || e.metaKey) {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        if (next.has(el.id)) { next.delete(el.id); } else { next.add(el.id); }
+        return next;
+      });
+      return;
+    }
+
+    // Shift+click: also supports multi-select
     if (e.shiftKey) {
       setSelectedIds(prev => {
         const next = new Set(prev);
@@ -669,8 +679,14 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       return;
     }
 
-    // Normal click: select single (or keep multi-selection if already in set)
-    if (!selectedIds.has(el.id)) {
+    // If element is in a group, select all group members
+    if (el.groupId) {
+      const groupEls = elements.filter(e => e.groupId === el.groupId);
+      const groupIds = new Set(groupEls.map(e => e.id));
+      if (!selectedIds.has(el.id)) {
+        setSelectedIds(groupIds);
+      }
+    } else if (!selectedIds.has(el.id)) {
       setSelectedIds(new Set([el.id]));
     }
 
@@ -678,7 +694,10 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     if (!rect) return;
 
     // Build origins for all selected elements (including the clicked one)
-    const idsToMove = selectedIds.has(el.id) ? [...selectedIds] : [el.id];
+    const currentSelected = el.groupId 
+      ? new Set(elements.filter(e => e.groupId === el.groupId).map(e => e.id))
+      : selectedIds.has(el.id) ? selectedIds : new Set([el.id]);
+    const idsToMove = [...currentSelected];
     const origins: Record<string, { x: number; y: number }> = {};
     for (const id of idsToMove) {
       const found = elements.find(e => e.id === id);
