@@ -1055,11 +1055,34 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           el.id === rotateState.id ? { ...el, rotation: newRotation } : el
         ));
       }
+      // Dragging a user guide
+      if (draggingGuide) {
+        const delta = draggingGuide.axis === "x"
+          ? (e.clientX - draggingGuide.startMouse) / zoom
+          : (e.clientY - draggingGuide.startMouse) / zoom;
+        const newPos = Math.max(0, Math.min(
+          draggingGuide.axis === "x" ? A4_WIDTH : A4_HEIGHT,
+          draggingGuide.startPos + delta
+        ));
+        setUserGuides(prev => prev.map(g => g.id === draggingGuide.id ? { ...g, pos: newPos } : g));
+      }
     };
     const handleMouseUp = () => {
       if (dragState) { setDragState(null); setSmartGuides({ x: [], y: [] }); }
       if (resizeState) setResizeState(null);
       if (rotateState) setRotateState(null);
+      if (draggingGuide) {
+        // Remove guide if dragged off canvas
+        const g = userGuides.find(ug => ug.id === draggingGuide.id);
+        if (g) {
+          const max = g.axis === "x" ? A4_WIDTH : A4_HEIGHT;
+          if (g.pos <= 2 || g.pos >= max - 2) {
+            setUserGuides(prev => prev.filter(ug => ug.id !== draggingGuide.id));
+            toast.info("Guia removida");
+          }
+        }
+        setDraggingGuide(null);
+      }
     };
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
