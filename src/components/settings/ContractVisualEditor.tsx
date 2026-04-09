@@ -284,7 +284,13 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     setCurrentElements(prev => prev.map(el => selectedIds.has(el.id) ? { ...el, ...updates } : el));
   }, [selectedIds, setCurrentElements]);
 
-  const handleCanvasClick = (e: React.MouseEvent) => {
+  const handleCanvasMouseDown = (e: React.MouseEvent) => {
+    // Only deselect if clicking directly on canvas background, not on elements
+    const target = e.target as HTMLElement;
+    const isCanvasBg = target === canvasRef.current || target.closest('[data-canvas-bg]') !== null;
+    if (!isCanvasBg) return;
+    
+    
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
     const x = (e.clientX - rect.left) / zoom;
@@ -2105,7 +2111,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                 boxShadow: "0 4px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08)",
                 overflow: "hidden", flexShrink: 0,
               }}
-              onClick={handleCanvasClick}
+              onMouseDown={handleCanvasMouseDown}
               onContextMenu={handleContextMenu}
             >
               {/* Background image */}
@@ -2122,7 +2128,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                 />
               )}
               {/* Scaled inner */}
-              <div style={{ transform: `scale(${zoom})`, transformOrigin: "0 0", width: A4_WIDTH, height: A4_HEIGHT, position: "relative" }}>
+              <div data-canvas-bg style={{ transform: `scale(${zoom})`, transformOrigin: "0 0", width: A4_WIDTH, height: A4_HEIGHT, position: "relative" }}>
                 {elements.map(renderElement)}
               </div>
 
