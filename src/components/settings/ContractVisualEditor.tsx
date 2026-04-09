@@ -4,7 +4,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { ContractEditorToolbar, type ToolType, type ShapeType } from "./ContractEditorToolbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText, LayoutTemplate, BookmarkPlus, Pencil, Trash, Upload, Image as ImageIcon } from "lucide-react";
+import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText, LayoutTemplate, BookmarkPlus, Pencil, Trash, Upload, Image as ImageIcon, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd } from "lucide-react";
 import { getContractTemplates, type ContractTemplate } from "./contractTemplates";
 import { useCustomTemplates, type CustomTemplate } from "@/hooks/useCustomTemplates";
 import { toast } from "sonner";
@@ -140,6 +140,61 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [resizeState, setResizeState] = useState<{ id: string; startX: number; startY: number; startW: number; startH: number; corner: string; startElX: number; startElY: number } | null>(null);
   const [rotateState, setRotateState] = useState<{ id: string; startAngle: number; elRotation: number; centerX: number; centerY: number } | null>(null);
   const [clipboard, setClipboard] = useState<CanvasElement | null>(null);
+
+  // Undo/Redo history
+  const historyRef = useRef<PageData[][]>([]);
+  const historyIdxRef = useRef(-1);
+  const skipHistoryRef = useRef(false);
+
+  const pushHistory = useCallback((snapshot: PageData[]) => {
+    if (skipHistoryRef.current) { skipHistoryRef.current = false; return; }
+    const h = historyRef.current;
+    const idx = historyIdxRef.current;
+    // Trim future states
+    historyRef.current = h.slice(0, idx + 1);
+    historyRef.current.push(JSON.parse(JSON.stringify(snapshot)));
+    // Keep max 50 states
+    if (historyRef.current.length > 50) historyRef.current.shift();
+    historyIdxRef.current = historyRef.current.length - 1;
+  }, []);
+
+  // Push initial state
+  useEffect(() => {
+    if (historyRef.current.length === 0) {
+      pushHistory(pages);
+    }
+  }, []);
+
+  // Track pages changes for history
+  const prevPagesRef = useRef<string>("");
+  useEffect(() => {
+    const serialized = JSON.stringify(pages);
+    if (serialized !== prevPagesRef.current) {
+      prevPagesRef.current = serialized;
+      pushHistory(pages);
+    }
+  }, [pages, pushHistory]);
+
+  const canUndo = historyIdxRef.current > 0;
+  const canRedo = historyIdxRef.current < historyRef.current.length - 1;
+
+  const handleUndo = useCallback(() => {
+    if (historyIdxRef.current <= 0) return;
+    historyIdxRef.current -= 1;
+    const snapshot = historyRef.current[historyIdxRef.current];
+    skipHistoryRef.current = true;
+    prevPagesRef.current = JSON.stringify(snapshot);
+    setPages(JSON.parse(JSON.stringify(snapshot)));
+  }, []);
+
+  const handleRedo = useCallback(() => {
+    if (historyIdxRef.current >= historyRef.current.length - 1) return;
+    historyIdxRef.current += 1;
+    const snapshot = historyRef.current[historyIdxRef.current];
+    skipHistoryRef.current = true;
+    prevPagesRef.current = JSON.stringify(snapshot);
+    setPages(JSON.parse(JSON.stringify(snapshot)));
+  }, []);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [varSearch, setVarSearch] = useState("");
