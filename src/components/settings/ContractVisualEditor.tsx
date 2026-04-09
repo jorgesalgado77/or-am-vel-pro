@@ -952,6 +952,23 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         if (selEls.length > 0) { e.preventDefault(); setClipboard(selEls.map(el => ({ ...el }))); toast.success(`${selEls.length} elemento(s) copiado(s)`); }
       }
 
+      // Duplicate
+      if ((e.ctrlKey || e.metaKey) && e.key === "d") {
+        if (selectedIds.size > 0) {
+          e.preventDefault();
+          const newIds = new Set<string>();
+          const selEls = elements.filter(el => selectedIds.has(el.id));
+          const dups = selEls.map(el => {
+            const dup = { ...el, id: genId(), x: el.x + 20, y: el.y + 20, zIndex: elements.length + 1 };
+            newIds.add(dup.id);
+            return dup;
+          });
+          setCurrentElements(prev => [...prev, ...dups]);
+          setSelectedIds(newIds);
+          toast.success(`${dups.length} elemento(s) duplicado(s)`);
+        }
+      }
+
       // Paste
       if ((e.ctrlKey || e.metaKey) && e.key === "v") {
         if (clipboard.length > 0) {
