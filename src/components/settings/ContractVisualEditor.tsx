@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText, BookmarkPlus, Pencil, Trash, Upload, Image as ImageIcon, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, Eye, FileSpreadsheet, ToggleLeft, ToggleRight, Palette, Layers } from "lucide-react";
+// jsPDF import removed - now in exportHelpers
 import { ContractLayersPanel } from "./ContractLayersPanel";
 import { getContractTemplates, type ContractTemplate } from "./contractTemplates";
 import { useCustomTemplates, type CustomTemplate } from "@/hooks/useCustomTemplates";
@@ -536,7 +537,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   // --- Group / Ungroup ---
   const groupSelected = () => {
     if (selectedIds.size < 2) { toast.error("Selecione pelo menos 2 elementos para agrupar"); return; }
-    const gid = `group_${++idCounter}_${Date.now()}`;
+    const gid = `group_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     setCurrentElements(prev => prev.map(el => selectedIds.has(el.id) ? { ...el, groupId: gid } : el));
     toast.success(`${selectedIds.size} elementos agrupados`);
     setContextMenu(null);
