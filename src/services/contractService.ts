@@ -195,6 +195,44 @@ export function buildContractHtml(templateHtml: string, data: ContractData): str
         </table>`
       : "",
     "{{quantidade_ambientes}}": String(items.length),
+
+    // ── Smart auto-adaptive tables ──
+    "{{ambientes_valores_tabela}}": items.length > 0
+      ? `<table border="1" cellpadding="6" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:12px;">
+          <tr style="background:#0891b2;color:#fff;"><th>Ambiente</th><th>Peças</th><th>Valor</th></tr>
+          ${items.map((it: any, i: number) => {
+            const d = itemDetails[i] || {};
+            return `<tr><td>${it.descricao_ambiente || `Ambiente ${i + 1}`}</td><td>${d.titulos || it.quantidade || "—"}</td><td style="text-align:right">${formatCurrency(it.valor_ambiente || 0)}</td></tr>`;
+          }).join("")}
+          <tr style="font-weight:bold;background:#f0fdfa;"><td colspan="2" style="text-align:right">Total:</td><td style="text-align:right">${formatCurrency(totalAmbientes)}</td></tr>
+        </table>`
+      : "",
+
+    "{{ambientes_cores_tabela}}": items.length > 0
+      ? `<table border="1" cellpadding="6" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:12px;">
+          <tr style="background:#0891b2;color:#fff;"><th>Ambiente</th><th>Cor Caixa</th><th>Cor Portas</th><th>Ferragens</th><th>Observações</th></tr>
+          ${items.map((it: any, i: number) => {
+            const d = itemDetails[i] || {};
+            return `<tr><td>${it.descricao_ambiente || `Ambiente ${i + 1}`}</td><td>${d.corpo || "—"}</td><td>${d.porta || "—"}</td><td>${d.puxador || "—"}</td><td>${d.complemento || "—"}</td></tr>`;
+          }).join("")}
+        </table>`
+      : "",
+
+    "{{produtos_catalogo_completo}}": catalogProducts && catalogProducts.length > 0
+      ? `<table border="1" cellpadding="6" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:12px;">
+          <tr style="background:#0891b2;color:#fff;"><th>Código</th><th>Qtd</th><th>Produto</th><th>Descrição</th><th>Valor Venda</th><th>Prazo Entrega</th><th>Observações</th></tr>
+          ${catalogProducts.map(p => `<tr><td style="font-family:monospace;">${p.internal_code}</td><td style="text-align:center;">${p.quantity}</td><td>${p.name}</td><td>${(p as any).description || "—"}</td><td style="text-align:right;">${formatCurrency(p.sale_price)}</td><td>${(p as any).delivery_time || "—"}</td><td>${(p as any).observations || "—"}</td></tr>`).join("")}
+          <tr style="font-weight:bold;background:#f0fdfa;"><td colspan="4" style="text-align:right;">Subtotal:</td><td style="text-align:right;">${formatCurrency(totalCatalogo)}</td><td colspan="2"></td></tr>
+        </table>`
+      : "",
+
+    "{{endereco_entrega_completo}}": [
+      formData.endereco_entrega,
+      formData.bairro_entrega,
+      formData.cidade_entrega && formData.uf_entrega ? `${formData.cidade_entrega} - ${formData.uf_entrega}` : formData.cidade_entrega || formData.uf_entrega,
+      formData.cep_entrega ? `CEP: ${formData.cep_entrega}` : "",
+    ].filter(Boolean).join(", ") || "—",
+
     "{{produtos_catalogo}}": catalogProducts && catalogProducts.length > 0
       ? `<table border="1" cellpadding="6" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px;">
           <tr style="background:#f0f0f0;"><th>Código</th><th>Produto</th><th>Qtd</th><th>Valor Unit.</th><th>Total</th></tr>

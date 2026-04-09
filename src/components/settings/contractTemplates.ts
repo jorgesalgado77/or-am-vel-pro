@@ -99,50 +99,96 @@ export function getContractTemplates(): ContractTemplate[] {
     {
       id: "venda-moveis",
       name: "Venda de Móveis Planejados",
-      description: "Contrato completo para venda de móveis sob medida com ambientes e valores",
+      description: "Contrato completo para venda de móveis sob medida — tabelas auto-adaptativas por ambiente e catálogo",
       icon: "🪑",
       pages: [
         {
           id: tplId(), backgroundOpacity: 0.5, elements: [
+            // ── Header ──
             makeRect(0, 0, 794, 80, { fill: "#0891b2", stroke: "transparent", borderRadius: 0 }),
             makeText(40, 15, 400, 30, "{{empresa_nome}}", { fontSize: 24, fontWeight: "bold", color: "#ffffff" }),
             makeText(40, 48, 400, 20, "{{empresa_subtitulo}}", { fontSize: 12, color: "#e0f2fe" }),
             makeText(450, 25, 300, 20, "CONTRATO DE VENDA", { fontSize: 16, fontWeight: "bold", color: "#ffffff", textAlign: "right" }),
             makeText(450, 48, 300, 20, "Data: {{data_contrato}}", { fontSize: 11, color: "#e0f2fe", textAlign: "right" }),
 
+            // ── Dados do Cliente ──
             makeText(40, 100, 714, 25, "DADOS DO CLIENTE", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
             makeLine(40, 122, 714),
-            makeText(40, 130, 350, 20, "Nome: {{cliente_nome}}"),
-            makeText(400, 130, 350, 20, "CPF: {{cliente_cpf}}"),
-            makeText(40, 155, 350, 20, "Telefone: {{cliente_telefone}}"),
-            makeText(400, 155, 350, 20, "E-mail: {{cliente_email}}"),
-            makeText(40, 180, 714, 20, "Endereço: {{cliente_endereco}}"),
+            makeText(40, 130, 350, 20, "Nome: {{nome_cliente}}"),
+            makeText(400, 130, 350, 20, "CPF/CNPJ: {{cpf_cliente}}"),
+            makeText(40, 155, 350, 20, "RG/Insc. Estadual: {{rg_insc_estadual}}"),
+            makeText(400, 155, 350, 20, "Telefone: {{telefone_cliente}}"),
+            makeText(40, 180, 350, 20, "E-mail: {{email_cliente}}"),
+            makeText(400, 180, 350, 20, "Profissão: {{profissao}}"),
+            makeText(40, 205, 714, 20, "Endereço: {{endereco}}, {{bairro}} — {{cidade}}/{{uf}} — CEP: {{cep}}"),
 
-            makeText(40, 220, 714, 25, "AMBIENTES E VALORES", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
-            makeLine(40, 242, 714),
-            makeTable(40, 250, 714, 150, [
-              ["Ambiente", "Peças", "Valor"],
-              ["{{ambiente_1}}", "{{pecas_1}}", "{{valor_1}}"],
-              ["{{ambiente_2}}", "{{pecas_2}}", "{{valor_2}}"],
-              ["{{ambiente_3}}", "{{pecas_3}}", "{{valor_3}}"],
-            ]),
+            // ── Endereço de Entrega ──
+            makeText(40, 240, 714, 25, "ENDEREÇO DE ENTREGA", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
+            makeLine(40, 262, 714),
+            makeText(40, 270, 714, 20, "Endereço: {{endereco_entrega}}"),
+            makeText(40, 295, 350, 20, "Bairro: {{bairro_entrega}}"),
+            makeText(400, 295, 350, 20, "Cidade: {{cidade_entrega}} / {{uf_entrega}}"),
+            makeText(40, 320, 350, 20, "CEP: {{cep_entrega}}"),
+            makeText(400, 320, 350, 20, "Complemento: {{complemento_entrega}}"),
 
-            makeText(40, 420, 714, 25, "RESUMO FINANCEIRO", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
-            makeLine(40, 442, 714),
-            makeText(40, 450, 350, 20, "Valor Total: {{valor_tela}}"),
-            makeText(400, 450, 350, 20, "Desconto: {{desconto_total}}"),
-            makeText(40, 475, 350, 20, "Forma de Pagamento: {{forma_pagamento}}"),
-            makeText(400, 475, 350, 20, "Parcelas: {{parcelas}}x {{valor_parcela}}"),
-            makeRect(40, 505, 714, 50, { fill: "#f0fdfa", stroke: "#0891b2", borderRadius: 6, text: "VALOR FINAL: {{valor_final}}", fontSize: 18, fontWeight: "bold", color: "#0891b2", textAlign: "center" }),
+            // ── Tabela 1: Ambientes e Valores (auto-adaptativa) ──
+            makeText(40, 360, 714, 25, "AMBIENTES E VALORES", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
+            makeLine(40, 382, 714),
+            makeText(40, 390, 714, 20, "{{ambientes_valores_tabela}}", { fontSize: 11 }),
 
-            makeText(40, 580, 714, 25, "CONDIÇÕES GERAIS", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
-            makeLine(40, 602, 714),
-            makeText(40, 610, 714, 180, "1. O prazo de entrega é de {{prazo_entrega}} dias úteis a partir da confirmação do pedido.\n\n2. A garantia dos produtos é de 5 (cinco) anos contra defeitos de fabricação.\n\n3. O pagamento deve ser realizado conforme a forma escolhida acima.\n\n4. Em caso de cancelamento pelo COMPRADOR após a produção, será cobrada multa de 30% sobre o valor total.\n\n5. Este contrato é regido pelas leis brasileiras, elegendo o foro da comarca de {{cidade_foro}} para dirimir quaisquer questões.", { fontSize: 11, color: "#374151" }),
+            // ── Tabela 2: Detalhes dos Ambientes (auto-adaptativa) ──
+            makeText(40, 430, 714, 25, "DETALHES DOS AMBIENTES", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
+            makeLine(40, 452, 714),
+            makeText(40, 460, 714, 20, "{{ambientes_cores_tabela}}", { fontSize: 11 }),
 
-            makeText(40, 820, 340, 20, "______________________________", { textAlign: "center" }),
-            makeText(40, 845, 340, 20, "{{empresa_nome}}", { textAlign: "center", fontSize: 11 }),
-            makeText(414, 820, 340, 20, "______________________________", { textAlign: "center" }),
-            makeText(414, 845, 340, 20, "{{cliente_nome}}", { textAlign: "center", fontSize: 11 }),
+            // ── Tabela 3: Produtos do Catálogo (auto-adaptativa) ──
+            makeText(40, 500, 714, 25, "PRODUTOS DO CATÁLOGO", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
+            makeLine(40, 522, 714),
+            makeText(40, 530, 714, 20, "{{produtos_catalogo_completo}}", { fontSize: 11 }),
+
+            // ── Resumo Financeiro ──
+            makeText(40, 570, 714, 25, "RESUMO FINANCEIRO", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
+            makeLine(40, 592, 714),
+            makeText(40, 600, 350, 20, "Valor Total: {{valor_tela}}"),
+            makeText(400, 600, 350, 20, "Desconto: {{valor_desconto}} ({{percentual_desconto}})"),
+            makeText(40, 625, 350, 20, "Forma de Pagamento: {{forma_pagamento}}"),
+            makeText(400, 625, 350, 20, "Parcelas: {{parcelas}}x {{valor_parcela}}"),
+            makeText(40, 650, 350, 20, "Entrada: {{valor_entrada}}"),
+            makeText(400, 650, 350, 20, "Restante: {{valor_restante}}"),
+            makeRect(40, 680, 714, 50, { fill: "#f0fdfa", stroke: "#0891b2", borderRadius: 6, text: "VALOR FINAL: {{valor_final}}\n{{valor_por_extenso}}", fontSize: 16, fontWeight: "bold", color: "#0891b2", textAlign: "center" }),
+          ],
+        },
+        {
+          id: tplId(), backgroundOpacity: 0.5, elements: [
+            // ── Page 2: Condições e Assinaturas ──
+            makeRect(0, 0, 794, 50, { fill: "#0891b2", stroke: "transparent" }),
+            makeText(40, 12, 714, 25, "CONTRATO DE VENDA — {{empresa_nome}}", { fontSize: 14, fontWeight: "bold", color: "#ffffff" }),
+
+            makeText(40, 70, 714, 25, "CONDIÇÕES GERAIS", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
+            makeLine(40, 92, 714),
+            makeText(40, 100, 714, 280, "1. O prazo de entrega é de {{prazo_entrega}} dias úteis a partir da confirmação do pedido e aprovação do projeto.\n\n2. A garantia dos produtos é de {{prazo_garantia}} contra defeitos de fabricação, conforme termos do fabricante.\n\n3. O pagamento deve ser realizado conforme a forma escolhida: {{condicoes_pagamento}}.\n\n4. Em caso de cancelamento pelo COMPRADOR após a aprovação do projeto, será cobrada multa de 30% sobre o valor total do contrato.\n\n5. Alterações no projeto após aprovação poderão acarretar custos adicionais e alteração no prazo de entrega.\n\n6. A montagem está inclusa no valor do contrato, salvo disposição em contrário.\n\n7. O COMPRADOR deverá garantir acesso adequado ao local de entrega e montagem.\n\n8. Eventuais avarias no imóvel pré-existentes devem ser informadas antes da montagem.\n\n9. A validade desta proposta é de {{validade_proposta}}.\n\n10. Este contrato é regido pelas leis brasileiras, elegendo o foro da comarca de {{cidade}} para dirimir quaisquer questões.", { fontSize: 11, color: "#374151" }),
+
+            makeText(40, 400, 714, 25, "OBSERVAÇÕES", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
+            makeLine(40, 422, 714),
+            makeText(40, 430, 714, 80, "{{observacoes}}", { fontSize: 11, color: "#374151" }),
+
+            makeText(40, 540, 714, 25, "RESPONSÁVEIS", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
+            makeLine(40, 562, 714),
+            makeText(40, 570, 350, 20, "Vendedor: {{responsavel_venda}}"),
+            makeText(400, 570, 350, 20, "Projetista: {{projetista}}"),
+            makeText(40, 595, 350, 20, "Indicador: {{indicador_nome}}"),
+            makeText(400, 595, 350, 20, "Nº Orçamento: {{numero_orcamento}}"),
+
+            // ── Assinaturas ──
+            makeText(40, 680, 714, 20, "{{cidade}}, {{data_atual}}", { textAlign: "center", fontSize: 12 }),
+
+            makeText(40, 740, 340, 20, "______________________________", { textAlign: "center" }),
+            makeText(40, 765, 340, 20, "{{empresa_nome}}", { textAlign: "center", fontSize: 11 }),
+            makeText(40, 785, 340, 15, "CNPJ: {{cnpj_loja}}", { textAlign: "center", fontSize: 9, color: "#6b7280" }),
+
+            makeText(414, 740, 340, 20, "______________________________", { textAlign: "center" }),
+            makeText(414, 765, 340, 20, "{{nome_cliente}}", { textAlign: "center", fontSize: 11 }),
+            makeText(414, 785, 340, 15, "CPF: {{cpf_cliente}}", { textAlign: "center", fontSize: 9, color: "#6b7280" }),
           ],
         },
       ],
