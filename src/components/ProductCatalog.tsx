@@ -601,6 +601,13 @@ export function ProductCatalog() {
           </Card>
         </TabsContent>
 
+        {/* === PROMOTIONS TAB === */}
+        <TabsContent value="promotions" className="mt-4">
+          <Suspense fallback={<div className="flex items-center justify-center py-12 text-muted-foreground">Carregando...</div>}>
+            <PromotionsPanel />
+          </Suspense>
+        </TabsContent>
+
         {/* === SUPPLIERS TAB === */}
         <TabsContent value="suppliers" className="mt-4">
           <Card>
