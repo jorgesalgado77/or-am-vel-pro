@@ -1160,7 +1160,12 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
     // Wrapper: positions element, captures mouse events, and renders handles OUTSIDE inner content
     return (
-      <div key={el.id} style={wrapperStyle} onMouseDown={e => handleElementMouseDown(e, el)}>
+      <div
+        key={el.id}
+        style={wrapperStyle}
+        onMouseDown={e => handleElementMouseDown(e, el)}
+        onClick={e => e.stopPropagation()}
+      >
         {innerContent}
         {resizeHandles}
       </div>
@@ -1169,7 +1174,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
   const renderPropertiesPanel = () => {
     return (
-      <div className="w-56 border-l border-border bg-background p-3 overflow-y-auto text-xs space-y-3">
+      <div className="w-56 min-h-0 h-full shrink-0 border-l border-border bg-background p-3 overflow-y-auto text-xs space-y-3">
         {/* Page background opacity */}
         {currentPage?.backgroundImage && (
           <>
@@ -1538,7 +1543,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0">
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
       <input ref={pdfInputRef} type="file" accept=".pdf" className="hidden" onChange={handlePdfFileChange} />
       <input ref={jsonInputRef} type="file" accept=".json" className="hidden" onChange={handleImportTemplatesJson} />
@@ -1823,9 +1828,9 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       )}
 
       {/* Main area */}
-      <div className="flex flex-1 overflow-hidden border border-border rounded-b-lg">
+      <div className="flex flex-1 min-h-0 overflow-hidden border border-border rounded-b-lg">
         {/* Page thumbnails sidebar */}
-        <div className="w-24 border-r border-border bg-muted/20 overflow-y-auto p-2 space-y-2">
+        <div className="w-24 min-h-0 border-r border-border bg-muted/20 overflow-y-auto p-2 space-y-2">
           {pages.map((page, idx) => (
             <div
               key={page.id}
@@ -1880,9 +1885,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             </div>
           ))}
         </div>
-
         {/* Canvas */}
-        <div className="flex-1 overflow-auto bg-muted/40 p-6" style={{ background: "repeating-conic-gradient(hsl(var(--muted)) 0% 25%, hsl(var(--background)) 0% 50%) 50% / 20px 20px" }}>
+        <div className="flex-1 min-w-0 min-h-0 overflow-auto bg-muted/40 p-6" style={{ background: "repeating-conic-gradient(hsl(var(--muted)) 0% 25%, hsl(var(--background)) 0% 50%) 50% / 20px 20px" }}>
           <div
             ref={canvasRef}
             style={{
