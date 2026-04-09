@@ -1412,41 +1412,47 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                 <tbody>
                   {el.tableData.map((row, ri) => (
                     <tr key={ri}>
-                      {row.map((cell, ci) => (
-                        <td key={ci} style={{
-                          border: `1px solid ${el.stroke}`,
-                          padding: "2px 6px",
-                          background: ri === 0 ? el.stroke : el.fill,
-                          color: ri === 0 ? "#ffffff" : el.color,
-                          fontWeight: ri === 0 ? "bold" : "normal",
-                          textAlign: el.textAlign as any,
-                          verticalAlign: "middle",
-                        }}>
-                          <input
-                            type="text"
-                            value={isFormula(cell) ? evaluateCell(cell, el.tableData || []) : cell}
-                            onChange={e => updateTableCell(el.id, ri, ci, e.target.value)}
-                            onClick={e => {
-                              e.stopPropagation();
-                              setEditingCellRef({ elId: el.id, row: ri, col: ci });
-                              setFormulaBarValue(cell);
-                              setShowFormulaSuggestions(false);
-                            }}
-                            onFocus={() => {
-                              setEditingCellRef({ elId: el.id, row: ri, col: ci });
-                              setFormulaBarValue(cell);
-                            }}
-                            title={isFormula(cell) ? `Fórmula: ${cell}` : undefined}
-                            style={{
-                              width: "100%", border: "none", outline: "none",
-                              background: isFormula(cell) ? "hsl(var(--accent) / 0.3)" : "transparent",
-                              color: "inherit", fontFamily: "inherit",
-                              fontSize: "inherit", fontWeight: "inherit", textAlign: "inherit",
-                              padding: 0,
-                            }}
-                          />
-                        </td>
-                      ))}
+                      {row.map((cell, ci) => {
+                        const displayValue = isFormula(cell) ? evaluateCell(cell, el.tableData || []) : cell;
+                        const previewValue = previewVarsMode ? replaceVariablesWithSample(displayValue) : displayValue;
+                        const condStyle = getConditionalStyle(previewValue, conditionalRules, ri === 0);
+                        return (
+                          <td key={ci} style={{
+                            border: `1px solid ${el.stroke}`,
+                            padding: "2px 6px",
+                            background: condStyle?.backgroundColor || (ri === 0 ? el.stroke : el.fill),
+                            color: condStyle?.color || (ri === 0 ? "#ffffff" : el.color),
+                            fontWeight: condStyle?.fontWeight as any || (ri === 0 ? "bold" : "normal"),
+                            textAlign: el.textAlign as any,
+                            verticalAlign: "middle",
+                            transition: "background 0.2s, color 0.2s",
+                          }}>
+                            <input
+                              type="text"
+                              value={previewValue}
+                              onChange={e => updateTableCell(el.id, ri, ci, e.target.value)}
+                              onClick={e => {
+                                e.stopPropagation();
+                                setEditingCellRef({ elId: el.id, row: ri, col: ci });
+                                setFormulaBarValue(cell);
+                                setShowFormulaSuggestions(false);
+                              }}
+                              onFocus={() => {
+                                setEditingCellRef({ elId: el.id, row: ri, col: ci });
+                                setFormulaBarValue(cell);
+                              }}
+                              title={isFormula(cell) ? `Fórmula: ${cell}` : condStyle ? "Formatação condicional aplicada" : undefined}
+                              style={{
+                                width: "100%", border: "none", outline: "none",
+                                background: isFormula(cell) && !condStyle ? "hsl(var(--accent) / 0.3)" : "transparent",
+                                color: "inherit", fontFamily: "inherit",
+                                fontSize: "inherit", fontWeight: "inherit", textAlign: "inherit",
+                                padding: 0,
+                              }}
+                            />
+                          </td>
+                        );
+                      })}
                     </tr>
                   ))}
                 </tbody>
