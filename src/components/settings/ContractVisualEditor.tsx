@@ -2927,6 +2927,17 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           <BookmarkPlus className="h-4 w-4" /> Salvar Template
         </Button>
 
+        {/* Guias */}
+        {userGuides.length > 0 && (
+          <>
+            <Separator orientation="vertical" className="mx-1 h-6" />
+            <span className="text-[10px] text-muted-foreground shrink-0">{userGuides.length} guia(s)</span>
+            <Button variant="ghost" size="sm" className="h-8 text-[10px] shrink-0 text-destructive" onClick={() => { setUserGuides([]); toast.info("Todas as guias removidas"); }} title="Remover todas as guias">
+              ✕ Limpar guias
+            </Button>
+          </>
+        )}
+
         {/* Alinhamento (condicional) */}
         {selectedIds.size > 0 && (
           <>
