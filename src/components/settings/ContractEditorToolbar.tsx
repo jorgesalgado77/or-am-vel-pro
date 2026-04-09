@@ -7,12 +7,12 @@ import {
   Undo2, Redo2, Bold, Italic, Underline, Strikethrough, Type, Paintbrush,
   AlignLeft, AlignCenter, AlignRight, AlignJustify, List, ListOrdered,
   RemoveFormatting, Square, Circle, Minus, Image, MousePointer, Table2,
-  ArrowLeft
+  ArrowLeft, Pipette
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export type ShapeType = "rect" | "circle" | "line";
-export type ToolType = "select" | "shape" | "text" | "image" | "table";
+export type ToolType = "select" | "shape" | "text" | "image" | "table" | "eyedropper";
 
 interface ContractEditorToolbarProps {
   activeTool: ToolType;
@@ -42,6 +42,10 @@ interface ContractEditorToolbarProps {
   onImageUpload: () => void;
   onTableInsert: () => void;
   onBack?: () => void;
+  // Eyedropper
+  eyedropperColor?: string | null;
+  eyedropperMode?: "fill" | "stroke" | "text" | null;
+  onEyedropperClick?: () => void;
 }
 
 const SYSTEM_FONTS = [
@@ -99,6 +103,7 @@ export function ContractEditorToolbar(props: ContractEditorToolbarProps) {
     isUnderline, onUnderlineToggle, isStrikethrough, onStrikethroughToggle,
     textColor, onTextColorChange, textAlign, onTextAlignChange,
     onUndo, onRedo, canUndo, canRedo, onImageUpload, onTableInsert, onBack,
+    eyedropperColor, eyedropperMode, onEyedropperClick,
   } = props;
 
   useEffect(() => {
@@ -170,7 +175,31 @@ export function ContractEditorToolbar(props: ContractEditorToolbarProps) {
 
         <Separator orientation="vertical" className="mx-1.5 h-7" />
 
-        {/* Font family */}
+        {/* Eyedropper */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={activeTool === "eyedropper" ? "secondary" : "ghost"}
+              size="icon"
+              className="h-9 w-9 relative"
+              onClick={onEyedropperClick}
+            >
+              <Pipette className="h-[18px] w-[18px]" />
+              {eyedropperColor && (
+                <span className="absolute bottom-0.5 right-0.5 h-3 w-3 rounded-full border border-border" style={{ backgroundColor: eyedropperColor }} />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">
+            {activeTool === "eyedropper"
+              ? `Conta-gotas ativo — clique em um elemento para copiar a cor${eyedropperMode ? ` (${eyedropperMode === "fill" ? "fundo" : eyedropperMode === "stroke" ? "borda" : "texto"})` : ""}`
+              : eyedropperColor
+                ? `Cor copiada: ${eyedropperColor} — clique para ativar`
+                : "Conta-gotas — copiar cor de um elemento"}
+          </TooltipContent>
+        </Tooltip>
+
+        <Separator orientation="vertical" className="mx-1.5 h-7" />
         <Select value={fontFamily} onValueChange={onFontFamilyChange}>
           <SelectTrigger className="h-9 w-[160px] text-xs">
             <SelectValue />

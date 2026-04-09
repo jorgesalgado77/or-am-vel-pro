@@ -14,6 +14,7 @@ import { jsPDF } from "jspdf";
 import { Document, Packer, Paragraph, TextRun, ImageRun, PageBreak, AlignmentType, BorderStyle, Table, TableRow, TableCell, WidthType, ShadingType } from "docx";
 import { saveAs } from "file-saver";
 import { buildContractDocumentHtml } from "@/lib/contractDocument";
+import { evaluateCell, isFormula, SUPPORTED_FORMULAS, indexToCol } from "@/lib/formulaEngine";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("/pdf.worker.min.mjs", window.location.origin).href;
 
@@ -143,6 +144,16 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [resizeState, setResizeState] = useState<{ id: string; startX: number; startY: number; startW: number; startH: number; corner: string; startElX: number; startElY: number } | null>(null);
   const [rotateState, setRotateState] = useState<{ id: string; startAngle: number; elRotation: number; centerX: number; centerY: number } | null>(null);
   const [clipboard, setClipboard] = useState<CanvasElement[]>([]);
+
+  // Eyedropper state
+  const [eyedropperColor, setEyedropperColor] = useState<string | null>(null);
+  const [eyedropperMode, setEyedropperMode] = useState<"fill" | "stroke" | "text" | null>(null);
+  const [eyedropperApplyMode, setEyedropperApplyMode] = useState<"fill" | "stroke" | "text" | null>(null);
+
+  // Formula bar state
+  const [formulaBarValue, setFormulaBarValue] = useState("");
+  const [editingCellRef, setEditingCellRef] = useState<{ elId: string; row: number; col: number } | null>(null);
+  const [showFormulaSuggestions, setShowFormulaSuggestions] = useState(false);
 
   // Undo/Redo history
   const historyRef = useRef<PageData[][]>([]);
@@ -675,6 +686,35 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
   // --- Drag & Resize ---
   const handleElementMouseDown = (e: React.MouseEvent, el: CanvasElement) => {
+    // Eyedropper mode: pick or apply color
+    if (activeTool === "eyedropper") {
+      e.stopPropagation();
+      if (!eyedropperColor) {
+        // Pick color from element - show menu to choose which color
+        const colors = { fill: el.fill, stroke: el.stroke, text: el.color };
+        // Auto-pick: prefer text color for text elements, fill for shapes
+        const picked = el.type === "text" ? colors.text : (colors.fill !== "transparent" ? colors.fill : colors.stroke);
+        setEyedropperColor(picked);
+        toast.success(`Cor copiada: ${picked}`);
+      } else {
+        // Apply color to element
+        if (eyedropperApplyMode === "stroke") {
+          setCurrentElements(prev => prev.map(e => e.id === el.id ? { ...e, stroke: eyedropperColor! } : e));
+          toast.success("Cor aplicada à borda");
+        } else if (eyedropperApplyMode === "text") {
+          setCurrentElements(prev => prev.map(e => e.id === el.id ? { ...e, color: eyedropperColor! } : e));
+          toast.success("Cor aplicada ao texto");
+        } else {
+          setCurrentElements(prev => prev.map(e => e.id === el.id ? { ...e, fill: eyedropperColor! } : e));
+          toast.success("Cor aplicada ao fundo");
+        }
+        setEyedropperColor(null);
+        setEyedropperApplyMode(null);
+        setActiveTool("select");
+      }
+      return;
+    }
+
     if (activeTool !== "select") return;
     e.stopPropagation();
     setEditingTextId(null);
@@ -1369,12 +1409,24 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                           verticalAlign: "middle",
                         }}>
                           <input
-                            type="text" value={cell}
+                            type="text"
+                            value={isFormula(cell) ? evaluateCell(cell, el.tableData || []) : cell}
                             onChange={e => updateTableCell(el.id, ri, ci, e.target.value)}
-                            onClick={e => e.stopPropagation()}
+                            onClick={e => {
+                              e.stopPropagation();
+                              setEditingCellRef({ elId: el.id, row: ri, col: ci });
+                              setFormulaBarValue(cell);
+                              setShowFormulaSuggestions(false);
+                            }}
+                            onFocus={() => {
+                              setEditingCellRef({ elId: el.id, row: ri, col: ci });
+                              setFormulaBarValue(cell);
+                            }}
+                            title={isFormula(cell) ? `Fórmula: ${cell}` : undefined}
                             style={{
                               width: "100%", border: "none", outline: "none",
-                              background: "transparent", color: "inherit", fontFamily: "inherit",
+                              background: isFormula(cell) ? "hsl(var(--accent) / 0.3)" : "transparent",
+                              color: "inherit", fontFamily: "inherit",
                               fontSize: "inherit", fontWeight: "inherit", textAlign: "inherit",
                               padding: 0,
                             }}
@@ -1813,7 +1865,93 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         onImageUpload={handleImageUpload}
         onTableInsert={handleTableInsert}
         onBack={() => setShowTemplates(true)}
+        eyedropperColor={eyedropperColor}
+        eyedropperMode={eyedropperMode}
+        onEyedropperClick={() => {
+          if (activeTool === "eyedropper") {
+            setActiveTool("select");
+            setEyedropperColor(null);
+            setEyedropperApplyMode(null);
+          } else {
+            setActiveTool("eyedropper");
+            setEyedropperColor(null);
+            setEyedropperApplyMode(null);
+            toast.info("Conta-gotas ativo: clique em um elemento para copiar a cor");
+          }
+        }}
       />
+
+      {/* Formula bar - shown when a table is selected */}
+      {selected?.type === "table" && (
+        <div className="flex items-center gap-2 border-x border-b border-border bg-background px-3 py-1">
+          <span className="text-xs font-mono font-bold text-muted-foreground w-10 text-center shrink-0">
+            {editingCellRef ? `${indexToCol(editingCellRef.col)}${editingCellRef.row + 1}` : "fx"}
+          </span>
+          <div className="h-5 w-px bg-border" />
+          <span className="text-xs font-semibold text-muted-foreground italic shrink-0">fx</span>
+          <div className="relative flex-1">
+            <Input
+              value={formulaBarValue}
+              onChange={e => {
+                setFormulaBarValue(e.target.value);
+                setShowFormulaSuggestions(e.target.value.startsWith("="));
+                if (editingCellRef) {
+                  updateTableCell(editingCellRef.elId, editingCellRef.row, editingCellRef.col, e.target.value);
+                }
+              }}
+              onKeyDown={e => {
+                if (e.key === "Enter") {
+                  setShowFormulaSuggestions(false);
+                  if (editingCellRef && formulaBarValue.startsWith("=")) {
+                    const result = evaluateCell(formulaBarValue, selected?.tableData || []);
+                    toast.success(`Resultado: ${result}`);
+                  }
+                }
+                if (e.key === "Escape") setShowFormulaSuggestions(false);
+              }}
+              placeholder={editingCellRef ? "Digite um valor ou fórmula (ex: =SUM(A1:A5))" : "Selecione uma célula da tabela"}
+              className="h-7 text-xs font-mono"
+            />
+            {showFormulaSuggestions && formulaBarValue.startsWith("=") && (
+              <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-[200px] overflow-y-auto rounded-md border border-border bg-popover shadow-lg">
+                {SUPPORTED_FORMULAS
+                  .filter(f => f.name.toLowerCase().includes(formulaBarValue.substring(1).split("(")[0].toLowerCase()) || formulaBarValue.length <= 1)
+                  .map(f => (
+                    <button
+                      key={f.name}
+                      className="w-full px-3 py-1.5 text-left hover:bg-accent flex items-center gap-3"
+                      onClick={() => {
+                        setFormulaBarValue(`=${f.syntax}`);
+                        setShowFormulaSuggestions(false);
+                        if (editingCellRef) {
+                          updateTableCell(editingCellRef.elId, editingCellRef.row, editingCellRef.col, `=${f.syntax}`);
+                        }
+                      }}
+                    >
+                      <span className="text-xs font-mono font-bold text-primary">{f.name}</span>
+                      <span className="text-[10px] text-muted-foreground flex-1">{f.desc}</span>
+                      <span className="text-[10px] font-mono text-muted-foreground/60">{f.syntax}</span>
+                    </button>
+                  ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Eyedropper apply mode bar */}
+      {eyedropperColor && (
+        <div className="flex items-center gap-2 border-x border-b border-border bg-accent/30 px-3 py-1">
+          <span className="h-5 w-5 rounded border border-border shrink-0" style={{ backgroundColor: eyedropperColor }} />
+          <span className="text-xs text-foreground">Cor copiada: <span className="font-mono font-bold">{eyedropperColor}</span></span>
+          <span className="text-xs text-muted-foreground">Aplicar como:</span>
+          <Button variant={eyedropperApplyMode === "fill" || !eyedropperApplyMode ? "secondary" : "ghost"} size="sm" className="h-6 text-[10px]" onClick={() => setEyedropperApplyMode("fill")}>Fundo</Button>
+          <Button variant={eyedropperApplyMode === "stroke" ? "secondary" : "ghost"} size="sm" className="h-6 text-[10px]" onClick={() => setEyedropperApplyMode("stroke")}>Borda</Button>
+          <Button variant={eyedropperApplyMode === "text" ? "secondary" : "ghost"} size="sm" className="h-6 text-[10px]" onClick={() => setEyedropperApplyMode("text")}>Texto</Button>
+          <span className="text-xs text-muted-foreground">— Clique em um elemento</span>
+          <Button variant="ghost" size="sm" className="h-6 text-[10px] text-destructive" onClick={() => { setEyedropperColor(null); setEyedropperApplyMode(null); setActiveTool("select"); }}>✕ Cancelar</Button>
+        </div>
+      )}
 
       {/* Action bar */}
       <div className="flex items-center flex-wrap gap-1.5 border-x border-border bg-muted/20 px-3 py-1.5">
