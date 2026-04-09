@@ -339,7 +339,16 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   }, [currentPageIdx]);
 
   const addPage = () => {
-    const newPage: PageData = { id: pageId(), elements: [], backgroundOpacity: 0.5 };
+    const clienteEl = createDefaultElement("text", margins.left, margins.top + 90);
+    clienteEl.text = "{{nome_cliente}}";
+    clienteEl.fontSize = 13;
+    clienteEl.fontWeight = "bold";
+    clienteEl.color = "#333333";
+    clienteEl.width = A4_WIDTH - margins.left - margins.right;
+    clienteEl.height = 24;
+    clienteEl.stroke = "transparent";
+    clienteEl.strokeWidth = 0;
+    const newPage: PageData = { id: pageId(), elements: [clienteEl], backgroundOpacity: 0.5 };
     setPages(prev => [...prev.slice(0, currentPageIdx + 1), newPage, ...prev.slice(currentPageIdx + 1)]);
     setCurrentPageIdx(currentPageIdx + 1);
     setSelectedIds(new Set());
