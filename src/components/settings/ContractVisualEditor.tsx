@@ -1053,8 +1053,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     // Outer wrapper handles positioning, selection outline, and resize handles
     const wrapperStyle: React.CSSProperties = {
       position: "absolute", left: el.x, top: el.y, width: el.width, height: el.height,
-      zIndex: el.zIndex, cursor: activeTool === "select" ? "move" : "default",
-      outline: isSelected ? "2px solid hsl(210 80% 55%)" : "none", outlineOffset: "1px",
+      outline: isSelected ? `2px ${isPrimary ? "solid" : "dashed"} hsl(210 80% 55%)` : "none", outlineOffset: "1px",
       opacity: el.opacity ?? 1,
       transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
       transformOrigin: "center center",
@@ -1100,7 +1099,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       </div>
     );
 
-    const resizeHandles = isSelected ? (
+    const resizeHandles = isPrimary ? (
       <>
         {/* Rotation handle */}
         <div
