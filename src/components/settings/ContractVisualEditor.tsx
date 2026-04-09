@@ -3291,6 +3291,26 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
               </div>
             )}
           </div>
+
+          {/* Sections order panel */}
+          <div className="border-t border-border">
+            <button
+              onClick={() => setShowSectionsPanel(!showSectionsPanel)}
+              className="w-full flex items-center gap-1.5 px-2 py-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hover:bg-muted/40 transition-colors"
+            >
+              <ListOrdered className="h-3.5 w-3.5" />
+              Ordem das Seções
+              <span className="ml-auto text-[10px]">{showSectionsPanel ? "▾" : "▸"}</span>
+            </button>
+            {showSectionsPanel && (
+              <div className="px-2 pb-2">
+                <ContractSectionsPanel
+                  elements={elements as any}
+                  onReorder={(reordered) => setCurrentElements(() => reordered as any)}
+                />
+              </div>
+            )}
+          </div>
         </div>
         {/* Canvas area with Word-like feel — all pages stacked vertically */}
         <div className="flex-1 min-w-0 min-h-0 relative">
