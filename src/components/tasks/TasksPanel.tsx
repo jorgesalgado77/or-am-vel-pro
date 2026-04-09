@@ -165,7 +165,7 @@ export function TasksPanel({ tenantId, userId, userName, cargoNome }: Props) {
   };
 
   const handleArchive = async (task: Task) => {
-    await updateTaskStatus(task.id, "arquivada" as any);
+    await updateTaskStatus(task.id, "arquivada");
     toast.success("Tarefa arquivada!");
   };
 
