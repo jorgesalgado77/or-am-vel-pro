@@ -3288,11 +3288,20 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         <div className="flex-1 min-w-0 min-h-0 overflow-auto" style={{ background: "hsl(var(--muted) / 0.6)" }}>
           <div className="min-h-full flex justify-center py-6 px-4" style={{ minWidth: A4_WIDTH * zoom + RULER_SIZE + 48 }}>
             <div style={{ position: "relative", width: A4_WIDTH * zoom + RULER_SIZE, height: A4_HEIGHT * zoom + RULER_SIZE, flexShrink: 0 }}>
-              {/* Horizontal ruler */}
-              <div style={{
-                position: "absolute", left: RULER_SIZE, top: 0, width: A4_WIDTH * zoom, height: RULER_SIZE,
-                background: "hsl(var(--background))", borderBottom: "1px solid hsl(var(--border))", boxSizing: "border-box", overflow: "hidden",
-              }}>
+              {/* Horizontal ruler - click to add vertical guide */}
+              <div
+                style={{
+                  position: "absolute", left: RULER_SIZE, top: 0, width: A4_WIDTH * zoom, height: RULER_SIZE,
+                  background: "hsl(var(--background))", borderBottom: "1px solid hsl(var(--border))", boxSizing: "border-box", overflow: "hidden",
+                  cursor: "col-resize",
+                }}
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const pos = (e.clientX - rect.left) / zoom;
+                  const id = `guide_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+                  setUserGuides(prev => [...prev, { id, axis: "x", pos }]);
+                }}
+              >
                 {Array.from({ length: Math.ceil(A4_WIDTH / 50) + 1 }).map((_, i) => {
                   const v = i * 50;
                   const major = v % 100 === 0;
@@ -3303,12 +3312,30 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                     </div>
                   );
                 })}
+                {/* Guide indicators on horizontal ruler */}
+                {userGuides.filter(g => g.axis === "x").map(g => (
+                  <div key={g.id} style={{
+                    position: "absolute", left: g.pos * zoom - 3, top: 0, bottom: 0, width: 7,
+                    display: "flex", alignItems: "flex-end", justifyContent: "center",
+                  }}>
+                    <div style={{ width: 0, height: 0, borderLeft: "4px solid transparent", borderRight: "4px solid transparent", borderTop: "5px solid hsl(var(--chart-4))" }} />
+                  </div>
+                ))}
               </div>
-              {/* Vertical ruler */}
-              <div style={{
-                position: "absolute", left: 0, top: RULER_SIZE, width: RULER_SIZE, height: A4_HEIGHT * zoom,
-                background: "hsl(var(--background))", borderRight: "1px solid hsl(var(--border))", boxSizing: "border-box", overflow: "hidden",
-              }}>
+              {/* Vertical ruler - click to add horizontal guide */}
+              <div
+                style={{
+                  position: "absolute", left: 0, top: RULER_SIZE, width: RULER_SIZE, height: A4_HEIGHT * zoom,
+                  background: "hsl(var(--background))", borderRight: "1px solid hsl(var(--border))", boxSizing: "border-box", overflow: "hidden",
+                  cursor: "row-resize",
+                }}
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const pos = (e.clientY - rect.top) / zoom;
+                  const id = `guide_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+                  setUserGuides(prev => [...prev, { id, axis: "y", pos }]);
+                }}
+              >
                 {Array.from({ length: Math.ceil(A4_HEIGHT / 50) + 1 }).map((_, i) => {
                   const v = i * 50;
                   const major = v % 100 === 0;
@@ -3319,6 +3346,15 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                     </div>
                   );
                 })}
+                {/* Guide indicators on vertical ruler */}
+                {userGuides.filter(g => g.axis === "y").map(g => (
+                  <div key={g.id} style={{
+                    position: "absolute", top: g.pos * zoom - 3, left: 0, right: 0, height: 7,
+                    display: "flex", alignItems: "center", justifyContent: "flex-end",
+                  }}>
+                    <div style={{ width: 0, height: 0, borderTop: "4px solid transparent", borderBottom: "4px solid transparent", borderLeft: "5px solid hsl(var(--chart-4))" }} />
+                  </div>
+                ))}
               </div>
               {/* Corner box */}
               <div style={{ position: "absolute", left: 0, top: 0, width: RULER_SIZE, height: RULER_SIZE, background: "hsl(var(--muted))", borderRight: "1px solid hsl(var(--border))", borderBottom: "1px solid hsl(var(--border))", boxSizing: "border-box" }} />
