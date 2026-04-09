@@ -6,135 +6,30 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText, BookmarkPlus, Pencil, Trash, Upload, Image as ImageIcon, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, Eye, FileSpreadsheet, ToggleLeft, ToggleRight, Palette, Layers } from "lucide-react";
+// jsPDF/docx imports removed - now in contract-editor/exportHelpers
 import { ContractLayersPanel } from "./ContractLayersPanel";
 import { getContractTemplates, type ContractTemplate } from "./contractTemplates";
 import { useCustomTemplates, type CustomTemplate } from "@/hooks/useCustomTemplates";
 import { toast } from "sonner";
 import * as pdfjsLib from "pdfjs-dist";
-import { jsPDF } from "jspdf";
-import { Document, Packer, Paragraph, TextRun, ImageRun, PageBreak, AlignmentType, BorderStyle, Table, TableRow, TableCell, WidthType, ShadingType } from "docx";
-import { saveAs } from "file-saver";
 import { buildContractDocumentHtml } from "@/lib/contractDocument";
 import { evaluateCell, isFormula, SUPPORTED_FORMULAS, indexToCol } from "@/lib/formulaEngine";
 import { replaceVariablesWithSample, isHtmlVariable, getConditionalStyle, matchesConditionalRule, type ConditionalRule, type ConditionalPreset, DEFAULT_CONDITIONAL_RULES, getAllPresets, loadCustomPresets, saveCustomPresets } from "@/lib/contractPreviewData";
 
+import {
+  type CanvasElement, type PageData, type VariableInfo, type ContractVisualEditorProps,
+  A4_WIDTH, A4_HEIGHT, GRID_SIZE, RULER_SIZE,
+  genId, pageId, createDefaultElement, hexToRgb,
+} from "./contract-editor/types";
+import { useEditorHistory } from "./contract-editor/useEditorHistory";
+import { usePasteHelpers } from "./contract-editor/usePasteHelpers";
+import { EditorPropertiesPanel } from "./contract-editor/EditorPropertiesPanel";
+import { exportToPdf, exportToDocx, exportToXlsx } from "./contract-editor/exportHelpers";
+
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("/pdf.worker.min.mjs", window.location.origin).href;
 
-interface CanvasElement {
-  id: string;
-  type: "rect" | "circle" | "line" | "text" | "image" | "table";
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  rotation: number;
-  fill: string;
-  stroke: string;
-  strokeWidth: number;
-  borderRadius: number;
-  text: string;
-  fontFamily: string;
-  fontSize: number;
-  fontWeight: string;
-  fontStyle: string;
-  textDecoration: string;
-  textAlign: string;
-  color: string;
-  imageUrl?: string;
-  zIndex: number;
-  tableData?: string[][];
-  tableCols?: number;
-  tableRows?: number;
-  opacity?: number;
-  groupId?: string;
-  locked?: boolean;
-}
 
-interface PageData {
-  id: string;
-  elements: CanvasElement[];
-  backgroundImage?: string;
-  backgroundOpacity: number;
-}
 
-interface VariableInfo {
-  var: string;
-  desc: string;
-}
-
-interface ContractVisualEditorProps {
-  onSave: (html: string) => void;
-  onCancel: () => void;
-  variables: VariableInfo[];
-  initialHtml?: string;
-}
-
-const A4_WIDTH = 794;
-const A4_HEIGHT = 1123;
-const GRID_SIZE = 8;
-const RULER_SIZE = 24;
-
-let idCounter = 0;
-function genId() { return `el_${++idCounter}_${Date.now()}`; }
-function pageId() { return `page_${++idCounter}_${Date.now()}`; }
-
-function createDefaultElement(type: CanvasElement["type"], x: number, y: number): CanvasElement {
-  const base: CanvasElement = {
-    id: genId(), type, x, y,
-    width: 200, height: 100, rotation: 0,
-    fill: "transparent", stroke: "#000000", strokeWidth: 1, borderRadius: 0,
-    text: "", fontFamily: "Arial", fontSize: 14, fontWeight: "normal",
-    fontStyle: "normal", textDecoration: "none", textAlign: "left",
-    color: "#000000", zIndex: idCounter,
-  };
-  switch (type) {
-    case "rect": return { ...base, fill: "transparent", stroke: "#000000", strokeWidth: 1, width: 200, height: 120 };
-    case "circle": return { ...base, fill: "transparent", stroke: "#000000", strokeWidth: 1, width: 120, height: 120 };
-    case "line": return { ...base, width: 200, height: 2, strokeWidth: 2, stroke: "#000000" };
-    case "text": return { ...base, text: "Texto", width: 200, height: 40, stroke: "transparent", strokeWidth: 0 };
-    case "image": return { ...base, width: 200, height: 150, stroke: "#cccccc" };
-    case "table": return {
-      ...base, width: 500, height: 160, fill: "#ffffff", stroke: "#333333",
-      tableData: [["Coluna 1", "Coluna 2", "Coluna 3"], ["", "", ""], ["", "", ""]],
-      tableRows: 3, tableCols: 3,
-    };
-    default: return base;
-  }
-}
-
-function hexToRgb(hex: string) {
-  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return m ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) } : null;
-}
-
-function drawText(doc: jsPDF, el: CanvasElement) {
-  if (!el.text) return;
-  const c = hexToRgb(el.color || "#000000");
-  if (c) doc.setTextColor(c.r, c.g, c.b);
-  const fontStyle = el.fontWeight === "bold" && el.fontStyle === "italic" ? "bolditalic"
-    : el.fontWeight === "bold" ? "bold"
-    : el.fontStyle === "italic" ? "italic" : "normal";
-  doc.setFont("helvetica", fontStyle);
-  doc.setFontSize(el.fontSize * 0.75); // px to pt
-  const padding = el.type === "text" ? 0 : 8;
-  const maxW = el.width - padding * 2;
-  const lines = doc.splitTextToSize(el.text, maxW);
-  const lineH = el.fontSize * 0.85;
-  const totalH = lines.length * lineH;
-  let startY: number;
-  if (el.type === "text") {
-    startY = el.y + el.fontSize * 0.75;
-  } else {
-    startY = el.y + (el.height - totalH) / 2 + el.fontSize * 0.75;
-  }
-  const align = el.textAlign || "left";
-  for (let i = 0; i < lines.length; i++) {
-    let lx = el.x + padding;
-    if (align === "center") lx = el.x + el.width / 2;
-    else if (align === "right") lx = el.x + el.width - padding;
-    doc.text(lines[i], lx, startY + i * lineH, { align: align as any });
-  }
-}
 
 export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVisualEditorProps) {
   const { tenantId } = useTenant();
@@ -642,7 +537,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   // --- Group / Ungroup ---
   const groupSelected = () => {
     if (selectedIds.size < 2) { toast.error("Selecione pelo menos 2 elementos para agrupar"); return; }
-    const gid = `group_${++idCounter}_${Date.now()}`;
+    const gid = `group_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     setCurrentElements(prev => prev.map(el => selectedIds.has(el.id) ? { ...el, groupId: gid } : el));
     toast.success(`${selectedIds.size} elementos agrupados`);
     setContextMenu(null);
@@ -1356,118 +1251,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const handleExportPdf = async () => {
     setExporting(true);
     try {
-      const doc = new jsPDF({ orientation: "portrait", unit: "px", format: [A4_WIDTH, A4_HEIGHT] });
-
-      for (let pageIdx = 0; pageIdx < pages.length; pageIdx++) {
-        if (pageIdx > 0) doc.addPage([A4_WIDTH, A4_HEIGHT]);
-        const page = pages[pageIdx];
-        const sortedEls = [...page.elements].sort((a, b) => a.zIndex - b.zIndex);
-
-        // Draw background image if exists
-        if (page.backgroundImage) {
-          doc.saveGraphicsState();
-          (doc as any).setGState(new (doc as any).GState({ opacity: page.backgroundOpacity }));
-          doc.addImage(page.backgroundImage, "PNG", 0, 0, A4_WIDTH, A4_HEIGHT);
-          doc.restoreGraphicsState();
-        }
-
-        for (const el of sortedEls) {
-          switch (el.type) {
-            case "rect": {
-              if (el.fill && el.fill !== "transparent") {
-                const c = hexToRgb(el.fill);
-                if (c) doc.setFillColor(c.r, c.g, c.b);
-                if (el.borderRadius > 0) {
-                  doc.roundedRect(el.x, el.y, el.width, el.height, el.borderRadius, el.borderRadius, "F");
-                } else {
-                  doc.rect(el.x, el.y, el.width, el.height, "F");
-                }
-              }
-              if (el.stroke && el.stroke !== "transparent" && el.strokeWidth > 0) {
-                const c = hexToRgb(el.stroke);
-                if (c) doc.setDrawColor(c.r, c.g, c.b);
-                doc.setLineWidth(el.strokeWidth);
-                if (el.borderRadius > 0) {
-                  doc.roundedRect(el.x, el.y, el.width, el.height, el.borderRadius, el.borderRadius, "S");
-                } else {
-                  doc.rect(el.x, el.y, el.width, el.height, "S");
-                }
-              }
-              if (el.text) drawText(doc, el);
-              break;
-            }
-            case "circle": {
-              const rx = el.width / 2, ry = el.height / 2;
-              const cx = el.x + rx, cy = el.y + ry;
-              if (el.fill && el.fill !== "transparent") {
-                const c = hexToRgb(el.fill);
-                if (c) doc.setFillColor(c.r, c.g, c.b);
-                doc.ellipse(cx, cy, rx, ry, "F");
-              }
-              if (el.stroke && el.stroke !== "transparent" && el.strokeWidth > 0) {
-                const c = hexToRgb(el.stroke);
-                if (c) doc.setDrawColor(c.r, c.g, c.b);
-                doc.setLineWidth(el.strokeWidth);
-                doc.ellipse(cx, cy, rx, ry, "S");
-              }
-              if (el.text) drawText(doc, el);
-              break;
-            }
-            case "line": {
-              const c = hexToRgb(el.stroke);
-              if (c) doc.setDrawColor(c.r, c.g, c.b);
-              doc.setLineWidth(el.strokeWidth);
-              doc.line(el.x, el.y, el.x + el.width, el.y);
-              break;
-            }
-            case "text": {
-              drawText(doc, el);
-              break;
-            }
-            case "image": {
-              if (el.imageUrl) {
-                try {
-                  doc.addImage(el.imageUrl, "PNG", el.x, el.y, el.width, el.height);
-                } catch { /* skip broken images */ }
-              }
-              break;
-            }
-            case "table": {
-              if (el.tableData) {
-                const rows = el.tableData.length;
-                const cols = el.tableData[0]?.length || 1;
-                const cellW = el.width / cols;
-                const cellH = el.height / rows;
-                doc.setLineWidth(0.5);
-                const sc = hexToRgb(el.stroke);
-                if (sc) doc.setDrawColor(sc.r, sc.g, sc.b);
-                for (let ri = 0; ri < rows; ri++) {
-                  for (let ci = 0; ci < cols; ci++) {
-                    const cx = el.x + ci * cellW;
-                    const cy = el.y + ri * cellH;
-                    if (ri === 0 && sc) {
-                      doc.setFillColor(sc.r, sc.g, sc.b);
-                      doc.rect(cx, cy, cellW, cellH, "FD");
-                      doc.setTextColor(255, 255, 255);
-                    } else {
-                      doc.rect(cx, cy, cellW, cellH, "S");
-                      doc.setTextColor(0, 0, 0);
-                    }
-                    doc.setFontSize(el.fontSize * 0.75);
-                    doc.setFont("helvetica", ri === 0 ? "bold" : "normal");
-                    const txt = el.tableData[ri][ci] || "";
-                    doc.text(txt, cx + 4, cy + cellH / 2 + 3, { maxWidth: cellW - 8 });
-                  }
-                }
-              }
-              break;
-            }
-          }
-        }
-      }
-
-      doc.save("contrato.pdf");
-      toast.success("PDF exportado com sucesso!");
+      await exportToPdf(pages);
     } catch (err) {
       console.error("Export PDF error:", err);
       toast.error("Erro ao exportar PDF");
@@ -1481,125 +1265,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const handleExportDocx = async () => {
     setExportingDocx(true);
     try {
-      const sections = [];
-
-      for (let pageIdx = 0; pageIdx < pages.length; pageIdx++) {
-        const page = pages[pageIdx];
-        const sortedEls = [...page.elements].sort((a, b) => a.zIndex - b.zIndex);
-        const children: (Paragraph | Table)[] = [];
-
-        // Group elements roughly by vertical position for document flow
-        const textEls = sortedEls.filter(el => el.type === "text" || ((el.type === "rect" || el.type === "circle") && el.text));
-        const imageEls = sortedEls.filter(el => el.type === "image" && el.imageUrl);
-        const lineEls = sortedEls.filter(el => el.type === "line");
-        const tableEls = sortedEls.filter(el => el.type === "table" && el.tableData);
-
-        // Sort by Y position for natural reading order
-        const flowEls = [...textEls, ...imageEls, ...lineEls, ...tableEls].sort((a, b) => a.y - b.y || a.x - b.x);
-
-        for (const el of flowEls) {
-          if (el.type === "line") {
-            children.push(new Paragraph({
-              border: { bottom: { style: BorderStyle.SINGLE, size: el.strokeWidth * 4, color: el.stroke.replace("#", "") } },
-              children: [],
-            }));
-            continue;
-          }
-
-          if (el.type === "image" && el.imageUrl) {
-            try {
-              // Convert data URL to buffer
-              const base64 = el.imageUrl.split(",")[1];
-              const binary = atob(base64);
-              const bytes = new Uint8Array(binary.length);
-              for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-              const ext = el.imageUrl.includes("image/png") ? "png" : "jpg";
-              children.push(new Paragraph({
-                children: [new ImageRun({
-                  type: ext as "png" | "jpg",
-                  data: bytes,
-                  transformation: { width: el.width * 0.75, height: el.height * 0.75 },
-                })],
-              }));
-            } catch { /* skip broken images */ }
-            continue;
-          }
-
-          if (el.type === "table" && el.tableData) {
-            const colCount = el.tableData[0]?.length || 1;
-            const colW = Math.floor(9360 / colCount);
-            const cellBorder = { style: BorderStyle.SINGLE, size: 1, color: el.stroke?.replace("#", "") || "333333" };
-            const cellBorders = { top: cellBorder, bottom: cellBorder, left: cellBorder, right: cellBorder };
-            children.push(new Table({
-              width: { size: 9360, type: WidthType.DXA },
-              columnWidths: Array(colCount).fill(colW),
-              rows: el.tableData.map((row, ri) => new TableRow({
-                children: row.map(cell => new TableCell({
-                  borders: cellBorders,
-                  width: { size: colW, type: WidthType.DXA },
-                  shading: ri === 0 ? { fill: el.stroke?.replace("#", "") || "333333", type: ShadingType.CLEAR } : undefined,
-                  children: [new Paragraph({
-                    children: [new TextRun({
-                      text: cell,
-                      font: el.fontFamily,
-                      size: Math.round(el.fontSize * 1.5),
-                      bold: ri === 0,
-                      color: ri === 0 ? "FFFFFF" : el.color?.replace("#", "") || "000000",
-                    })],
-                  })],
-                })),
-              })),
-            }));
-            continue;
-          }
-
-          // Text elements
-          const text = el.text || "";
-          if (!text.trim()) continue;
-
-          const alignment = el.textAlign === "center" ? AlignmentType.CENTER
-            : el.textAlign === "right" ? AlignmentType.RIGHT
-            : el.textAlign === "justify" ? AlignmentType.JUSTIFIED
-            : AlignmentType.LEFT;
-
-          const textLines = text.split("\n");
-          for (const line of textLines) {
-            children.push(new Paragraph({
-              alignment,
-              spacing: { after: 80 },
-              children: [new TextRun({
-                text: line,
-                font: el.fontFamily,
-                size: Math.round(el.fontSize * 1.5), // px to half-points
-                bold: el.fontWeight === "bold",
-                italics: el.fontStyle === "italic",
-                underline: el.textDecoration?.includes("underline") ? {} : undefined,
-                strike: el.textDecoration?.includes("line-through") || false,
-                color: el.color?.replace("#", "") || "000000",
-              })],
-            }));
-          }
-        }
-
-        if (children.length === 0) {
-          children.push(new Paragraph({ children: [] }));
-        }
-
-        sections.push({
-          properties: {
-            page: {
-              size: { width: 11906, height: 16838 }, // A4 in DXA
-              margin: { top: 720, right: 720, bottom: 720, left: 720 },
-            },
-          },
-          children,
-        });
-      }
-
-      const doc = new Document({ sections });
-      const blob = await Packer.toBlob(doc);
-      saveAs(blob, "contrato.docx");
-      toast.success("DOCX exportado com sucesso! Abra no Word para editar.");
+      await exportToDocx(pages);
     } catch (err) {
       console.error("Export DOCX error:", err);
       toast.error("Erro ao exportar DOCX");
@@ -1613,34 +1279,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const handleExportXlsx = async () => {
     setExportingXlsx(true);
     try {
-      const XLSX = await import("xlsx");
-      const wb = XLSX.utils.book_new();
-
-      for (let pageIdx = 0; pageIdx < pages.length; pageIdx++) {
-        const page = pages[pageIdx];
-        const sortedEls = [...page.elements].sort((a, b) => a.y - b.y || a.x - b.x);
-        const rows: string[][] = [];
-
-        for (const el of sortedEls) {
-          if (el.type === "table" && el.tableData) {
-            for (const row of el.tableData) {
-              rows.push([...row]);
-            }
-            rows.push([]); // blank separator
-          } else if (el.type === "text" && el.text?.trim()) {
-            rows.push([el.text]);
-          } else if ((el.type === "rect" || el.type === "circle") && el.text?.trim()) {
-            rows.push([el.text]);
-          }
-        }
-
-        if (rows.length === 0) rows.push(["(Página vazia)"]);
-        const ws = XLSX.utils.aoa_to_sheet(rows);
-        XLSX.utils.book_append_sheet(wb, ws, `Página ${pageIdx + 1}`);
-      }
-
-      XLSX.writeFile(wb, "contrato.xlsx");
-      toast.success("Excel exportado com sucesso!");
+      await exportToXlsx(pages);
     } catch (err) {
       console.error("Export XLSX error:", err);
       toast.error("Erro ao exportar Excel");

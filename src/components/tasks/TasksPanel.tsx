@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, LayoutGrid, CalendarDays, RefreshCw } from "lucide-react";
+import { Plus, LayoutGrid, CalendarDays, RefreshCw, Archive } from "lucide-react";
 import { useTasks } from "@/hooks/useTasks";
 import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
 import { useUsuarios } from "@/hooks/useUsuarios";
@@ -9,6 +9,7 @@ import { TaskKanbanBoard } from "./TaskKanbanBoard";
 import { TaskCalendarView } from "./TaskCalendarView";
 import { TaskCreateModal } from "./TaskCreateModal";
 import { TaskFilters } from "./TaskFilters";
+import { ArchivedTasksList } from "./ArchivedTasksList";
 import { GoogleCalendarConnect } from "./GoogleCalendarConnect";
 
 import { type Task, type DateFilterPreset } from "./taskTypes";
@@ -33,7 +34,7 @@ export function TasksPanel({ tenantId, userId, userName, cargoNome }: Props) {
   const [responsavelFilter, setResponsavelFilter] = useState("todos");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
-  const [view, setView] = useState<"kanban" | "calendar">("kanban");
+  const [view, setView] = useState<"kanban" | "calendar" | "archived">("kanban");
 
   // Alert for tasks due today
   const alertedRef = useRef(new Set<string>());
@@ -163,6 +164,16 @@ export function TasksPanel({ tenantId, userId, userName, cargoNome }: Props) {
     }
   };
 
+  const handleArchive = async (task: Task) => {
+    await updateTaskStatus(task.id, "arquivada" as any);
+    toast.success("Tarefa arquivada!");
+  };
+
+  const handleRestore = async (task: Task) => {
+    await updateTaskStatus(task.id, "concluida");
+    toast.success("Tarefa restaurada para Concluída!");
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -185,6 +196,7 @@ export function TasksPanel({ tenantId, userId, userName, cargoNome }: Props) {
             <TabsList className="h-8">
               <TabsTrigger value="kanban" className="text-xs gap-1 px-2 h-7"><LayoutGrid className="h-3.5 w-3.5" />Kanban</TabsTrigger>
               <TabsTrigger value="calendar" className="text-xs gap-1 px-2 h-7"><CalendarDays className="h-3.5 w-3.5" />Calendário</TabsTrigger>
+              <TabsTrigger value="archived" className="text-xs gap-1 px-2 h-7"><Archive className="h-3.5 w-3.5" />Arquivadas</TabsTrigger>
             </TabsList>
           </Tabs>
           <Button
@@ -210,11 +222,14 @@ export function TasksPanel({ tenantId, userId, userName, cargoNome }: Props) {
         </div>
       ) : view === "kanban" ? (
         <TaskKanbanBoard
-          tasks={filteredTasks}
+          tasks={filteredTasks.filter(t => t.status !== ("arquivada" as any))}
           onStatusChange={updateTaskStatus}
           onTaskClick={handleTaskClick}
           onTaskDelete={handleDelete}
+          onTaskArchive={handleArchive}
         />
+      ) : view === "archived" ? (
+        <ArchivedTasksList tasks={tasks} onTaskClick={handleTaskClick} onRestore={handleRestore} />
       ) : (
         <TaskCalendarView tasks={filteredTasks} onTaskClick={handleTaskClick} />
       )}

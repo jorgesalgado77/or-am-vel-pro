@@ -21,7 +21,7 @@ export interface Task {
   updated_at: string;
 }
 
-export type TaskStatus = "nova" | "pendente" | "em_execucao" | "concluida";
+export type TaskStatus = "nova" | "pendente" | "em_execucao" | "concluida" | "arquivada";
 
 export const TASK_COLUMNS = [
   { id: "nova" as TaskStatus, label: "Nova Tarefa", icon: "🆕", colBg: "bg-blue-500/10 border-blue-500/30", cardBg: "bg-blue-500/10 border-blue-400/30 hover:border-blue-400/50" },
