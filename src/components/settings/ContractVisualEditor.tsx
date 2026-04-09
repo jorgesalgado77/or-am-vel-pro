@@ -215,6 +215,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   // Custom templates state
   const { templates: customTemplates, loading: loadingCustom, saveTemplate, updateTemplate, deleteTemplate } = useCustomTemplates();
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [saveTemplateName, setSaveTemplateName] = useState("");
   const [saveTemplateDesc, setSaveTemplateDesc] = useState("");
   const [editingCustomId, setEditingCustomId] = useState<string | null>(null);
