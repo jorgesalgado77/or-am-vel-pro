@@ -407,10 +407,11 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
       setConfirmPassword("");
     }
 
-    toast.success("Perfil atualizado com sucesso!");
-    await loadProfile();
     await refreshUser();
     setSaving(false);
+    toast.success("Perfil atualizado com sucesso!");
+    // Close modal after successful save
+    setTimeout(() => onClose(), 400);
   };
 
   const initials = (form.nome_completo || "U").split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
