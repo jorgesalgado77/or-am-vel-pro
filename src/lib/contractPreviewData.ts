@@ -191,11 +191,75 @@ export interface ConditionalRule {
   bold?: boolean;
 }
 
+export interface ConditionalPreset {
+  id: string;
+  name: string;
+  icon: string;
+  rules: ConditionalRule[];
+  builtIn?: boolean;
+}
+
 export const DEFAULT_CONDITIONAL_RULES: ConditionalRule[] = [
   { id: "high_value", type: "greater", value1: "10000", bgColor: "#dcfce7", textColor: "#166534", bold: true },
   { id: "low_value", type: "less", value1: "1000", bgColor: "#fef2f2", textColor: "#991b1b", bold: false },
   { id: "zero", type: "equal", value1: "0", bgColor: "#fef9c3", textColor: "#854d0e", bold: false },
 ];
+
+export const BUILT_IN_PRESETS: ConditionalPreset[] = [
+  {
+    id: "preset_valores_padrao", name: "Valores Padrão", icon: "💰", builtIn: true,
+    rules: DEFAULT_CONDITIONAL_RULES,
+  },
+  {
+    id: "preset_semaforo", name: "Semáforo (Verde/Amarelo/Vermelho)", icon: "🚦", builtIn: true,
+    rules: [
+      { id: "sem_green", type: "greater", value1: "5000", bgColor: "#dcfce7", textColor: "#166534", bold: true },
+      { id: "sem_yellow", type: "between", value1: "1000", value2: "5000", bgColor: "#fef9c3", textColor: "#854d0e", bold: false },
+      { id: "sem_red", type: "less", value1: "1000", bgColor: "#fef2f2", textColor: "#991b1b", bold: false },
+    ],
+  },
+  {
+    id: "preset_destaque_alto", name: "Destacar Valores Altos", icon: "📈", builtIn: true,
+    rules: [
+      { id: "alto_20k", type: "greater", value1: "20000", bgColor: "#c084fc", textColor: "#581c87", bold: true },
+      { id: "alto_10k", type: "greater", value1: "10000", bgColor: "#dbeafe", textColor: "#1e40af", bold: true },
+    ],
+  },
+  {
+    id: "preset_status", name: "Status (Texto)", icon: "✅", builtIn: true,
+    rules: [
+      { id: "st_ok", type: "text_contains", value1: "ok", bgColor: "#dcfce7", textColor: "#166534", bold: true },
+      { id: "st_pend", type: "text_contains", value1: "pendente", bgColor: "#fef9c3", textColor: "#854d0e", bold: false },
+      { id: "st_cancel", type: "text_contains", value1: "cancelado", bgColor: "#fef2f2", textColor: "#991b1b", bold: false },
+      { id: "st_empty", type: "empty", value1: "", bgColor: "#f1f5f9", textColor: "#64748b", bold: false },
+    ],
+  },
+  {
+    id: "preset_prazo", name: "Prazos (dias)", icon: "📅", builtIn: true,
+    rules: [
+      { id: "pz_urg", type: "less", value1: "7", bgColor: "#fef2f2", textColor: "#991b1b", bold: true },
+      { id: "pz_med", type: "between", value1: "7", value2: "30", bgColor: "#fef9c3", textColor: "#854d0e", bold: false },
+      { id: "pz_ok", type: "greater", value1: "30", bgColor: "#dcfce7", textColor: "#166534", bold: false },
+    ],
+  },
+];
+
+const CUSTOM_PRESETS_KEY = "contract_conditional_presets";
+
+export function loadCustomPresets(): ConditionalPreset[] {
+  try {
+    const saved = localStorage.getItem(CUSTOM_PRESETS_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch { return []; }
+}
+
+export function saveCustomPresets(presets: ConditionalPreset[]) {
+  localStorage.setItem(CUSTOM_PRESETS_KEY, JSON.stringify(presets));
+}
+
+export function getAllPresets(): ConditionalPreset[] {
+  return [...BUILT_IN_PRESETS, ...loadCustomPresets()];
+}
 
 function parseCurrencyValue(text: string): number | null {
   if (!text || typeof text !== "string") return null;
