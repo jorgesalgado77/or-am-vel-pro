@@ -1313,23 +1313,64 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       if (el.type === "text" || el.type === "rect" || el.type === "circle") setEditingTextId(el.id);
     };
 
-    // Auto-resize helper
+    // Auto-resize helper with auto-pagination
     const autoResizeElement = (elId: string, textEl: HTMLElement) => {
       const scrollH = textEl.scrollHeight;
       const currentEl = elements.find(e => e.id === elId);
-      if (currentEl && scrollH > currentEl.height) {
-        // Check if overflows page - if so, we may need a new page
+      if (!currentEl) return;
+      
+      if (scrollH > currentEl.height) {
         const newHeight = Math.max(currentEl.height, scrollH + 4);
         const overflowsPage = currentEl.y + newHeight > A4_HEIGHT;
-        setCurrentElements(prev => prev.map(p => p.id === elId ? { ...p, height: newHeight } : p));
-        if (overflowsPage && currentEl.y + newHeight > A4_HEIGHT + 50) {
-          // Auto-create continuation on next page
-          const remainingH = (currentEl.y + newHeight) - A4_HEIGHT;
-          if (remainingH > 30) {
-            toast.info("Texto ultrapassa a página. Considere adicionar uma nova página.", { id: "overflow-hint" });
-          }
+        
+        if (overflowsPage && currentEl.y + newHeight > A4_HEIGHT + 20) {
+          // Auto-paginate: keep current element at page height, create overflow on next page
+          const maxH = A4_HEIGHT - currentEl.y - 10;
+          setCurrentElements(prev => prev.map(p => p.id === elId ? { ...p, height: maxH } : p));
+          
+          // Create or find next page and add overflow element
+          const nextPageIdx = currentPageIdx + 1;
+          const overflowText = textEl.innerHTML;
+          
+          setPages(prev => {
+            const newPages = [...prev];
+            // Create next page if needed
+            if (nextPageIdx >= newPages.length) {
+              newPages.push({ id: pageId(), elements: [], backgroundOpacity: 0.5 });
+            }
+            // Check if overflow element already exists on next page
+            const overflowElId = `overflow_${elId}`;
+            const existingOverflow = newPages[nextPageIdx].elements.find(e => e.id === overflowElId);
+            if (!existingOverflow) {
+              const overflowEl = createDefaultElement("text", currentEl.x, 30);
+              overflowEl.id = overflowElId;
+              overflowEl.width = currentEl.width;
+              overflowEl.height = 100;
+              overflowEl.fontFamily = currentEl.fontFamily;
+              overflowEl.fontSize = currentEl.fontSize;
+              overflowEl.fontWeight = currentEl.fontWeight;
+              overflowEl.fontStyle = currentEl.fontStyle;
+              overflowEl.textDecoration = currentEl.textDecoration;
+              overflowEl.color = currentEl.color;
+              overflowEl.textAlign = currentEl.textAlign;
+              overflowEl.text = "(continuação — edite na página anterior)";
+              newPages[nextPageIdx] = {
+                ...newPages[nextPageIdx],
+                elements: [...newPages[nextPageIdx].elements, overflowEl],
+              };
+              toast.info(`Página ${nextPageIdx + 1} criada automaticamente para o texto excedente.`, { id: "auto-page" });
+            }
+            return newPages;
+          });
+        } else {
+          setCurrentElements(prev => prev.map(p => p.id === elId ? { ...p, height: newHeight } : p));
         }
       }
+    };
+
+    // Rich-text exec command helper
+    const execRichCmd = (command: string, value?: string) => {
+      document.execCommand(command, false, value);
     };
 
     const handleConvertToVariable = () => {
@@ -1341,26 +1382,90 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       const selectedText = sel.toString().trim();
       if (!selectedText) return;
       const varName = selectedText.replace(/\s+/g, "_").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      const currentText = el.text;
-      const newText = currentText.replace(selectedText, `{{${varName}}}`);
-      setCurrentElements(prev => prev.map(p => p.id === el.id ? { ...p, text: newText } : p));
+      // Use execCommand to replace selection with variable marker
+      document.execCommand("insertText", false, `{{${varName}}}`);
       toast.success(`"${selectedText}" → {{${varName}}}`);
     };
 
+    const INLINE_COLORS = ["#000000", "#DC2626", "#2563EB", "#16A34A", "#D97706", "#7C3AED", "#DB2777"];
+
     const textContent = isEditing ? (
       <div style={{ position: "relative", width: "100%", minHeight: "100%" }}>
-        {/* Floating toolbar for text editing */}
+        {/* Floating rich-text toolbar */}
         <div
           style={{
-            position: "absolute", top: -36, left: 0, zIndex: 99999,
-            display: "flex", gap: 4, background: "hsl(var(--popover))",
-            border: "1px solid hsl(var(--border))", borderRadius: 6,
-            padding: "3px 6px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-            whiteSpace: "nowrap",
+            position: "absolute", top: -44, left: 0, zIndex: 99999,
+            display: "flex", gap: 2, alignItems: "center",
+            background: "hsl(var(--popover))",
+            border: "1px solid hsl(var(--border))", borderRadius: 8,
+            padding: "3px 6px", boxShadow: "0 4px 16px rgba(0,0,0,0.18)",
+            whiteSpace: "nowrap", flexWrap: "nowrap",
           }}
           onClick={e => e.stopPropagation()}
-          onMouseDown={e => e.stopPropagation()}
+          onMouseDown={e => { e.stopPropagation(); e.preventDefault(); }}
         >
+          {/* Bold */}
+          <button onClick={() => execRichCmd("bold")} title="Negrito (Ctrl+B)"
+            style={{ width: 26, height: 26, borderRadius: 4, border: "none", cursor: "pointer",
+              background: "transparent", fontWeight: "bold", fontSize: 13, color: "hsl(var(--foreground))",
+              display: "flex", alignItems: "center", justifyContent: "center" }}
+            onMouseOver={e => (e.currentTarget.style.background = "hsl(var(--accent))")}
+            onMouseOut={e => (e.currentTarget.style.background = "transparent")}
+          >B</button>
+          {/* Italic */}
+          <button onClick={() => execRichCmd("italic")} title="Itálico (Ctrl+I)"
+            style={{ width: 26, height: 26, borderRadius: 4, border: "none", cursor: "pointer",
+              background: "transparent", fontStyle: "italic", fontSize: 13, color: "hsl(var(--foreground))",
+              display: "flex", alignItems: "center", justifyContent: "center" }}
+            onMouseOver={e => (e.currentTarget.style.background = "hsl(var(--accent))")}
+            onMouseOut={e => (e.currentTarget.style.background = "transparent")}
+          >I</button>
+          {/* Underline */}
+          <button onClick={() => execRichCmd("underline")} title="Sublinhado (Ctrl+U)"
+            style={{ width: 26, height: 26, borderRadius: 4, border: "none", cursor: "pointer",
+              background: "transparent", textDecoration: "underline", fontSize: 13, color: "hsl(var(--foreground))",
+              display: "flex", alignItems: "center", justifyContent: "center" }}
+            onMouseOver={e => (e.currentTarget.style.background = "hsl(var(--accent))")}
+            onMouseOut={e => (e.currentTarget.style.background = "transparent")}
+          >U</button>
+          {/* Strikethrough */}
+          <button onClick={() => execRichCmd("strikeThrough")} title="Riscado"
+            style={{ width: 26, height: 26, borderRadius: 4, border: "none", cursor: "pointer",
+              background: "transparent", textDecoration: "line-through", fontSize: 13, color: "hsl(var(--foreground))",
+              display: "flex", alignItems: "center", justifyContent: "center" }}
+            onMouseOver={e => (e.currentTarget.style.background = "hsl(var(--accent))")}
+            onMouseOut={e => (e.currentTarget.style.background = "transparent")}
+          >S</button>
+
+          <div style={{ width: 1, height: 20, background: "hsl(var(--border))", margin: "0 2px" }} />
+
+          {/* Text colors */}
+          {INLINE_COLORS.map(c => (
+            <button key={c} onClick={() => execRichCmd("foreColor", c)} title={`Cor: ${c}`}
+              style={{ width: 18, height: 18, borderRadius: 3, border: "1px solid hsl(var(--border))",
+                background: c, cursor: "pointer", flexShrink: 0 }}
+            />
+          ))}
+
+          <div style={{ width: 1, height: 20, background: "hsl(var(--border))", margin: "0 2px" }} />
+
+          {/* Highlight */}
+          <button onClick={() => execRichCmd("hiliteColor", "#fef08a")} title="Destacar amarelo"
+            style={{ width: 26, height: 26, borderRadius: 4, border: "none", cursor: "pointer",
+              background: "#fef08a", fontSize: 11, fontWeight: 600, color: "#854d0e",
+              display: "flex", alignItems: "center", justifyContent: "center" }}
+          >H</button>
+          <button onClick={() => execRichCmd("removeFormat")} title="Limpar formatação"
+            style={{ width: 26, height: 26, borderRadius: 4, border: "none", cursor: "pointer",
+              background: "transparent", fontSize: 11, color: "hsl(var(--muted-foreground))",
+              display: "flex", alignItems: "center", justifyContent: "center" }}
+            onMouseOver={e => (e.currentTarget.style.background = "hsl(var(--accent))")}
+            onMouseOut={e => (e.currentTarget.style.background = "transparent")}
+          >✕</button>
+
+          <div style={{ width: 1, height: 20, background: "hsl(var(--border))", margin: "0 2px" }} />
+
+          {/* Variable buttons */}
           <button
             onClick={handleConvertToVariable}
             style={{
@@ -1371,49 +1476,47 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             }}
             title="Selecione um texto e clique para converter em variável {{...}}"
           >
-            {"{{ }}"} Variável
+            {"{{ }}"} Var
           </button>
           <button
             onClick={() => {
-              // Insert variable from list via prompt
-              const varName = prompt("Nome da variável (sem {{ }}):"); 
+              const varName = prompt("Nome da variável (sem {{ }}):");
               if (varName) {
-                const current = el.text;
-                setCurrentElements(prev => prev.map(p => p.id === el.id ? { ...p, text: current + `{{${varName.trim()}}}` } : p));
+                execRichCmd("insertText", `{{${varName.trim()}}}`);
               }
             }}
             style={{
-              fontSize: 10, padding: "2px 8px", borderRadius: 4,
+              fontSize: 10, padding: "2px 6px", borderRadius: 4,
               background: "hsl(var(--muted))", color: "hsl(var(--foreground))",
               border: "1px solid hsl(var(--border))", cursor: "pointer",
             }}
-            title="Inserir variável no final do texto"
+            title="Inserir variável no cursor"
           >
-            + Inserir Var
+            + Var
           </button>
         </div>
         <div
           contentEditable
           suppressContentEditableWarning
           ref={(ref) => {
-            if (ref && !ref.textContent && el.text) {
-              ref.innerText = el.text;
+            if (ref && ref.innerHTML !== el.text) {
+              ref.innerHTML = el.text;
             }
           }}
           onFocus={(e) => {
             const target = e.currentTarget;
-            if (target.innerText !== el.text) {
-              target.innerText = el.text;
+            if (target.innerHTML !== el.text) {
+              target.innerHTML = el.text;
             }
           }}
           onInput={(e) => {
-            const newText = (e.currentTarget as HTMLElement).innerText;
+            const newText = (e.currentTarget as HTMLElement).innerHTML;
             setCurrentElements(prev => prev.map(p => p.id === el.id ? { ...p, text: newText } : p));
             autoResizeElement(el.id, e.currentTarget as HTMLElement);
           }}
           onBlur={() => setEditingTextId(null)}
           onKeyDown={(e) => {
-            e.stopPropagation(); // Prevent global shortcuts while editing
+            e.stopPropagation();
             if (e.key === "Escape") {
               setEditingTextId(null);
             }
@@ -1446,7 +1549,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       }}>
         {(() => {
           const displayText = previewVarsMode ? replaceVariablesWithSample(el.text) : el.text;
-          if (previewVarsMode && displayText && displayText.includes("<table")) {
+          if (displayText && (displayText.includes("<") || (previewVarsMode && displayText.includes("<table")))) {
             return <div dangerouslySetInnerHTML={{ __html: displayText }} style={{ width: "100%", overflow: "hidden" }} />;
           }
           return displayText || (el.type === "text" ? <span className="text-muted-foreground/40 italic text-xs">Clique para editar</span> : null);
