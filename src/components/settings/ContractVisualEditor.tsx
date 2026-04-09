@@ -3312,12 +3312,17 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                                 transformOrigin: "center center",
                                 overflow: "hidden",
                               };
+                              // Apply variable preview on all pages
+                              const resolveText = (txt: string | undefined) => {
+                                if (!txt) return "";
+                                return previewVarsMode ? replaceVariablesWithSample(txt) : txt;
+                              };
                               let content: React.ReactNode = null;
                               switch (el.type) {
                                 case "rect":
                                   content = (
                                     <div style={{ width: "100%", height: "100%", background: el.fill, border: `${el.strokeWidth}px solid ${el.stroke}`, borderRadius: el.borderRadius, boxSizing: "border-box" }}>
-                                      {el.text && <div style={{ padding: 8, fontFamily: el.fontFamily, fontSize: el.fontSize, fontWeight: el.fontWeight, fontStyle: el.fontStyle, color: el.color, textAlign: el.textAlign as any, whiteSpace: "pre-wrap", wordWrap: "break-word", overflow: "hidden" }} dangerouslySetInnerHTML={{ __html: el.text }} />}
+                                      {el.text && <div style={{ padding: 8, fontFamily: el.fontFamily, fontSize: el.fontSize, fontWeight: el.fontWeight, fontStyle: el.fontStyle, color: el.color, textAlign: el.textAlign as any, whiteSpace: "pre-wrap", wordWrap: "break-word", overflow: "hidden" }} dangerouslySetInnerHTML={{ __html: resolveText(el.text) }} />}
                                     </div>
                                   );
                                   break;
@@ -3329,7 +3334,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                                   break;
                                 case "text":
                                   content = (
-                                    <div style={{ width: "100%", height: "100%", fontFamily: el.fontFamily, fontSize: el.fontSize, fontWeight: el.fontWeight, fontStyle: el.fontStyle, color: el.color, textAlign: el.textAlign as any, whiteSpace: "pre-wrap", wordWrap: "break-word", overflow: "hidden" }} dangerouslySetInnerHTML={{ __html: el.text || "" }} />
+                                    <div style={{ width: "100%", height: "100%", fontFamily: el.fontFamily, fontSize: el.fontSize, fontWeight: el.fontWeight, fontStyle: el.fontStyle, color: el.color, textAlign: el.textAlign as any, whiteSpace: "pre-wrap", wordWrap: "break-word", overflow: "hidden" }} dangerouslySetInnerHTML={{ __html: resolveText(el.text) }} />
                                   );
                                   break;
                                 case "image":
@@ -3343,7 +3348,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                                           {el.tableData.map((row, ri) => (
                                             <tr key={ri}>
                                               {row.map((cell, ci) => (
-                                                <td key={ci} style={{ border: `1px solid ${el.stroke}`, padding: "2px 6px", background: ri === 0 ? el.stroke : el.fill, color: ri === 0 ? "#ffffff" : el.color, fontWeight: ri === 0 ? "bold" : "normal" }}>{cell}</td>
+                                                <td key={ci} style={{ border: `1px solid ${el.stroke}`, padding: "2px 6px", background: ri === 0 ? el.stroke : el.fill, color: ri === 0 ? "#ffffff" : el.color, fontWeight: ri === 0 ? "bold" : "normal" }}>{resolveText(cell)}</td>
                                               ))}
                                             </tr>
                                           ))}
