@@ -138,6 +138,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [zoom, setZoom] = useState(0.75);
   const [dragState, setDragState] = useState<{ id: string; startX: number; startY: number; elX: number; elY: number } | null>(null);
   const [resizeState, setResizeState] = useState<{ id: string; startX: number; startY: number; startW: number; startH: number; corner: string; startElX: number; startElY: number } | null>(null);
+  const [rotateState, setRotateState] = useState<{ id: string; startAngle: number; elRotation: number; centerX: number; centerY: number } | null>(null);
+  const [clipboard, setClipboard] = useState<CanvasElement | null>(null);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [varSearch, setVarSearch] = useState("");
@@ -460,6 +462,17 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     setResizeState({ id: el.id, startX: e.clientX, startY: e.clientY, startW: el.width, startH: el.height, corner, startElX: el.x, startElY: el.y } as any);
   };
 
+  const handleRotateMouseDown = (e: React.MouseEvent, el: CanvasElement) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const centerX = rect.left + (el.x + el.width / 2) * zoom;
+    const centerY = rect.top + (el.y + el.height / 2) * zoom;
+    const startAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
+    setRotateState({ id: el.id, startAngle, elRotation: el.rotation, centerX, centerY });
+  };
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (dragState) {
@@ -488,15 +501,24 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           return { ...el, x: newX, y: newY, width: newW, height: newH };
         }));
       }
+      if (rotateState) {
+        const angle = Math.atan2(e.clientY - rotateState.centerY, e.clientX - rotateState.centerX) * (180 / Math.PI);
+        let newRotation = rotateState.elRotation + (angle - rotateState.startAngle);
+        if (e.shiftKey) newRotation = Math.round(newRotation / 15) * 15;
+        setCurrentElements(prev => prev.map(el =>
+          el.id === rotateState.id ? { ...el, rotation: newRotation } : el
+        ));
+      }
     };
     const handleMouseUp = () => {
       if (dragState) setDragState(null);
       if (resizeState) setResizeState(null);
+      if (rotateState) setRotateState(null);
     };
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
     return () => { window.removeEventListener("mousemove", handleMouseMove); window.removeEventListener("mouseup", handleMouseUp); };
-  }, [dragState, resizeState, zoom, setCurrentElements]);
+  }, [dragState, resizeState, rotateState, zoom, setCurrentElements]);
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -507,12 +529,43 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (editingTextId) return;
+
       if (e.key === "Delete" || e.key === "Backspace") {
-        if (editingTextId) return;
-        if (selectedId) deleteSelected();
+        if (selectedId) { e.preventDefault(); deleteSelected(); }
       }
-      if (e.ctrlKey && e.key === "z") { e.preventDefault(); }
-      if (e.ctrlKey && e.key === "y") { e.preventDefault(); }
+
+      // Copy
+      if ((e.ctrlKey || e.metaKey) && e.key === "c") {
+        if (selected) { e.preventDefault(); setClipboard({ ...selected }); toast.success("Elemento copiado"); }
+      }
+
+      // Paste
+      if ((e.ctrlKey || e.metaKey) && e.key === "v") {
+        if (clipboard) {
+          e.preventDefault();
+          const dup = { ...clipboard, id: genId(), x: clipboard.x + 20, y: clipboard.y + 20, zIndex: elements.length + 1 };
+          setCurrentElements(prev => [...prev, dup]);
+          setSelectedId(dup.id);
+          toast.success("Elemento colado");
+        }
+      }
+
+      // Arrow keys: move (normal) or resize (Shift)
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key) && selectedId) {
+        e.preventDefault();
+        const step = e.ctrlKey || e.metaKey ? 10 : 1;
+        const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
+        const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
+        if (e.shiftKey) {
+          setCurrentElements(prev => prev.map(el => el.id === selectedId ? { ...el, width: Math.max(20, el.width + dx), height: Math.max(10, el.height + dy) } : el));
+        } else {
+          setCurrentElements(prev => prev.map(el => el.id === selectedId ? { ...el, x: el.x + dx, y: el.y + dy } : el));
+        }
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === "z") { e.preventDefault(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === "y") { e.preventDefault(); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -852,6 +905,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       zIndex: el.zIndex, cursor: activeTool === "select" ? "move" : "default",
       outline: isSelected ? "2px solid hsl(210 80% 55%)" : "none", outlineOffset: "1px",
       opacity: el.opacity ?? 1,
+      transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
+      transformOrigin: "center center",
     };
 
     // Inner style fills the wrapper — no position/size needed
@@ -896,6 +951,26 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
     const resizeHandles = isSelected ? (
       <>
+        {/* Rotation handle */}
+        <div
+          style={{
+            position: "absolute", top: -32, left: "50%", transform: "translateX(-50%)",
+            width: 18, height: 18, borderRadius: "50%",
+            background: "hsl(150 60% 45%)", border: "2px solid white",
+            cursor: "grab", zIndex: 9999,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+          onMouseDown={e => handleRotateMouseDown(e, el)}
+          title="Arrastar para rotacionar"
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round">
+            <path d="M21 12a9 9 0 1 1-3-6.7" />
+            <path d="M21 3v5h-5" />
+          </svg>
+        </div>
+        {/* Line connecting rotation handle */}
+        <div style={{ position: "absolute", top: -14, left: "50%", transform: "translateX(-50%)", width: 1, height: 14, background: "hsl(150 60% 45%)", zIndex: 9998 }} />
+
         {/* Corner handles */}
         {["se", "sw", "nw", "ne"].map(corner => {
           const pos: React.CSSProperties = {
@@ -1027,6 +1102,16 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
               <div className="grid grid-cols-2 gap-1">
                 <div><span className="text-muted-foreground">L</span><input type="number" value={Math.round(selected.width)} onChange={e => updateSelected({ width: Number(e.target.value) })} className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" /></div>
                 <div><span className="text-muted-foreground">A</span><input type="number" value={Math.round(selected.height)} onChange={e => updateSelected({ height: Number(e.target.value) })} className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" /></div>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-muted-foreground">Rotação</label>
+                <span className="text-[10px] text-muted-foreground">{Math.round(selected.rotation)}°</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <input type="range" min={-180} max={180} value={Math.round(selected.rotation)} onChange={e => updateSelected({ rotation: Number(e.target.value) })} className="flex-1" />
+                <Button variant="outline" size="sm" className="h-6 px-1.5 text-[10px]" onClick={() => updateSelected({ rotation: 0 })}>0°</Button>
               </div>
             </div>
             {(selected.type === "rect" || selected.type === "circle") && (
