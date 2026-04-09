@@ -1352,58 +1352,108 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       if (el.type === "text" || el.type === "rect" || el.type === "circle") setEditingTextId(el.id);
     };
 
-    // Auto-resize helper with auto-pagination
+    // Auto-resize helper with push-down and auto-pagination
     const autoResizeElement = (elId: string, textEl: HTMLElement) => {
       const scrollH = textEl.scrollHeight;
       const currentEl = elements.find(e => e.id === elId);
       if (!currentEl) return;
       
-      if (scrollH > currentEl.height) {
-        const newHeight = Math.max(currentEl.height, scrollH + 4);
-        const overflowsPage = currentEl.y + newHeight > A4_HEIGHT;
+      const newHeight = Math.max(currentEl.height, scrollH + 4);
+      if (newHeight <= currentEl.height) return;
+      
+      const heightDelta = newHeight - currentEl.height;
+      const bottomEdge = currentEl.y + currentEl.height;
+      
+      // Find elements that are below the current element (by their top position)
+      const elementsBelow = elements.filter(e => 
+        e.id !== elId && e.y >= bottomEdge - 5 // 5px tolerance
+      );
+      
+      // Build updated elements: resize current + push others down
+      const updatedElements = elements.map(el => {
+        if (el.id === elId) {
+          return { ...el, height: newHeight };
+        }
+        if (elementsBelow.some(b => b.id === el.id)) {
+          return { ...el, y: el.y + heightDelta };
+        }
+        return el;
+      });
+      
+      // Check which elements overflow the page after pushing
+      const overflowingElements = updatedElements.filter(el => 
+        el.y + el.height > A4_HEIGHT && el.id !== elId
+      );
+      
+      if (overflowingElements.length > 0) {
+        // Keep elements that fit on current page
+        const fittingElements = updatedElements.filter(el => 
+          el.y + el.height <= A4_HEIGHT || el.id === elId
+        );
         
-        if (overflowsPage && currentEl.y + newHeight > A4_HEIGHT + 20) {
-          // Auto-paginate: keep current element at page height, create overflow on next page
-          const maxH = A4_HEIGHT - currentEl.y - 10;
-          setCurrentElements(prev => prev.map(p => p.id === elId ? { ...p, height: maxH } : p));
+        // For the edited element, cap its height to fit
+        const editedEl = fittingElements.find(e => e.id === elId);
+        if (editedEl && editedEl.y + editedEl.height > A4_HEIGHT) {
+          editedEl.height = A4_HEIGHT - editedEl.y - 10;
+        }
+        
+        // Move overflow elements to next page(s)
+        setPages(prev => {
+          const newPages = [...prev];
+          // Update current page with fitting elements
+          newPages[currentPageIdx] = { ...newPages[currentPageIdx], elements: fittingElements };
           
-          // Create or find next page and add overflow element
-          const nextPageIdx = currentPageIdx + 1;
-          const overflowText = textEl.innerHTML;
+          // Create next page if needed
+          let nextIdx = currentPageIdx + 1;
+          if (nextIdx >= newPages.length) {
+            newPages.push({ id: pageId(), elements: [], backgroundOpacity: 0.5 });
+          }
           
-          setPages(prev => {
-            const newPages = [...prev];
-            // Create next page if needed
-            if (nextPageIdx >= newPages.length) {
+          // Place overflowing elements on next page, stacking from top
+          const existingNextEls = newPages[nextIdx].elements;
+          let nextY = existingNextEls.length > 0 
+            ? Math.max(...existingNextEls.map(e => e.y + e.height)) + 10 
+            : 30;
+          
+          const movedElements = overflowingElements.map(el => {
+            const moved = { ...el, id: el.id, y: nextY };
+            nextY += el.height + 10;
+            return moved;
+          });
+          
+          // Check if moved elements also overflow next page — recursive pagination
+          const fitsNextPage = movedElements.filter(e => e.y + e.height <= A4_HEIGHT);
+          const overflowsNextPage = movedElements.filter(e => e.y + e.height > A4_HEIGHT);
+          
+          newPages[nextIdx] = {
+            ...newPages[nextIdx],
+            elements: [...existingNextEls, ...fitsNextPage],
+          };
+          
+          // If still overflowing, create additional pages
+          if (overflowsNextPage.length > 0) {
+            let extraIdx = nextIdx + 1;
+            if (extraIdx >= newPages.length) {
               newPages.push({ id: pageId(), elements: [], backgroundOpacity: 0.5 });
             }
-            // Check if overflow element already exists on next page
-            const overflowElId = `overflow_${elId}`;
-            const existingOverflow = newPages[nextPageIdx].elements.find(e => e.id === overflowElId);
-            if (!existingOverflow) {
-              const overflowEl = createDefaultElement("text", currentEl.x, 30);
-              overflowEl.id = overflowElId;
-              overflowEl.width = currentEl.width;
-              overflowEl.height = 100;
-              overflowEl.fontFamily = currentEl.fontFamily;
-              overflowEl.fontSize = currentEl.fontSize;
-              overflowEl.fontWeight = currentEl.fontWeight;
-              overflowEl.fontStyle = currentEl.fontStyle;
-              overflowEl.textDecoration = currentEl.textDecoration;
-              overflowEl.color = currentEl.color;
-              overflowEl.textAlign = currentEl.textAlign;
-              overflowEl.text = "(continuação — edite na página anterior)";
-              newPages[nextPageIdx] = {
-                ...newPages[nextPageIdx],
-                elements: [...newPages[nextPageIdx].elements, overflowEl],
-              };
-              toast.info(`Página ${nextPageIdx + 1} criada automaticamente para o texto excedente.`, { id: "auto-page" });
-            }
-            return newPages;
-          });
-        } else {
-          setCurrentElements(prev => prev.map(p => p.id === elId ? { ...p, height: newHeight } : p));
-        }
+            let extraY = 30;
+            const extraMoved = overflowsNextPage.map(el => {
+              const moved = { ...el, y: extraY };
+              extraY += el.height + 10;
+              return moved;
+            });
+            newPages[extraIdx] = {
+              ...newPages[extraIdx],
+              elements: [...newPages[extraIdx].elements, ...extraMoved],
+            };
+          }
+          
+          toast.info(`Elementos reorganizados automaticamente entre páginas.`, { id: "auto-reflow" });
+          return newPages;
+        });
+      } else {
+        // Everything fits — just update elements in place
+        setCurrentElements(() => updatedElements);
       }
     };
 
