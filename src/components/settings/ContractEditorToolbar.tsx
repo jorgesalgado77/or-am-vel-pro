@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, forwardRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -80,20 +80,23 @@ interface TipButtonProps {
   disabled?: boolean;
 }
 
-function TipButton({ tip, children, variant = "ghost", className = "", onClick, disabled }: TipButtonProps) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button variant={variant} size="icon" className={`h-9 w-9 ${className}`} onClick={onClick} disabled={disabled}>
-          {children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom" className="text-xs">
-        {tip}
-      </TooltipContent>
-    </Tooltip>
-  );
-}
+const TipButton = forwardRef<HTMLButtonElement, TipButtonProps>(
+  ({ tip, children, variant = "ghost", className = "", onClick, disabled }, ref) => {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button ref={ref} variant={variant} size="icon" className={`h-9 w-9 ${className}`} onClick={onClick} disabled={disabled}>
+            {children}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="text-xs">
+          {tip}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+);
+TipButton.displayName = "TipButton";
 
 export function ContractEditorToolbar(props: ContractEditorToolbarProps) {
   const {
