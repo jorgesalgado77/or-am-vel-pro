@@ -381,6 +381,49 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     setContextMenu(null);
   };
 
+  // --- Alignment functions ---
+  const alignElements = useCallback((alignment: "left" | "center-h" | "right" | "top" | "center-v" | "bottom" | "distribute-h" | "distribute-v") => {
+    if (!selectedId) return;
+    // Align selected element to canvas
+    setCurrentElements(prev => {
+      const sel = prev.find(e => e.id === selectedId);
+      if (!sel) return prev;
+      let updates: Partial<CanvasElement> = {};
+      switch (alignment) {
+        case "left": updates = { x: 0 }; break;
+        case "center-h": updates = { x: (A4_WIDTH - sel.width) / 2 }; break;
+        case "right": updates = { x: A4_WIDTH - sel.width }; break;
+        case "top": updates = { y: 0 }; break;
+        case "center-v": updates = { y: (A4_HEIGHT - sel.height) / 2 }; break;
+        case "bottom": updates = { y: A4_HEIGHT - sel.height }; break;
+        case "distribute-h": {
+          // Distribute all elements evenly horizontally
+          const sorted = [...prev].sort((a, b) => a.x - b.x);
+          if (sorted.length < 3) return prev;
+          const minX = sorted[0].x;
+          const maxX = sorted[sorted.length - 1].x;
+          const step = (maxX - minX) / (sorted.length - 1);
+          return prev.map(el => {
+            const idx = sorted.findIndex(s => s.id === el.id);
+            return { ...el, x: minX + step * idx };
+          });
+        }
+        case "distribute-v": {
+          const sorted = [...prev].sort((a, b) => a.y - b.y);
+          if (sorted.length < 3) return prev;
+          const minY = sorted[0].y;
+          const maxY = sorted[sorted.length - 1].y;
+          const step = (maxY - minY) / (sorted.length - 1);
+          return prev.map(el => {
+            const idx = sorted.findIndex(s => s.id === el.id);
+            return { ...el, y: minY + step * idx };
+          });
+        }
+      }
+      return prev.map(el => el.id === selectedId ? { ...el, ...updates } : el);
+    });
+  }, [selectedId, setCurrentElements]);
+
   // --- Image upload ---
   const handleImageUpload = () => { fileInputRef.current?.click(); };
 
