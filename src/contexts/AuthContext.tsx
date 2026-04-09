@@ -834,16 +834,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const appUser = await withTimeout(loadAppUser(session.user, preferTenant), 5000, null);
     if (!appUser) return;
 
-    const stableUser = shouldKeepExistingResolvedUser(userRef.current, appUser)
-      ? userRef.current
-      : appUser;
-
-    if (!stableUser) return;
-
-    userRef.current = stableUser;
+    // On explicit refresh (e.g. after profile save), always accept the incoming
+    // user from DB — it has the latest data the user just saved.
+    userRef.current = appUser;
     currentAuthIdRef.current = session.user.id;
-    setUser(stableUser);
-    syncGlobalState(stableUser);
+    setUser(appUser);
+    syncGlobalState(appUser);
   }, [session]);
 
   const handleStayConnected = useCallback(() => {

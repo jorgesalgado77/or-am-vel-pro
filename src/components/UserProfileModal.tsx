@@ -209,6 +209,14 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
         const parts = ((data as any).data_nascimento as string).split("-");
         setBirthDate(new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])));
       }
+      // Load saved theme from DB
+      const dbTheme = (data as any).color_theme;
+      if (dbTheme && dbTheme !== "default") {
+        setSelectedTheme(dbTheme);
+        applyTheme(dbTheme);
+      } else if (dbTheme === "default") {
+        setSelectedTheme("default");
+      }
     }
   }, [user?.id]);
 
@@ -340,6 +348,7 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
       instagram: form.instagram || null,
       tiktok: form.tiktok || null,
       linkedin: form.linkedin || null,
+      color_theme: selectedTheme || "default",
       updated_at: new Date().toISOString(),
       ...(authUid ? { auth_user_id: authUid } : {}),
     };
@@ -681,18 +690,16 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
                 </div>
               )}
             </div>
-
-            <Separator />
-
-            {/* Save */}
-            <div className="flex justify-end">
-              <Button onClick={handleSave} disabled={saving || !form.nome_completo} className="gap-2 px-8">
-                <Save className="h-4 w-4" />
-                {saving ? "Salvando..." : "Salvar Perfil"}
-              </Button>
-            </div>
           </div>
         </ScrollArea>
+
+        {/* Save - fixed at bottom */}
+        <div className="flex justify-end p-4 pt-3 pb-4 border-t border-border">
+          <Button onClick={handleSave} disabled={saving || !form.nome_completo} className="gap-2 px-8">
+            <Save className="h-4 w-4" />
+            {saving ? "Salvando..." : "Salvar Perfil"}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
