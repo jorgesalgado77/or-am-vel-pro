@@ -474,6 +474,15 @@ export function ProductCatalog() {
                     ))}
                   </SelectContent>
                 </Select>
+                <Button
+                  variant={promoFilter ? "default" : "outline"}
+                  size="sm"
+                  className={`h-9 text-xs gap-1.5 ${promoFilter ? "bg-red-600 hover:bg-red-700 text-white" : "border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20"}`}
+                  onClick={() => setPromoFilter(!promoFilter)}
+                >
+                  <Tag className="h-3.5 w-3.5" />
+                  Promoções
+                </Button>
               </div>
 
               {loading ? (
@@ -919,9 +928,8 @@ export function ProductCatalog() {
           <DialogFooter className="px-4 sm:px-6 py-3 border-t shrink-0 flex-row gap-2">
             {form.id && canManageProducts && (
               <Button
-                variant="secondary"
                 size="sm"
-                className="mr-auto gap-1.5"
+                className="mr-auto gap-1.5 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white shadow-md"
                 onClick={() => {
                   const p = products.find(pr => pr.id === form.id);
                   if (p) { setPromoProduct(p); setPromoOpen(true); }
@@ -932,7 +940,7 @@ export function ProductCatalog() {
               </Button>
             )}
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={isSaving} className="w-full sm:w-auto">Cancelar</Button>
-            <Button onClick={handleSaveProduct} disabled={isSaving || saving} className="w-full sm:w-auto gap-1.5">
+            <Button onClick={handleSaveProduct} disabled={isSaving || saving} className="w-full sm:w-auto gap-1.5 bg-primary hover:bg-primary/90 shadow-md">
               {isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {isSaving ? "Salvando..." : form.id ? "Salvar" : "Cadastrar"}
             </Button>

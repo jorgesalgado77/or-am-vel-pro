@@ -365,6 +365,18 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
         <DialogContent className="w-[calc(100vw-16px)] sm:w-[calc(100vw-24px)] max-w-lg max-h-[calc(100dvh-16px)] sm:max-h-[calc(100dvh-24px)] p-0 overflow-hidden flex flex-col gap-0">
           <DialogHeader className="shrink-0 px-3 sm:px-4 pt-3 pb-2 border-b">
             <DialogTitle className="text-sm sm:text-base leading-tight pr-6">{product.name}</DialogTitle>
+            {promoData && (
+              <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                <Badge className="bg-red-600 hover:bg-red-700 text-white text-[10px] px-1.5 py-0 h-5 gap-1 animate-pulse">
+                  <Tag className="h-3 w-3" />
+                  🔥 PROMOÇÃO -{promoData.desconto_percentual}%
+                </Badge>
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-orange-300 text-orange-600 dark:border-orange-700 dark:text-orange-400 gap-1">
+                  <Clock className="h-3 w-3" />
+                  até {new Date(promoData.validade).toLocaleDateString("pt-BR")}
+                </Badge>
+              </div>
+            )}
           </DialogHeader>
 
           <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 sm:px-4 py-3">
