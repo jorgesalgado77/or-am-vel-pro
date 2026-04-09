@@ -3186,7 +3186,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
               const isActivePage = pageIdx === currentPageIdx;
               const pageElements = page.elements || [];
               return (
-                <div key={page.id} style={{ marginBottom: 40, flexShrink: 0 }}>
+                <div key={page.id} data-page-idx={pageIdx} ref={el => { if (el) pageRefsMap.current.set(pageIdx, el); else pageRefsMap.current.delete(pageIdx); }} style={{ marginBottom: 40, flexShrink: 0 }}>
                   <div
                     style={{
                       position: "relative",
