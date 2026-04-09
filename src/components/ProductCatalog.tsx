@@ -502,14 +502,41 @@ export function ProductCatalog() {
                       <TableBody>
                         {products.map(p => {
                           const status = STOCK_STATUS_LABELS[p.stock_status] || STOCK_STATUS_LABELS.em_estoque;
+                          const promo = promoMap[p.id];
+                          const promoExpired = promo && new Date(promo.validade) <= new Date();
+                          const promoActive = promo && !promoExpired;
                           return (
                             <TableRow key={p.id} className="cursor-pointer" onClick={() => { setDetailProduct(p); setDetailOpen(true); }}>
                               <TableCell className="text-xs font-mono">{p.internal_code}</TableCell>
-                              <TableCell className="text-xs font-medium max-w-[200px] truncate">{p.name}</TableCell>
+                              <TableCell className="text-xs font-medium max-w-[250px]">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="truncate">{p.name}</span>
+                                  {promoActive && (
+                                    <>
+                                      <Badge className="bg-red-600 hover:bg-red-700 text-white text-[9px] px-1.5 py-0 h-4 shrink-0 animate-pulse">
+                                        🔥 PROMOÇÃO -{promo.desconto_percentual}%
+                                      </Badge>
+                                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 shrink-0 border-orange-300 text-orange-600 dark:border-orange-700 dark:text-orange-400">
+                                        ⏰ {new Date(promo.validade).toLocaleDateString("pt-BR")}
+                                      </Badge>
+                                    </>
+                                  )}
+                                </div>
+                              </TableCell>
                               <TableCell className="text-xs capitalize hidden sm:table-cell">{p.category}</TableCell>
                               {isAdmin && <TableCell className="text-xs text-right">{formatBRL(p.cost_price)}</TableCell>}
                               {isAdmin && <TableCell className="text-xs text-right hidden md:table-cell">{p.markup_percentage}%</TableCell>}
-                              <TableCell className="text-xs text-right font-semibold text-primary">{formatBRL(p.sale_price)}</TableCell>
+                              <TableCell className="text-xs text-right">
+                                {promoActive ? (
+                                  <div>
+                                    <span className="line-through text-muted-foreground text-[10px]">{formatBRL(p.sale_price)}</span>
+                                    <br />
+                                    <span className="font-bold text-red-600 dark:text-red-400">{formatBRL(promo.valor_promocional)}</span>
+                                  </div>
+                                ) : (
+                                  <span className="font-semibold text-primary">{formatBRL(p.sale_price)}</span>
+                                )}
+                              </TableCell>
                               <TableCell className="hidden lg:table-cell">
                                 <Badge variant="outline" className={`text-[10px] ${status.color}`}>
                                   {p.stock_quantity} — {status.label}
