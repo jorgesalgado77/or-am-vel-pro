@@ -227,6 +227,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
   const currentPage = pages[currentPageIdx];
   const elements = currentPage?.elements || [];
+  // Derive selectedId as first in set for properties panel backward compat
+  const selectedId = selectedIds.size > 0 ? [...selectedIds][0] : null;
   const selected = elements.find(e => e.id === selectedId) || null;
 
   // Derived text formatting
@@ -248,7 +250,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     const newPage: PageData = { id: pageId(), elements: [], backgroundOpacity: 0.5 };
     setPages(prev => [...prev.slice(0, currentPageIdx + 1), newPage, ...prev.slice(currentPageIdx + 1)]);
     setCurrentPageIdx(currentPageIdx + 1);
-    setSelectedId(null);
+    setSelectedIds(new Set());
   };
 
   const duplicatePage = () => {
@@ -260,24 +262,24 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     };
     setPages(prev => [...prev.slice(0, currentPageIdx + 1), dup, ...prev.slice(currentPageIdx + 1)]);
     setCurrentPageIdx(currentPageIdx + 1);
-    setSelectedId(null);
+    setSelectedIds(new Set());
   };
 
   const deletePage = () => {
     if (pages.length <= 1) { toast.error("O contrato deve ter pelo menos uma página"); return; }
     setPages(prev => prev.filter((_, i) => i !== currentPageIdx));
     setCurrentPageIdx(Math.max(0, currentPageIdx - 1));
-    setSelectedId(null);
+    setSelectedIds(new Set());
   };
 
-  const goToPrevPage = () => { if (currentPageIdx > 0) { setCurrentPageIdx(currentPageIdx - 1); setSelectedId(null); } };
-  const goToNextPage = () => { if (currentPageIdx < pages.length - 1) { setCurrentPageIdx(currentPageIdx + 1); setSelectedId(null); } };
+  const goToPrevPage = () => { if (currentPageIdx > 0) { setCurrentPageIdx(currentPageIdx - 1); setSelectedIds(new Set()); } };
+  const goToNextPage = () => { if (currentPageIdx < pages.length - 1) { setCurrentPageIdx(currentPageIdx + 1); setSelectedIds(new Set()); } };
 
   // --- Element operations ---
   const updateSelected = useCallback((updates: Partial<CanvasElement>) => {
-    if (!selectedId) return;
-    setCurrentElements(prev => prev.map(el => el.id === selectedId ? { ...el, ...updates } : el));
-  }, [selectedId, setCurrentElements]);
+    if (selectedIds.size === 0) return;
+    setCurrentElements(prev => prev.map(el => selectedIds.has(el.id) ? { ...el, ...updates } : el));
+  }, [selectedIds, setCurrentElements]);
 
   const handleCanvasClick = (e: React.MouseEvent) => {
     const rect = canvasRef.current?.getBoundingClientRect();
