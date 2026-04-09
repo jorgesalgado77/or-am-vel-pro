@@ -1,27 +1,11 @@
-/**
- * Drag-and-drop panel for reordering contract sections within a page.
- * Detects sections by title elements and allows visual reordering.
- */
 import { useCallback, useMemo } from "react";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { GripVertical, FileText } from "lucide-react";
-
-interface CanvasElement {
-  id: string;
-  type: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  text: string;
-  fontSize: number;
-  fontWeight: string;
-  color: string;
-  [key: string]: unknown;
-}
+import type { CanvasElement, PageData } from "./contract-editor/types";
 
 interface DetectedSection {
   id: string;
+  pageIndex: number;
   title: string;
   titleElementId: string;
   elementIds: string[];
@@ -35,13 +19,16 @@ const SECTION_PATTERNS: { pattern: RegExp; label: string }[] = [
   { pattern: /AMBIENTES?\s+E\s+VALORES/i, label: "Ambientes e Valores" },
   { pattern: /DETALHES?\s+D[OE]S?\s+AMBIENTES?/i, label: "Detalhes dos Ambientes" },
   { pattern: /PRODUTOS?\s+D[OE]\s+CAT[AÁ]LOGO/i, label: "Produtos do Catálogo" },
-  { pattern: /OBSERVA[CÇ][OÕ]ES/i, label: "Observações" },
+  { pattern: /OBSERVA(?:ÇÕES|COES)/i, label: "Observações" },
   { pattern: /RESUMO\s+FINANCEIRO/i, label: "Resumo Financeiro" },
-  { pattern: /CONDI[CÇ][OÕ]ES\s+GERAIS/i, label: "Condições Gerais" },
+  { pattern: /CONDI(?:ÇÕES|COES)\s+GERAIS/i, label: "Condições Gerais" },
   { pattern: /RESPONS[AÁ]VEIS/i, label: "Responsáveis" },
   { pattern: /ASSINATURAS?/i, label: "Assinaturas" },
   { pattern: /FORMA\s+DE\s+PAGAMENTO/i, label: "Forma de Pagamento" },
 ];
+
+const SECTION_GAP = 16;
+const DEFAULT_SECTION_START_Y = 100;
 
 function matchSectionTitle(text: string): string | null {
   const clean = text.replace(/<[^>]*>/g, "").trim();
@@ -51,140 +38,174 @@ function matchSectionTitle(text: string): string | null {
   return null;
 }
 
-interface Props {
-  elements: CanvasElement[];
-  onReorder: (reorderedElements: CanvasElement[]) => void;
+function detectSectionsOnPage(page: PageData, pageIndex: number): DetectedSection[] {
+  const titleElements = page.elements
+    .filter((el) => el.type === "text" && matchSectionTitle(el.text))
+    .sort((a, b) => a.y - b.y || a.zIndex - b.zIndex);
+
+  if (titleElements.length === 0) return [];
+
+  return titleElements.map((titleEl, index) => {
+    const nextTitleY = index < titleElements.length - 1 ? titleElements[index + 1].y : Number.POSITIVE_INFINITY;
+    const sectionElements = page.elements.filter((el) => el.y >= titleEl.y && el.y < nextTitleY);
+    return {
+      id: titleEl.id,
+      pageIndex,
+      title: matchSectionTitle(titleEl.text) || "Seção",
+      titleElementId: titleEl.id,
+      elementIds: sectionElements.map((el) => el.id),
+      startY: titleEl.y,
+      endY: Math.max(...sectionElements.map((el) => el.y + el.height), titleEl.y + titleEl.height),
+    };
+  });
 }
 
-export function ContractSectionsPanel({ elements, onReorder }: Props) {
-  // Detect sections: find title elements and group elements below each title until the next title
-  const sections = useMemo<DetectedSection[]>(() => {
-    // Find all title elements (bold text matching known patterns)
-    const titleElements = elements
-      .filter(el => {
-        if (el.type !== "text") return false;
-        const label = matchSectionTitle(el.text);
-        return label !== null;
-      })
-      .sort((a, b) => a.y - b.y);
+function rebuildPageSections(page: PageData, orderedSections: DetectedSection[]): PageData {
+  const sectionElementIds = new Set(orderedSections.flatMap((section) => section.elementIds));
+  const nonSectionElements = page.elements.filter((el) => !sectionElementIds.has(el.id));
+  const elementMap = new Map(page.elements.map((el) => [el.id, el]));
+  const originalPageSections = detectSectionsOnPage(page, 0);
+  const originalBaseY = originalPageSections.length > 0
+    ? Math.min(...originalPageSections.map((section) => section.startY))
+    : DEFAULT_SECTION_START_Y;
 
-    if (titleElements.length === 0) return [];
+  let cursorY = orderedSections.length > 0
+    ? Math.min(...orderedSections.map((section) => section.startY), originalBaseY)
+    : originalBaseY;
 
-    const result: DetectedSection[] = [];
+  const rebuiltSectionElements: CanvasElement[] = [];
 
-    for (let i = 0; i < titleElements.length; i++) {
-      const titleEl = titleElements[i];
-      const label = matchSectionTitle(titleEl.text)!;
-      const nextTitleY = i < titleElements.length - 1 ? titleElements[i + 1].y : Infinity;
+  for (const section of orderedSections) {
+    const deltaY = cursorY - section.startY;
+    const sectionElements = section.elementIds
+      .map((id) => elementMap.get(id))
+      .filter(Boolean)
+      .map((el) => ({ ...(el as CanvasElement), y: (el as CanvasElement).y + deltaY }));
 
-      // All elements between this title's Y and the next title's Y belong to this section
-      const sectionElements = elements.filter(el => {
-        return el.y >= titleEl.y && el.y < nextTitleY;
-      });
+    rebuiltSectionElements.push(...sectionElements);
+    cursorY += (section.endY - section.startY) + SECTION_GAP;
+  }
 
-      result.push({
-        id: titleEl.id,
-        title: label,
-        titleElementId: titleEl.id,
-        elementIds: sectionElements.map(e => e.id),
-        startY: titleEl.y,
-        endY: Math.max(...sectionElements.map(e => e.y + (e.height as number))),
-      });
-    }
+  return {
+    ...page,
+    elements: [...nonSectionElements, ...rebuiltSectionElements].sort((a, b) => a.zIndex - b.zIndex),
+  };
+}
 
-    return result;
-  }, [elements]);
+function parsePageIndex(droppableId: string) {
+  return Number(droppableId.replace("page-", ""));
+}
 
-  // Elements NOT belonging to any section (header chrome, etc.)
-  const sectionElementIds = useMemo(() => {
-    const ids = new Set<string>();
-    sections.forEach(s => s.elementIds.forEach(id => ids.add(id)));
-    return ids;
-  }, [sections]);
+interface Props {
+  pages: PageData[];
+  currentPageIdx: number;
+  onReorderPages: (pages: PageData[]) => void;
+}
+
+export function ContractSectionsPanel({ pages, currentPageIdx, onReorderPages }: Props) {
+  const sectionsByPage = useMemo(() => pages.map((page, pageIndex) => detectSectionsOnPage(page, pageIndex)), [pages]);
 
   const handleDragEnd = useCallback((result: DropResult) => {
-    if (!result.destination || result.source.index === result.destination.index) return;
+    if (!result.destination) return;
 
-    const reordered = [...sections];
-    const [moved] = reordered.splice(result.source.index, 1);
-    reordered.splice(result.destination.index, 0, moved);
+    const sourcePageIdx = parsePageIndex(result.source.droppableId);
+    const destinationPageIdx = parsePageIndex(result.destination.droppableId);
+    const sourceSections = [...(sectionsByPage[sourcePageIdx] || [])];
+    const destinationSections = sourcePageIdx === destinationPageIdx
+      ? sourceSections
+      : [...(sectionsByPage[destinationPageIdx] || [])];
 
-    // Recalculate Y positions: keep non-section elements in place,
-    // reposition section elements based on new order
-    const elementMap = new Map(elements.map(e => [e.id, e]));
+    const movedSection = sourceSections[result.source.index];
+    if (!movedSection) return;
 
-    // Find the first section's original start Y as the base
-    const firstSectionY = Math.min(...sections.map(s => s.startY));
-
-    let cursorY = firstSectionY;
-    const updates = new Map<string, number>(); // elementId -> new Y offset
-
-    for (const section of reordered) {
-      const originalStartY = section.startY;
-      const deltaY = cursorY - originalStartY;
-
-      for (const elId of section.elementIds) {
-        const el = elementMap.get(elId);
-        if (el) {
-          updates.set(elId, el.y + deltaY);
-        }
-      }
-
-      // Move cursor past this section
-      const sectionHeight = section.endY - section.startY;
-      cursorY += sectionHeight + 15; // 15px gap between sections
-    }
-
-    // Apply updates
-    const newElements = elements.map(el => {
-      const newY = updates.get(el.id);
-      if (newY !== undefined) {
-        return { ...el, y: newY } as CanvasElement;
-      }
-      return el;
+    sourceSections.splice(result.source.index, 1);
+    destinationSections.splice(result.destination.index, 0, {
+      ...movedSection,
+      pageIndex: destinationPageIdx,
+      startY: destinationSections[result.destination.index - 1]?.endY
+        ? destinationSections[result.destination.index - 1].endY + SECTION_GAP
+        : (destinationSections[0]?.startY ?? DEFAULT_SECTION_START_Y),
     });
 
-    onReorder(newElements);
-  }, [sections, elements, onReorder]);
+    const nextPages = [...pages];
 
-  if (sections.length < 2) {
-    return (
-      <div className="text-[10px] text-muted-foreground px-1 py-2 text-center">
-        {sections.length === 0 ? "Nenhuma seção detectada" : "Apenas 1 seção na página"}
-      </div>
-    );
-  }
+    const movedElementIds = new Set(movedSection.elementIds);
+    const movedElements = pages[sourcePageIdx].elements.filter((el) => movedElementIds.has(el.id));
+    const destinationPageElements = sourcePageIdx === destinationPageIdx
+      ? pages[sourcePageIdx].elements
+      : [...pages[destinationPageIdx].elements, ...movedElements.map((el) => ({ ...el }))];
+
+    nextPages[sourcePageIdx] = {
+      ...pages[sourcePageIdx],
+      elements: sourcePageIdx === destinationPageIdx
+        ? destinationPageElements
+        : pages[sourcePageIdx].elements.filter((el) => !movedElementIds.has(el.id)),
+    };
+
+    if (sourcePageIdx !== destinationPageIdx) {
+      nextPages[destinationPageIdx] = {
+        ...pages[destinationPageIdx],
+        elements: destinationPageElements,
+      };
+    }
+
+    nextPages[sourcePageIdx] = rebuildPageSections(nextPages[sourcePageIdx], sourceSections);
+    nextPages[destinationPageIdx] = rebuildPageSections(nextPages[destinationPageIdx], destinationSections);
+
+    onReorderPages(nextPages);
+  }, [onReorderPages, pages, sectionsByPage]);
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
-      <Droppable droppableId="contract-sections">
-        {(provided) => (
-          <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-0.5">
-            {sections.map((section, idx) => (
-              <Draggable key={section.id} draggableId={section.id} index={idx}>
+      <div className="space-y-2">
+        {pages.map((_, pageIndex) => {
+          const sections = sectionsByPage[pageIndex] || [];
+          return (
+            <div
+              key={pageIndex}
+              className={`rounded-md border ${pageIndex === currentPageIdx ? "border-primary/40 bg-primary/5" : "border-border bg-background"}`}
+            >
+              <div className="flex items-center justify-between px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <span>Página {pageIndex + 1}</span>
+                <span>{sections.length} seções</span>
+              </div>
+              <Droppable droppableId={`page-${pageIndex}`}>
                 {(provided, snapshot) => (
                   <div
                     ref={provided.innerRef}
-                    {...provided.draggableProps}
-                    {...provided.dragHandleProps}
-                    className={`flex items-center gap-1.5 px-1.5 py-1 rounded text-[10px] cursor-grab active:cursor-grabbing transition-colors ${
-                      snapshot.isDragging
-                        ? "bg-primary/20 shadow-sm ring-1 ring-primary/30"
-                        : "hover:bg-muted/60"
-                    }`}
+                    {...provided.droppableProps}
+                    className={`space-y-0.5 px-1.5 pb-1.5 min-h-10 ${snapshot.isDraggingOver ? "bg-muted/50" : ""}`}
                   >
-                    <GripVertical className="h-3 w-3 text-muted-foreground/50 shrink-0" />
-                    <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
-                    <span className="truncate font-medium text-foreground">{section.title}</span>
-                    <span className="ml-auto text-muted-foreground/60 text-[9px]">{section.elementIds.length}</span>
+                    {sections.map((section, sectionIndex) => (
+                      <Draggable key={section.id} draggableId={section.id} index={sectionIndex}>
+                        {(dragProvided, dragSnapshot) => (
+                          <div
+                            ref={dragProvided.innerRef}
+                            {...dragProvided.draggableProps}
+                            {...dragProvided.dragHandleProps}
+                            className={`flex items-center gap-1.5 rounded px-1.5 py-1 text-[10px] transition-colors ${dragSnapshot.isDragging ? "bg-primary/15 ring-1 ring-primary/30" : "hover:bg-muted/60"}`}
+                          >
+                            <GripVertical className="h-3 w-3 shrink-0 text-muted-foreground/60" />
+                            <FileText className="h-3 w-3 shrink-0 text-muted-foreground" />
+                            <span className="truncate font-medium text-foreground">{section.title}</span>
+                            <span className="ml-auto text-[9px] text-muted-foreground/70">{section.elementIds.length}</span>
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {sections.length === 0 && (
+                      <div className="rounded border border-dashed border-border px-2 py-2 text-center text-[10px] text-muted-foreground">
+                        Arraste uma seção para esta página
+                      </div>
+                    )}
+                    {provided.placeholder}
                   </div>
                 )}
-              </Draggable>
-            ))}
-            {provided.placeholder}
-          </div>
-        )}
-      </Droppable>
+              </Droppable>
+            </div>
+          );
+        })}
+      </div>
     </DragDropContext>
   );
 }

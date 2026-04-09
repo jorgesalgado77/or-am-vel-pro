@@ -3305,8 +3305,13 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             {showSectionsPanel && (
               <div className="px-2 pb-2">
                 <ContractSectionsPanel
-                  elements={elements as any}
-                  onReorder={(reordered) => setCurrentElements(() => reordered as any)}
+                  pages={pages}
+                  currentPageIdx={currentPageIdx}
+                  onReorderPages={(nextPages) => {
+                    setPages(nextPages);
+                    setSelectedIds(new Set());
+                    toast.success("Ordem das seções atualizada");
+                  }}
                 />
               </div>
             )}
