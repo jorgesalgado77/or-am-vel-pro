@@ -246,6 +246,10 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [showLayersPanel, setShowLayersPanel] = useState(true);
 
+  // User-placed draggable guide lines
+  const [userGuides, setUserGuides] = useState<{ id: string; axis: "x" | "y"; pos: number }[]>([]);
+  const [draggingGuide, setDraggingGuide] = useState<{ id: string; axis: "x" | "y"; startMouse: number; startPos: number } | null>(null);
+
   // Custom templates state
   const { templates: customTemplates, loading: loadingCustom, saveTemplate, updateTemplate, deleteTemplate } = useCustomTemplates();
   const [showSaveDialog, setShowSaveDialog] = useState(false);
