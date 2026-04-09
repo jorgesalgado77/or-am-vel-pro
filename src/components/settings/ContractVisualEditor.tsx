@@ -284,7 +284,10 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     setCurrentElements(prev => prev.map(el => selectedIds.has(el.id) ? { ...el, ...updates } : el));
   }, [selectedIds, setCurrentElements]);
 
-  const handleCanvasClick = (e: React.MouseEvent) => {
+  const handleCanvasMouseDown = (e: React.MouseEvent) => {
+    // Only handle direct clicks on the canvas (not on elements)
+    if (e.target !== canvasRef.current && e.target !== canvasRef.current?.querySelector(':scope > div')) return;
+    
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
     const x = (e.clientX - rect.left) / zoom;
