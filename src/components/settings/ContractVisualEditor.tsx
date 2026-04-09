@@ -1877,6 +1877,31 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         onClick={e => e.stopPropagation()}
       >
         {innerContent}
+        {/* Split continuation indicators */}
+        {el.splitContinuationId && (
+          <div style={{
+            position: "absolute", bottom: -1, left: 0, right: 0, height: 20,
+            borderTop: "2px dashed hsl(210 80% 55% / 0.6)",
+            background: "linear-gradient(to bottom, hsl(210 80% 55% / 0.08), transparent)",
+            display: "flex", alignItems: "center", justifyContent: "flex-end",
+            paddingRight: 8, fontSize: 10, fontWeight: 600,
+            color: "hsl(210 80% 45%)", pointerEvents: "none", zIndex: 9998,
+          }}>
+            Continua na próxima página ↓
+          </div>
+        )}
+        {el.splitFrom && (
+          <div style={{
+            position: "absolute", top: -1, left: 0, right: 0, height: 20,
+            borderBottom: "2px dashed hsl(150 60% 45% / 0.6)",
+            background: "linear-gradient(to top, hsl(150 60% 45% / 0.08), transparent)",
+            display: "flex", alignItems: "center", justifyContent: "flex-start",
+            paddingLeft: 8, fontSize: 10, fontWeight: 600,
+            color: "hsl(150 60% 35%)", pointerEvents: "none", zIndex: 9998,
+          }}>
+            ↑ Continuação da página anterior
+          </div>
+        )}
         {!isLocked && resizeHandles}
         {isLocked && (
           <div style={{
