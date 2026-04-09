@@ -1229,9 +1229,14 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     const isEditing = el.id === editingTextId;
 
     // Outer wrapper handles positioning, selection outline, and resize handles
+    const isGrouped = !!el.groupId;
+    const groupColor = isGrouped ? `hsl(${(el.groupId!.charCodeAt(6) * 37) % 360} 70% 55%)` : "";
     const wrapperStyle: React.CSSProperties = {
       position: "absolute", left: el.x, top: el.y, width: el.width, height: el.height,
-      outline: isSelected ? `2px ${isPrimary ? "solid" : "dashed"} hsl(210 80% 55%)` : "none", outlineOffset: "1px",
+      outline: isSelected 
+        ? `2px ${isPrimary ? "solid" : "dashed"} hsl(210 80% 55%)` 
+        : isGrouped ? `1px dashed ${groupColor}` : "none",
+      outlineOffset: "1px",
       opacity: el.opacity ?? 1,
       transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
       transformOrigin: "center center",
