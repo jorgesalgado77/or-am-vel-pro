@@ -146,6 +146,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   // User-placed draggable guide lines
   const [userGuides, setUserGuides] = useState<{ id: string; axis: "x" | "y"; pos: number }[]>([]);
   const [draggingGuide, setDraggingGuide] = useState<{ id: string; axis: "x" | "y"; startMouse: number; startPos: number } | null>(null);
+  const [visiblePageIdx, setVisiblePageIdx] = useState(0);
+  const pageRefsMap = useRef<Map<number, HTMLDivElement>>(new Map());
 
   // Custom templates state
   const { templates: customTemplates, loading: loadingCustom, saveTemplate, updateTemplate, deleteTemplate } = useCustomTemplates();
