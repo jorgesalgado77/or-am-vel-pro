@@ -888,6 +888,45 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           setCurrentElements(prev => [...prev, ...dups]);
           setSelectedIds(newIds);
           toast.success(`${dups.length} elemento(s) colado(s)`);
+        } else {
+          // No internal clipboard — try system clipboard
+          e.preventDefault();
+          (async () => {
+            try {
+              const items = await navigator.clipboard.read();
+              let content = "";
+              for (const item of items) {
+                if (item.types.includes("text/html")) {
+                  const blob = await item.getType("text/html");
+                  const html = await blob.text();
+                  const temp = document.createElement("div");
+                  temp.innerHTML = html;
+                  temp.querySelectorAll("script, style, meta, link").forEach(n => n.remove());
+                  content = temp.innerHTML;
+                  break;
+                }
+                if (item.types.includes("text/plain")) {
+                  const blob = await item.getType("text/plain");
+                  content = await blob.text();
+                  break;
+                }
+              }
+              if (!content) return;
+              if (selectedIds.size > 0) {
+                const selId = [...selectedIds][0];
+                setCurrentElements(prev => prev.map(el => el.id === selId ? { ...el, text: el.text + content } : el));
+                toast.success("Texto colado no elemento selecionado!");
+              } else {
+                const el = createDefaultElement("text", 100, 100);
+                el.text = content;
+                el.width = Math.min(500, Math.max(200, content.length * 4));
+                el.height = Math.max(40, Math.ceil(content.length / 60) * 20);
+                setCurrentElements(prev => [...prev, el]);
+                setSelectedIds(new Set([el.id]));
+                toast.success("Texto colado como novo elemento!");
+              }
+            } catch { /* clipboard not available, ignore */ }
+          })();
         }
       }
 
