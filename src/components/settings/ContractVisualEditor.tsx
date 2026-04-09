@@ -252,6 +252,18 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const { splitHtmlAtHeight } = useTextSplitter();
   const repeatedPageChrome = buildRepeatedElementFingerprints(pages);
 
+  // Resolve header/footer text placeholders
+  const resolveHeaderFooterText = useCallback((text: string, pageIdx: number) => {
+    if (!text) return "";
+    let resolved = text
+      .replace(/\{\{pagina\}\}/g, String(pageIdx + 1))
+      .replace(/\{\{total_paginas\}\}/g, String(pages.length));
+    if (previewVarsMode) {
+      resolved = replaceVariablesWithSample(resolved);
+    }
+    return resolved;
+  }, [pages.length, previewVarsMode]);
+
   // Derived text formatting
   const fontFamily = selected?.fontFamily || "Arial";
   const fontSize = selected?.fontSize || 14;
