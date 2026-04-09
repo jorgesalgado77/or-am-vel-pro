@@ -406,12 +406,15 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                 height: availableHeight,
                 splitContinuationId: continuationId,
               });
+              // Continuation: use full available width and let it fill next page's flow area
               nextPending.push({
                 ...stripSplitMetadata(candidate),
                 id: continuationId,
                 text: remHtml,
                 y: pageStartY,
-                height: Math.max(40, candidate.height - availableHeight),
+                // Don't pre-set height - will be recalculated on next page
+                width: Math.max(candidate.width, A4_WIDTH - margins.left - margins.right),
+                height: candidate.height,
                 splitFrom: candidate.id,
               });
               cursorY = candidate.y + availableHeight + 10;
