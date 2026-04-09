@@ -27,39 +27,8 @@ import { exportToPdf, exportToDocx, exportToXlsx } from "./contract-editor/expor
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("/pdf.worker.min.mjs", window.location.origin).href;
 
-function hexToRgb(hex: string) {
-  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return m ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) } : null;
-}
 
-function drawText(doc: jsPDF, el: CanvasElement) {
-  if (!el.text) return;
-  const c = hexToRgb(el.color || "#000000");
-  if (c) doc.setTextColor(c.r, c.g, c.b);
-  const fontStyle = el.fontWeight === "bold" && el.fontStyle === "italic" ? "bolditalic"
-    : el.fontWeight === "bold" ? "bold"
-    : el.fontStyle === "italic" ? "italic" : "normal";
-  doc.setFont("helvetica", fontStyle);
-  doc.setFontSize(el.fontSize * 0.75); // px to pt
-  const padding = el.type === "text" ? 0 : 8;
-  const maxW = el.width - padding * 2;
-  const lines = doc.splitTextToSize(el.text, maxW);
-  const lineH = el.fontSize * 0.85;
-  const totalH = lines.length * lineH;
-  let startY: number;
-  if (el.type === "text") {
-    startY = el.y + el.fontSize * 0.75;
-  } else {
-    startY = el.y + (el.height - totalH) / 2 + el.fontSize * 0.75;
-  }
-  const align = el.textAlign || "left";
-  for (let i = 0; i < lines.length; i++) {
-    let lx = el.x + padding;
-    if (align === "center") lx = el.x + el.width / 2;
-    else if (align === "right") lx = el.x + el.width - padding;
-    doc.text(lines[i], lx, startY + i * lineH, { align: align as any });
-  }
-}
+
 
 export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVisualEditorProps) {
   const { tenantId } = useTenant();
