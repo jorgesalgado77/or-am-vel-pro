@@ -582,7 +582,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       let html = `<div class="contract-page" data-page="${pageIdx}" style="position:relative;width:${A4_WIDTH}px;min-height:${A4_HEIGHT}px;background:#fff;margin:0 auto;padding:0;box-sizing:border-box;${bgStyle}${pageIdx > 0 ? 'page-break-before:always;' : ''}">`;
 
       for (const el of sortedEls) {
-        const baseStyle = `position:absolute;left:${el.x}px;top:${el.y}px;width:${el.width}px;height:${el.height}px;z-index:${el.zIndex};`;
+        const rotateStyle = el.rotation ? `transform:rotate(${el.rotation}deg);transform-origin:center center;` : "";
+        const baseStyle = `position:absolute;left:${el.x}px;top:${el.y}px;width:${el.width}px;height:${el.height}px;z-index:${el.zIndex};${rotateStyle}`;
         switch (el.type) {
           case "rect":
             html += `<div style="${baseStyle}background:${el.fill};border:${el.strokeWidth}px solid ${el.stroke};border-radius:${el.borderRadius}px;box-sizing:border-box;">`;
