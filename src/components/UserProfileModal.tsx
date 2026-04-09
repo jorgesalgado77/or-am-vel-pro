@@ -418,9 +418,9 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] p-0 flex flex-col">
-        <DialogHeader className="p-6 pb-0 shrink-0">
-          <DialogTitle className="text-xl">Meu Perfil</DialogTitle>
+      <DialogContent className="w-[95vw] max-w-2xl h-[100dvh] sm:h-auto sm:max-h-[90vh] p-0 flex flex-col rounded-none sm:rounded-lg">
+        <DialogHeader className="p-4 sm:p-6 pb-0 shrink-0">
+          <DialogTitle className="text-lg sm:text-xl">Meu Perfil</DialogTitle>
           <div className="flex items-center gap-3 mt-2">
             <Progress value={progressPercent} className="h-2 flex-1" />
             <span className={cn(
@@ -434,22 +434,22 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
             {progressPercent === 100 ? "✅ Perfil completo!" : `${filledCount} de ${profileFields.length} campos preenchidos`}
           </p>
         </DialogHeader>
-        <ScrollArea className="flex-1 min-h-0">
-          <div className="p-6 pt-4 space-y-6">
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="p-4 sm:p-6 pt-4 space-y-5 sm:space-y-6">
             {/* Photo + Cargo */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
               <div className="relative group">
-                <Avatar className="h-20 w-20">
+                <Avatar className="h-16 w-16 sm:h-20 sm:w-20">
                   {fotoUrl ? <AvatarImage src={fotoUrl} alt={form.nome_completo} /> : null}
-                  <AvatarFallback className="text-lg bg-primary/10 text-primary font-semibold">{initials}</AvatarFallback>
+                  <AvatarFallback className="text-base sm:text-lg bg-primary/10 text-primary font-semibold">{initials}</AvatarFallback>
                 </Avatar>
                 <label className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                   <Upload className="h-5 w-5 text-white" />
                   <input type="file" accept="image/*" className="hidden" onChange={handleUploadPhoto} disabled={uploading} />
                 </label>
               </div>
-              <div>
-                <p className="font-semibold text-foreground text-lg">{form.nome_completo || "Usuário"}</p>
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-foreground text-base sm:text-lg truncate">{form.nome_completo || "Usuário"}</p>
                 {user?.cargo_nome && (
                   <Badge variant="secondary" className="mt-1">{user.cargo_nome}</Badge>
                 )}
@@ -462,7 +462,7 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
             {/* Personal Data */}
             <div>
               <h3 className="text-sm font-semibold text-foreground mb-3">Dados Pessoais</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                 <div>
                   <Label>Nome Completo *</Label>
                   <Input value={form.nome_completo} onChange={(e) => handleChange("nome_completo", e.target.value)} className={cn("mt-1", invalidClass("nome_completo"))} />
@@ -516,7 +516,7 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
             {/* Address */}
             <div>
               <h3 className="text-sm font-semibold text-foreground mb-3">Endereço</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
                 <div className="flex gap-2 items-end">
                   <div className="flex-1">
                     <Label>CEP</Label>
@@ -524,7 +524,7 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
                   </div>
                   <Button variant="outline" size="sm" onClick={buscarCep} className="mb-0">Buscar</Button>
                 </div>
-                <div className="md:col-span-2">
+                <div className="sm:col-span-2">
                   <Label>Endereço</Label>
                   <Input value={form.endereco} onChange={(e) => handleChange("endereco", e.target.value)} className="mt-1" />
                 </div>
@@ -563,7 +563,7 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
             {/* Social Media */}
             <div>
               <h3 className="text-sm font-semibold text-foreground mb-3">Redes Sociais</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                 <div>
                   <Label className="flex items-center gap-2"><Facebook className="h-4 w-4 text-blue-600" /> Facebook</Label>
                   <Input value={form.facebook} onChange={(e) => handleChange("facebook", e.target.value)} className="mt-1" placeholder="https://facebook.com/seu-perfil" />
@@ -589,10 +589,10 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
                 <Palette className="h-4 w-4 text-primary" />
                 Tema de Cores
               </h3>
-              <div className="flex gap-4">
+              <div className="flex flex-col sm:flex-row gap-4">
                 {/* Theme grid */}
                 <div className="flex-1">
-                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
                     {COLOR_THEMES.map((theme) => (
                       <button
                         key={theme.id}
@@ -647,7 +647,9 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
                   </div>
                 </div>
                 {/* Mini sidebar preview */}
-                <SidebarPreview themeId={previewTheme || selectedTheme} />
+                <div className="hidden sm:block">
+                  <SidebarPreview themeId={previewTheme || selectedTheme} />
+                </div>
               </div>
             </div>
 
@@ -660,7 +662,7 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
                 {showPasswordSection ? "Ocultar alteração de senha" : "Alterar senha"}
               </Button>
               {showPasswordSection && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-3">
                   <div>
                     <Label>Nova Senha</Label>
                     <div className="relative mt-1">
@@ -692,11 +694,11 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
               )}
             </div>
           </div>
-        </ScrollArea>
+        </div>
 
         {/* Save - fixed at bottom */}
-        <div className="flex justify-end p-4 pt-3 pb-4 border-t border-border shrink-0">
-          <Button onClick={handleSave} disabled={saving || !form.nome_completo} className="gap-2 px-8">
+        <div className="flex justify-end p-3 sm:p-4 border-t border-border shrink-0">
+          <Button onClick={handleSave} disabled={saving || !form.nome_completo} className="gap-2 px-6 sm:px-8 w-full sm:w-auto">
             <Save className="h-4 w-4" />
             {saving ? "Salvando..." : "Salvar Perfil"}
           </Button>
