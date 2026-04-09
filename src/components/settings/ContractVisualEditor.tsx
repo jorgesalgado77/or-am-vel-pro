@@ -1015,12 +1015,18 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         const dx = (e.clientX - dragState.startX) / zoom;
         const dy = (e.clientY - dragState.startY) / zoom;
         const GUIDE_SNAP = 6;
+
+        // Detect which page the mouse is over for cross-page drag
+        const scrollContainer = document.querySelector('[data-pages-scroll]');
+        const pageGap = 40;
+
         setCurrentElements(prev => {
           const updated = prev.map(el => {
             const origin = dragState.origins[el.id];
             if (!origin) return el;
-            const cp = clampToMargins(el, origin.x + dx, origin.y + dy);
-            let sx = cp.x, sy = cp.y;
+            // Free positioning - only snap to grid, no margin clamping
+            let sx = snapToGrid(origin.x + dx);
+            let sy = snapToGrid(origin.y + dy);
             // Snap to user guides
             for (const g of userGuides) {
               if (g.axis === "x") {
