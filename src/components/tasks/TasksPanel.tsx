@@ -165,7 +165,7 @@ export function TasksPanel({ tenantId, userId, userName, cargoNome }: Props) {
   };
 
   const handleArchive = async (task: Task) => {
-    await updateTaskStatus(task.id, "arquivada" as any);
+    await updateTaskStatus(task.id, "arquivada");
     toast.success("Tarefa arquivada!");
   };
 
@@ -222,7 +222,7 @@ export function TasksPanel({ tenantId, userId, userName, cargoNome }: Props) {
         </div>
       ) : view === "kanban" ? (
         <TaskKanbanBoard
-          tasks={filteredTasks.filter(t => t.status !== ("arquivada" as any))}
+          tasks={filteredTasks.filter(t => t.status !== "arquivada")}
           onStatusChange={updateTaskStatus}
           onTaskClick={handleTaskClick}
           onTaskDelete={handleDelete}

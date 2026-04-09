@@ -37,7 +37,7 @@ export function ArchivedTasksList({ tasks, onTaskClick, onRestore }: Props) {
 
   const filteredTasks = useMemo(() => {
     const now = new Date();
-    let filtered = tasks.filter(t => t.status === "arquivada" as any);
+    let filtered = tasks.filter(t => t.status === "arquivada");
 
     // Search by title
     if (search.trim()) {
@@ -77,7 +77,8 @@ export function ArchivedTasksList({ tasks, onTaskClick, onRestore }: Props) {
     }
 
     filtered = filtered.filter(t => {
-      const d = new Date(t.data_tarefa + "T12:00:00");
+      // Use updated_at (archive date) if available, fallback to data_tarefa
+      const d = t.updated_at ? new Date(t.updated_at) : new Date(t.data_tarefa + "T12:00:00");
       return d >= start && d <= end;
     });
 
