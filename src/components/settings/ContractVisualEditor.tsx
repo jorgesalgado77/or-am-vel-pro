@@ -27,6 +27,7 @@ import { useTextSplitter } from "./contract-editor/useTextSplitter";
 import { buildRepeatedElementFingerprints, createContinuationPageFromTemplate, getPageFlowBounds, isLikelyPageChrome, stripSplitMetadata } from "./contract-editor/pagination";
 import { EditorPropertiesPanel } from "./contract-editor/EditorPropertiesPanel";
 import { exportToPdf, exportToDocx, exportToXlsx } from "./contract-editor/exportHelpers";
+import { HeaderFooterConfig, defaultHeaderSettings, defaultFooterSettings, type HeaderFooterSettings } from "./contract-editor/HeaderFooterConfig";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("/pdf.worker.min.mjs", window.location.origin).href;
 
@@ -42,6 +43,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [activeTool, setActiveTool] = useState<ToolType>("select");
   const [activeShapeType, setActiveShapeType] = useState<ShapeType>("rect");
   const [margins, setMargins] = useState({ top: 40, right: 40, bottom: 40, left: 40 });
+  const [headerSettings, setHeaderSettings] = useState<HeaderFooterSettings>(defaultHeaderSettings);
+  const [footerSettings, setFooterSettings] = useState<HeaderFooterSettings>(defaultFooterSettings);
   const [zoom, setZoom] = useState(0.75);
   const [dragState, setDragState] = useState<{ ids: string[]; startX: number; startY: number; origins: Record<string, { x: number; y: number }> } | null>(null);
   const [resizeState, setResizeState] = useState<{ id: string; startX: number; startY: number; startW: number; startH: number; corner: string; startElX: number; startElY: number } | null>(null);
@@ -248,6 +251,18 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
   const { splitHtmlAtHeight } = useTextSplitter();
   const repeatedPageChrome = buildRepeatedElementFingerprints(pages);
+
+  // Resolve header/footer text placeholders
+  const resolveHeaderFooterText = useCallback((text: string, pageIdx: number) => {
+    if (!text) return "";
+    let resolved = text
+      .replace(/\{\{pagina\}\}/g, String(pageIdx + 1))
+      .replace(/\{\{total_paginas\}\}/g, String(pages.length));
+    if (previewVarsMode) {
+      resolved = replaceVariablesWithSample(resolved);
+    }
+    return resolved;
+  }, [pages.length, previewVarsMode]);
 
   // Derived text formatting
   const fontFamily = selected?.fontFamily || "Arial";
@@ -2155,6 +2170,13 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             <Button variant="outline" size="sm" className="h-6 text-[10px] flex-1" onClick={() => setMargins({ top: 0, right: 0, bottom: 0, left: 0 })}>Nenhuma</Button>
           </div>
         </div>
+
+        {/* Header & Footer config */}
+        <div className="h-px bg-border" />
+        <h3 className="font-semibold text-sm text-foreground">Cabeçalho & Rodapé</h3>
+        <p className="text-[10px] text-muted-foreground">Repetidos automaticamente em todas as páginas. Use {"{{pagina}}"}, {"{{total_paginas}}"}, {"{{nome_cliente}}"} etc.</p>
+        <HeaderFooterConfig label="Cabeçalho" settings={headerSettings} onChange={setHeaderSettings} />
+        <HeaderFooterConfig label="Rodapé" settings={footerSettings} onChange={setFooterSettings} />
       </div>
     );
   };
@@ -3493,20 +3515,56 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                             </div>
                           </div>
                         ))}
-                        {/* Page footer: client name + page number */}
-                        <div style={{
-                          position: "absolute", bottom: Math.max(8, margins.bottom - 20), left: Math.max(12, margins.left), right: Math.max(12, margins.right),
-                          display: "flex", justifyContent: "space-between", alignItems: "center",
-                          fontSize: 10, color: "hsl(var(--muted-foreground))", fontFamily: "Arial, sans-serif",
-                          pointerEvents: "none", zIndex: 3, userSelect: "none",
-                        }}>
-                          <span style={{ background: "hsl(var(--background) / 0.8)", padding: "1px 6px", borderRadius: 3 }}>
-                            {previewVarsMode ? "Maria Fernanda da Silva" : "{{nome_cliente}}"}
-                          </span>
-                          <span style={{ background: "hsl(var(--background) / 0.8)", padding: "1px 6px", borderRadius: 3 }}>
-                            Página {pageIdx + 1}/{pages.length}
-                          </span>
-                        </div>
+                        {/* Configurable Header */}
+                        {headerSettings.enabled && (
+                          <div style={{
+                            position: "absolute", top: Math.max(4, margins.top - headerSettings.height - 4),
+                            left: Math.max(8, margins.left), right: Math.max(8, margins.right),
+                            height: headerSettings.height,
+                            display: "flex", justifyContent: "space-between", alignItems: "center",
+                            fontSize: headerSettings.fontSize, color: headerSettings.color,
+                            fontFamily: headerSettings.fontFamily,
+                            background: headerSettings.backgroundColor,
+                            pointerEvents: "none", zIndex: 3, userSelect: "none",
+                            borderBottom: headerSettings.showLine ? `1px solid ${headerSettings.lineColor}` : "none",
+                            paddingBottom: 4,
+                          }}>
+                            <span style={{ flex: 1, textAlign: "left" }}>
+                              {resolveHeaderFooterText(headerSettings.leftText, pageIdx)}
+                            </span>
+                            <span style={{ flex: 1, textAlign: "center" }}>
+                              {resolveHeaderFooterText(headerSettings.centerText, pageIdx)}
+                            </span>
+                            <span style={{ flex: 1, textAlign: "right" }}>
+                              {resolveHeaderFooterText(headerSettings.rightText, pageIdx)}
+                            </span>
+                          </div>
+                        )}
+                        {/* Configurable Footer */}
+                        {footerSettings.enabled && (
+                          <div style={{
+                            position: "absolute", bottom: Math.max(4, margins.bottom - footerSettings.height - 4),
+                            left: Math.max(8, margins.left), right: Math.max(8, margins.right),
+                            height: footerSettings.height,
+                            display: "flex", justifyContent: "space-between", alignItems: "center",
+                            fontSize: footerSettings.fontSize, color: footerSettings.color,
+                            fontFamily: footerSettings.fontFamily,
+                            background: footerSettings.backgroundColor,
+                            pointerEvents: "none", zIndex: 3, userSelect: "none",
+                            borderTop: footerSettings.showLine ? `1px solid ${footerSettings.lineColor}` : "none",
+                            paddingTop: 4,
+                          }}>
+                            <span style={{ flex: 1, textAlign: "left" }}>
+                              {resolveHeaderFooterText(footerSettings.leftText, pageIdx)}
+                            </span>
+                            <span style={{ flex: 1, textAlign: "center" }}>
+                              {resolveHeaderFooterText(footerSettings.centerText, pageIdx)}
+                            </span>
+                            <span style={{ flex: 1, textAlign: "right" }}>
+                              {resolveHeaderFooterText(footerSettings.rightText, pageIdx)}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Context menu - only on active page */}
