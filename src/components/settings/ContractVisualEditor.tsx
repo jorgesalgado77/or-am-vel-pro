@@ -1614,9 +1614,6 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         <input ref={jsonInputRef} type="file" accept=".json" className="hidden" onChange={handleImportTemplatesJson} />
         <h2 className="text-xl font-bold text-foreground mb-2">Escolha um modelo para começar</h2>
         <p className="text-muted-foreground text-sm mb-6">Selecione um template pré-pronto, um salvo, ou comece do zero</p>
-        <input ref={jsonInputRef} type="file" accept=".json" className="hidden" onChange={handleImportTemplatesJson} />
-        <h2 className="text-xl font-bold text-foreground mb-2">Escolha um modelo para começar</h2>
-        <p className="text-muted-foreground text-sm mb-6">Selecione um template pré-pronto, um salvo, ou comece do zero</p>
 
         {/* Pre-built templates */}
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Modelos Pré-prontos</h3>
