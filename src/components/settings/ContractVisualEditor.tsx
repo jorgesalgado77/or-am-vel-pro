@@ -1643,10 +1643,24 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
     // Auto-resize: delegates to shared reflowElements
     const autoResizeElement = (elId: string, textEl: HTMLElement, changedElUpdates?: Partial<CanvasElement>) => {
-      const scrollH = textEl.scrollHeight;
       const currentEl = elements.find(e => e.id === elId);
       if (!currentEl) return;
-      const newHeight = Math.max(currentEl.height, scrollH + 4);
+
+      const nextHtml = (changedElUpdates?.text as string | undefined) ?? textEl.innerHTML;
+      const isFixedSectionText = !!currentPage && isGeneralConditionsElement({ ...currentEl, text: nextHtml }, currentPage);
+      const measuredHtmlHeight = measureHtmlHeight(nextHtml, currentEl.width, {
+        fontFamily: currentEl.fontFamily,
+        fontSize: currentEl.fontSize,
+        fontWeight: currentEl.fontWeight,
+        fontStyle: currentEl.fontStyle,
+        textAlign: currentEl.textAlign,
+        lineHeight: 1.4,
+      });
+      const visualScrollHeight = textEl.scrollHeight;
+      const newHeight = isFixedSectionText
+        ? Math.max(currentEl.height, measuredHtmlHeight + 4)
+        : Math.max(currentEl.height, visualScrollHeight, measuredHtmlHeight + 4);
+
       reflowElements(elId, newHeight, changedElUpdates);
     };
 
