@@ -1977,12 +1977,117 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                   id: `rule_${Date.now()}`, type: "greater", value1: "5000",
                   bgColor: "#dbeafe", textColor: "#1e40af", bold: false,
                 }]);
+                setActivePresetId(null);
               }}>+ Regra</Button>
+              <Button variant="outline" size="sm" className="h-6 text-[10px]" onClick={() => setShowSavePreset(!showSavePreset)}>
+                <BookmarkPlus className="h-3 w-3 mr-0.5" /> Salvar Preset
+              </Button>
               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowConditionalPanel(false)}>
                 <X className="h-3 w-3" />
               </Button>
             </div>
           </div>
+
+          {/* Preset selector */}
+          <div className="flex flex-wrap gap-1.5">
+            {allPresets.map(preset => (
+              <button
+                key={preset.id}
+                onClick={() => {
+                  setConditionalRules(preset.rules.map(r => ({ ...r, id: `${r.id}_${Date.now()}` })));
+                  setActivePresetId(preset.id);
+                }}
+                className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] border transition-colors ${
+                  activePresetId === preset.id
+                    ? "border-primary bg-primary/10 text-primary font-semibold"
+                    : "border-border bg-muted/30 text-foreground hover:bg-muted/60"
+                }`}
+              >
+                <span>{preset.icon}</span>
+                <span>{preset.name}</span>
+                {!preset.builtIn && (
+                  <span
+                    onClick={e => {
+                      e.stopPropagation();
+                      const updated = customPresets.filter(p => p.id !== preset.id);
+                      setCustomPresets(updated);
+                      saveCustomPresets(updated);
+                      if (activePresetId === preset.id) setActivePresetId(null);
+                      toast.success(`Preset "${preset.name}" removido`);
+                    }}
+                    className="ml-0.5 text-destructive hover:text-destructive/80 cursor-pointer"
+                    title="Remover preset"
+                  >✕</span>
+                )}
+              </button>
+            ))}
+            <button
+              onClick={() => {
+                setConditionalRules([]);
+                setActivePresetId(null);
+              }}
+              className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] border transition-colors ${
+                activePresetId === null && conditionalRules.length === 0
+                  ? "border-muted-foreground bg-muted/40 text-muted-foreground font-semibold"
+                  : "border-border bg-muted/30 text-muted-foreground hover:bg-muted/60"
+              }`}
+            >
+              🚫 Nenhuma
+            </button>
+          </div>
+
+          {/* Save preset form */}
+          {showSavePreset && (
+            <div className="flex items-center gap-2 bg-muted/30 rounded p-2">
+              <input
+                type="text" value={savePresetName}
+                onChange={e => setSavePresetName(e.target.value)}
+                placeholder="Nome do preset..."
+                className="flex-1 rounded border border-border bg-background px-2 py-1 text-xs"
+                autoFocus
+                onKeyDown={e => {
+                  if (e.key === "Enter" && savePresetName.trim()) {
+                    const newPreset: ConditionalPreset = {
+                      id: `custom_${Date.now()}`,
+                      name: savePresetName.trim(),
+                      icon: "⭐",
+                      rules: conditionalRules.map(r => ({ ...r })),
+                    };
+                    const updated = [...customPresets, newPreset];
+                    setCustomPresets(updated);
+                    saveCustomPresets(updated);
+                    setActivePresetId(newPreset.id);
+                    setSavePresetName("");
+                    setShowSavePreset(false);
+                    toast.success(`Preset "${newPreset.name}" salvo!`);
+                  }
+                }}
+              />
+              <Button variant="default" size="sm" className="h-7 text-[10px]" disabled={!savePresetName.trim()} onClick={() => {
+                if (!savePresetName.trim()) return;
+                const newPreset: ConditionalPreset = {
+                  id: `custom_${Date.now()}`,
+                  name: savePresetName.trim(),
+                  icon: "⭐",
+                  rules: conditionalRules.map(r => ({ ...r })),
+                };
+                const updated = [...customPresets, newPreset];
+                setCustomPresets(updated);
+                saveCustomPresets(updated);
+                setActivePresetId(newPreset.id);
+                setSavePresetName("");
+                setShowSavePreset(false);
+                toast.success(`Preset "${newPreset.name}" salvo!`);
+              }}>
+                <Save className="h-3 w-3 mr-0.5" /> Salvar
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setShowSavePreset(false); setSavePresetName(""); }}>
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
+
+          {/* Rules list */}
           <div className="space-y-1.5 max-h-[160px] overflow-y-auto">
             {conditionalRules.map((rule, idx) => (
               <div key={rule.id} className="flex items-center gap-2 text-[11px] bg-muted/30 rounded px-2 py-1.5">
@@ -1992,6 +2097,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                     const updated = [...conditionalRules];
                     updated[idx] = { ...rule, type: e.target.value as ConditionalRule["type"] };
                     setConditionalRules(updated);
+                    setActivePresetId(null);
                   }}
                   className="rounded border border-border bg-background px-1.5 py-0.5 text-[11px] w-24"
                 >
@@ -2011,6 +2117,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                       const updated = [...conditionalRules];
                       updated[idx] = { ...rule, value1: e.target.value };
                       setConditionalRules(updated);
+                      setActivePresetId(null);
                     }}
                     className="w-20 rounded border border-border bg-background px-1.5 py-0.5 text-[11px]"
                     placeholder="Valor"
@@ -2025,6 +2132,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                         const updated = [...conditionalRules];
                         updated[idx] = { ...rule, value2: e.target.value };
                         setConditionalRules(updated);
+                        setActivePresetId(null);
                       }}
                       className="w-20 rounded border border-border bg-background px-1.5 py-0.5 text-[11px]"
                       placeholder="Valor 2"
@@ -2037,23 +2145,27 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                     const updated = [...conditionalRules];
                     updated[idx] = { ...rule, bgColor: e.target.value };
                     setConditionalRules(updated);
+                    setActivePresetId(null);
                   }} className="h-5 w-5 cursor-pointer rounded border border-border" />
                   <label className="text-[10px] text-muted-foreground">Texto</label>
                   <input type="color" value={rule.textColor} onChange={e => {
                     const updated = [...conditionalRules];
                     updated[idx] = { ...rule, textColor: e.target.value };
                     setConditionalRules(updated);
+                    setActivePresetId(null);
                   }} className="h-5 w-5 cursor-pointer rounded border border-border" />
                   <label className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
                     <input type="checkbox" checked={rule.bold || false} onChange={e => {
                       const updated = [...conditionalRules];
                       updated[idx] = { ...rule, bold: e.target.checked };
                       setConditionalRules(updated);
+                      setActivePresetId(null);
                     }} className="h-3 w-3" />
                     <strong>N</strong>
                   </label>
                   <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => {
                     setConditionalRules(prev => prev.filter(r => r.id !== rule.id));
+                    setActivePresetId(null);
                   }}>
                     <Trash2 className="h-3 w-3 text-destructive" />
                   </Button>
@@ -2061,7 +2173,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
               </div>
             ))}
             {conditionalRules.length === 0 && (
-              <p className="text-[11px] text-muted-foreground text-center py-2">Nenhuma regra. Clique em "+ Regra" para adicionar.</p>
+              <p className="text-[11px] text-muted-foreground text-center py-2">Nenhuma regra ativa. Selecione um preset ou adicione regras.</p>
             )}
           </div>
         </div>
