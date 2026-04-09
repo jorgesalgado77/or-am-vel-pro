@@ -92,7 +92,7 @@ export const ContractLayersPanel = forwardRef<HTMLDivElement, ContractLayersPane
   };
 
   return (
-    <div className="space-y-1">
+    <div ref={ref} className="space-y-1">
       <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1">
         Camadas ({elements.length})
       </h4>
