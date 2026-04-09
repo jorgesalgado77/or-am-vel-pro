@@ -9,9 +9,10 @@ interface Props {
   onStatusChange: (taskId: string, status: TaskStatus) => void;
   onTaskClick: (task: Task) => void;
   onTaskDelete: (task: Task) => void;
+  onTaskArchive?: (task: Task) => void;
 }
 
-export function TaskKanbanBoard({ tasks, onStatusChange, onTaskClick, onTaskDelete }: Props) {
+export function TaskKanbanBoard({ tasks, onStatusChange, onTaskClick, onTaskDelete, onTaskArchive }: Props) {
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
     const newStatus = result.destination.droppableId as TaskStatus;
@@ -47,7 +48,7 @@ export function TaskKanbanBoard({ tasks, onStatusChange, onTaskClick, onTaskDele
                     )}
                   >
                     {colTasks.map((task, idx) => (
-                      <TaskCard key={task.id} task={task} index={idx} onClick={onTaskClick} onDelete={onTaskDelete} />
+                      <TaskCard key={task.id} task={task} index={idx} onClick={onTaskClick} onDelete={onTaskDelete} onArchive={onTaskArchive} />
                     ))}
                     {provided.placeholder}
                     {colTasks.length === 0 && (
