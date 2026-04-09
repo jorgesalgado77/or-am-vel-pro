@@ -296,6 +296,8 @@ export function buildContractHtml(templateHtml: string, data: ContractData): str
   } else {
     replacements["{{telefones_uteis}}"] = "";
   }
+
+  let html = templateHtml;
   Object.entries(replacements).forEach(([key, val]) => {
     html = html.split(key).join(val);
   });
