@@ -1095,7 +1095,7 @@ export function ProductCatalog() {
       {promoProduct && (
         <ProductPromotionModal
           open={promoOpen}
-          onOpenChange={setPromoOpen}
+          onOpenChange={(v) => { setPromoOpen(v); if (!v) loadPromotions(); }}
           productId={promoProduct.id}
           productName={promoProduct.name}
           currentPrice={promoProduct.sale_price}
