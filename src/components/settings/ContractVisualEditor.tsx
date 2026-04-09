@@ -1087,7 +1087,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
     return () => { window.removeEventListener("mousemove", handleMouseMove); window.removeEventListener("mouseup", handleMouseUp); };
-  }, [dragState, resizeState, rotateState, zoom, clampToMargins, computeSmartGuides, setCurrentElements]);
+  }, [dragState, resizeState, rotateState, draggingGuide, userGuides, zoom, clampToMargins, computeSmartGuides, setCurrentElements]);
 
   useEffect(() => {
     if (!contextMenu) return;
