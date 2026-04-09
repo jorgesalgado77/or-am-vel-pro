@@ -729,6 +729,15 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
     if (activeTool !== "select") return;
     e.stopPropagation();
+
+    // If text element is already selected, enter edit mode on single click
+    if ((el.type === "text" || el.type === "rect" || el.type === "circle") && selectedIds.has(el.id) && editingTextId !== el.id) {
+      setEditingTextId(el.id);
+      return;
+    }
+    // If already editing this element, don't start drag
+    if (editingTextId === el.id) return;
+
     setEditingTextId(null);
 
     // Ctrl+click (or Cmd on Mac): toggle multi-select
@@ -1304,20 +1313,125 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       if (el.type === "text" || el.type === "rect" || el.type === "circle") setEditingTextId(el.id);
     };
 
+    // Auto-resize helper
+    const autoResizeElement = (elId: string, textEl: HTMLElement) => {
+      const scrollH = textEl.scrollHeight;
+      const currentEl = elements.find(e => e.id === elId);
+      if (currentEl && scrollH > currentEl.height) {
+        // Check if overflows page - if so, we may need a new page
+        const newHeight = Math.max(currentEl.height, scrollH + 4);
+        const overflowsPage = currentEl.y + newHeight > A4_HEIGHT;
+        setCurrentElements(prev => prev.map(p => p.id === elId ? { ...p, height: newHeight } : p));
+        if (overflowsPage && currentEl.y + newHeight > A4_HEIGHT + 50) {
+          // Auto-create continuation on next page
+          const remainingH = (currentEl.y + newHeight) - A4_HEIGHT;
+          if (remainingH > 30) {
+            toast.info("Texto ultrapassa a página. Considere adicionar uma nova página.", { id: "overflow-hint" });
+          }
+        }
+      }
+    };
+
+    const handleConvertToVariable = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+        toast.error("Selecione um texto para converter em variável");
+        return;
+      }
+      const selectedText = sel.toString().trim();
+      if (!selectedText) return;
+      const varName = selectedText.replace(/\s+/g, "_").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const currentText = el.text;
+      const newText = currentText.replace(selectedText, `{{${varName}}}`);
+      setCurrentElements(prev => prev.map(p => p.id === el.id ? { ...p, text: newText } : p));
+      toast.success(`"${selectedText}" → {{${varName}}}`);
+    };
+
     const textContent = isEditing ? (
-      <textarea
-        autoFocus value={el.text}
-        onChange={(e) => setCurrentElements(prev => prev.map(p => p.id === el.id ? { ...p, text: e.target.value } : p))}
-        onBlur={() => setEditingTextId(null)}
-        style={{
-          width: "100%", height: "100%", resize: "none", border: "none", outline: "none",
-          background: "transparent", fontFamily: el.fontFamily, fontSize: el.fontSize,
-          fontWeight: el.fontWeight as any, fontStyle: el.fontStyle,
-          textDecoration: el.textDecoration, color: el.color, textAlign: el.textAlign as any,
-          padding: el.type === "text" ? 0 : 8, boxSizing: "border-box",
-        }}
-        onClick={e => e.stopPropagation()}
-      />
+      <div style={{ position: "relative", width: "100%", minHeight: "100%" }}>
+        {/* Floating toolbar for text editing */}
+        <div
+          style={{
+            position: "absolute", top: -36, left: 0, zIndex: 99999,
+            display: "flex", gap: 4, background: "hsl(var(--popover))",
+            border: "1px solid hsl(var(--border))", borderRadius: 6,
+            padding: "3px 6px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            whiteSpace: "nowrap",
+          }}
+          onClick={e => e.stopPropagation()}
+          onMouseDown={e => e.stopPropagation()}
+        >
+          <button
+            onClick={handleConvertToVariable}
+            style={{
+              fontSize: 10, padding: "2px 8px", borderRadius: 4,
+              background: "hsl(var(--primary) / 0.1)", color: "hsl(var(--primary))",
+              border: "1px solid hsl(var(--primary) / 0.3)", cursor: "pointer",
+              fontWeight: 600, display: "flex", alignItems: "center", gap: 3,
+            }}
+            title="Selecione um texto e clique para converter em variável {{...}}"
+          >
+            {"{{ }}"} Variável
+          </button>
+          <button
+            onClick={() => {
+              // Insert variable from list via prompt
+              const varName = prompt("Nome da variável (sem {{ }}):"); 
+              if (varName) {
+                const current = el.text;
+                setCurrentElements(prev => prev.map(p => p.id === el.id ? { ...p, text: current + `{{${varName.trim()}}}` } : p));
+              }
+            }}
+            style={{
+              fontSize: 10, padding: "2px 8px", borderRadius: 4,
+              background: "hsl(var(--muted))", color: "hsl(var(--foreground))",
+              border: "1px solid hsl(var(--border))", cursor: "pointer",
+            }}
+            title="Inserir variável no final do texto"
+          >
+            + Inserir Var
+          </button>
+        </div>
+        <div
+          contentEditable
+          suppressContentEditableWarning
+          ref={(ref) => {
+            if (ref && !ref.textContent && el.text) {
+              ref.innerText = el.text;
+            }
+          }}
+          onFocus={(e) => {
+            const target = e.currentTarget;
+            if (target.innerText !== el.text) {
+              target.innerText = el.text;
+            }
+          }}
+          onInput={(e) => {
+            const newText = (e.currentTarget as HTMLElement).innerText;
+            setCurrentElements(prev => prev.map(p => p.id === el.id ? { ...p, text: newText } : p));
+            autoResizeElement(el.id, e.currentTarget as HTMLElement);
+          }}
+          onBlur={() => setEditingTextId(null)}
+          onKeyDown={(e) => {
+            e.stopPropagation(); // Prevent global shortcuts while editing
+            if (e.key === "Escape") {
+              setEditingTextId(null);
+            }
+          }}
+          style={{
+            width: "100%", minHeight: "100%", border: "none", outline: "none",
+            background: "hsl(var(--primary) / 0.03)",
+            fontFamily: el.fontFamily, fontSize: el.fontSize,
+            fontWeight: el.fontWeight as any, fontStyle: el.fontStyle,
+            textDecoration: el.textDecoration, color: el.color, textAlign: el.textAlign as any,
+            padding: el.type === "text" ? 0 : 8, boxSizing: "border-box",
+            whiteSpace: "pre-wrap", wordWrap: "break-word",
+            cursor: "text", lineHeight: 1.4,
+          }}
+          onClick={e => e.stopPropagation()}
+          onMouseDown={e => e.stopPropagation()}
+        />
+      </div>
     ) : (
       <div style={{
         width: "100%", height: "100%", overflow: "hidden",
@@ -1332,11 +1446,10 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       }}>
         {(() => {
           const displayText = previewVarsMode ? replaceVariablesWithSample(el.text) : el.text;
-          // Check if preview replaced a variable with an HTML table
           if (previewVarsMode && displayText && displayText.includes("<table")) {
             return <div dangerouslySetInnerHTML={{ __html: displayText }} style={{ width: "100%", overflow: "hidden" }} />;
           }
-          return displayText || (el.type === "text" ? <span className="text-muted-foreground/40 italic text-xs">Duplo clique para editar</span> : null);
+          return displayText || (el.type === "text" ? <span className="text-muted-foreground/40 italic text-xs">Clique para editar</span> : null);
         })()}
       </div>
     );
