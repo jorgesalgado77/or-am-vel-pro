@@ -401,18 +401,23 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const goToNextPage = () => { if (currentPageIdx < pages.length - 1) { setCurrentPageIdx(currentPageIdx + 1); setSelectedIds(new Set()); } };
 
   // --- Reflow: push elements down and auto-paginate ---
-  const reflowElements = useCallback((changedElId: string, newHeight: number) => {
+  const reflowElements = useCallback((changedElId: string, newHeight: number, changedElUpdates?: Partial<CanvasElement>) => {
     const els = pages[currentPageIdx]?.elements || [];
     const changedEl = els.find(e => e.id === changedElId);
     if (!changedEl) return;
     
     const oldBottom = changedEl.y + changedEl.height;
     const heightDelta = newHeight - changedEl.height;
-    if (heightDelta <= 0) return;
+    if (heightDelta <= 0) {
+      if (changedElUpdates && Object.keys(changedElUpdates).length > 0) {
+        setCurrentElements(prev => prev.map(el => el.id === changedElId ? { ...el, ...changedElUpdates } : el));
+      }
+      return;
+    }
     
     // Update elements: resize changed + push below ones down
     const updated = els.map(el => {
-      if (el.id === changedElId) return { ...el, height: newHeight };
+      if (el.id === changedElId) return { ...el, ...changedElUpdates, height: newHeight };
       if (el.y >= oldBottom - 5) return { ...el, y: el.y + heightDelta };
       return el;
     });
@@ -425,7 +430,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     // Cap changed element if it itself overflows
     const cappedFits = fits.map(el => {
       if (el.id === changedElId && el.y + el.height > pageBottom) {
-        return { ...el, height: Math.max(24, pageBottom - el.y) };
+        return { ...el, ...changedElUpdates, height: Math.max(24, pageBottom - el.y) };
       }
       return el;
     });
@@ -1681,13 +1686,12 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     };
 
     // Auto-resize: delegates to shared reflowElements
-    const autoResizeElement = (elId: string, textEl: HTMLElement) => {
+    const autoResizeElement = (elId: string, textEl: HTMLElement, changedElUpdates?: Partial<CanvasElement>) => {
       const scrollH = textEl.scrollHeight;
       const currentEl = elements.find(e => e.id === elId);
       if (!currentEl) return;
       const newHeight = Math.max(currentEl.height, scrollH + 4);
-      if (newHeight <= currentEl.height) return;
-      reflowElements(elId, newHeight);
+      reflowElements(elId, newHeight, changedElUpdates);
     };
 
     // Rich-text exec command helper
@@ -1740,8 +1744,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       }
       requestAnimationFrame(() => {
         const newText = target.innerHTML;
-        setCurrentElements(prev => prev.map(p => p.id === el.id ? { ...p, text: newText } : p));
-        autoResizeElement(el.id, target);
+        autoResizeElement(el.id, target, { text: newText });
       });
     };
 
@@ -1872,8 +1875,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                   if (target) {
                     requestAnimationFrame(() => {
                       const nt = target.innerHTML;
-                      setCurrentElements(prev => prev.map(p => p.id === el.id ? { ...p, text: nt } : p));
-                      autoResizeElement(el.id, target);
+                      autoResizeElement(el.id, target, { text: nt });
                     });
                   }
                   return;
@@ -1943,8 +1945,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           }}
           onInput={(e) => {
             const newText = (e.currentTarget as HTMLElement).innerHTML;
-            setCurrentElements(prev => prev.map(p => p.id === el.id ? { ...p, text: newText } : p));
-            autoResizeElement(el.id, e.currentTarget as HTMLElement);
+            autoResizeElement(el.id, e.currentTarget as HTMLElement, { text: newText });
           }}
           onPaste={handlePaste}
           onBlur={() => setEditingTextId(null)}
