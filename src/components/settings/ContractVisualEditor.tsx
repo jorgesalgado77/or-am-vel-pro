@@ -2023,6 +2023,29 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
         <div className="flex-1" />
 
+        {/* Preview variables toggle */}
+        <Button
+          variant={previewVarsMode ? "default" : "outline"}
+          size="sm"
+          className="h-8 gap-1.5 text-xs shrink-0"
+          onClick={() => setPreviewVarsMode(!previewVarsMode)}
+          title={previewVarsMode ? "Ocultar dados de exemplo" : "Mostrar dados de exemplo nas variáveis"}
+        >
+          {previewVarsMode ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+          {previewVarsMode ? "Vars: ON" : "Vars: OFF"}
+        </Button>
+
+        {/* Conditional formatting toggle */}
+        <Button
+          variant={showConditionalPanel ? "default" : "outline"}
+          size="sm"
+          className="h-8 gap-1.5 text-xs shrink-0"
+          onClick={() => setShowConditionalPanel(!showConditionalPanel)}
+          title="Formatação condicional das tabelas"
+        >
+          <Palette className="h-4 w-4" /> Format. Cond.
+        </Button>
+
         {/* Ações finais */}
         <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs shrink-0" onClick={() => setShowPreview(true)} title="Visualizar preview do contrato">
           <Eye className="h-4 w-4" /> Preview
