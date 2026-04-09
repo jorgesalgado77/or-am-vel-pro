@@ -1677,6 +1677,9 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           </>
         )}
         <div className="flex-1" />
+        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={() => setShowPreview(true)}>
+          <Eye className="h-3 w-3" /> Preview
+        </Button>
         <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={onCancel}><X className="h-3 w-3" /> Cancelar</Button>
         <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleExportPdf} disabled={exporting}>
           <Download className="h-3 w-3" /> PDF
