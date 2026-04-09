@@ -2183,6 +2183,16 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                     <>
                       <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground" onClick={duplicateSelected}>Duplicar</button>
                       <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-destructive/10 text-destructive" onClick={deleteSelected}>Excluir</button>
+                      {selectedIds.size >= 2 && (
+                        <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground" onClick={groupSelected}>
+                          🔗 Agrupar ({selectedIds.size} itens)
+                        </button>
+                      )}
+                      {hasGroupInSelection && (
+                        <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground" onClick={ungroupSelected}>
+                          ✂️ Desagrupar
+                        </button>
+                      )}
                       <div className="h-px bg-border my-1" />
                     </>
                   )}
