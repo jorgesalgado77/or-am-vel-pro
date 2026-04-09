@@ -302,6 +302,83 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const goToPrevPage = () => { if (currentPageIdx > 0) { setCurrentPageIdx(currentPageIdx - 1); setSelectedIds(new Set()); } };
   const goToNextPage = () => { if (currentPageIdx < pages.length - 1) { setCurrentPageIdx(currentPageIdx + 1); setSelectedIds(new Set()); } };
 
+  // --- Reflow: push elements down and auto-paginate ---
+  const reflowElements = useCallback((changedElId: string, newHeight: number) => {
+    const els = pages[currentPageIdx]?.elements || [];
+    const changedEl = els.find(e => e.id === changedElId);
+    if (!changedEl) return;
+    
+    const oldBottom = changedEl.y + changedEl.height;
+    const heightDelta = newHeight - changedEl.height;
+    if (heightDelta <= 0) return;
+    
+    // Update elements: resize changed + push below ones down
+    const updated = els.map(el => {
+      if (el.id === changedElId) return { ...el, height: newHeight };
+      if (el.y >= oldBottom - 5) return { ...el, y: el.y + heightDelta };
+      return el;
+    });
+    
+    // Split into fits / overflows
+    const fits = updated.filter(el => el.y + el.height <= A4_HEIGHT);
+    const overflows = updated.filter(el => el.y + el.height > A4_HEIGHT);
+    
+    // Cap changed element if it itself overflows
+    const cappedFits = fits.map(el => {
+      if (el.id === changedElId && el.y + el.height > A4_HEIGHT) {
+        return { ...el, height: A4_HEIGHT - el.y - 10 };
+      }
+      return el;
+    });
+    
+    if (overflows.length > 0) {
+      setPages(prev => {
+        const newPages = [...prev];
+        newPages[currentPageIdx] = { ...newPages[currentPageIdx], elements: cappedFits };
+        
+        let nextIdx = currentPageIdx + 1;
+        if (nextIdx >= newPages.length) {
+          newPages.push({ id: pageId(), elements: [], backgroundOpacity: 0.5 });
+        }
+        
+        const existingNextEls = newPages[nextIdx].elements;
+        let nextY = existingNextEls.length > 0
+          ? Math.max(...existingNextEls.map(e => e.y + e.height)) + 10
+          : 30;
+        
+        const movedElements = overflows.map(el => {
+          const moved = { ...el, y: nextY };
+          nextY += el.height + 10;
+          return moved;
+        });
+        
+        const fitsNext = movedElements.filter(e => e.y + e.height <= A4_HEIGHT);
+        const overflowsNext = movedElements.filter(e => e.y + e.height > A4_HEIGHT);
+        
+        newPages[nextIdx] = { ...newPages[nextIdx], elements: [...existingNextEls, ...fitsNext] };
+        
+        if (overflowsNext.length > 0) {
+          let extraIdx = nextIdx + 1;
+          if (extraIdx >= newPages.length) {
+            newPages.push({ id: pageId(), elements: [], backgroundOpacity: 0.5 });
+          }
+          let extraY = 30;
+          const extraMoved = overflowsNext.map(el => {
+            const moved = { ...el, y: extraY };
+            extraY += el.height + 10;
+            return moved;
+          });
+          newPages[extraIdx] = { ...newPages[extraIdx], elements: [...newPages[extraIdx].elements, ...extraMoved] };
+        }
+        
+        toast.info("Elementos reorganizados automaticamente entre páginas.", { id: "auto-reflow" });
+        return newPages;
+      });
+    } else {
+      setCurrentElements(() => updated);
+    }
+  }, [pages, currentPageIdx, setCurrentElements, setPages]);
+
   // --- Element operations ---
   const updateSelected = useCallback((updates: Partial<CanvasElement>) => {
     if (selectedIds.size === 0) return;
@@ -914,7 +991,17 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
               if (!content) return;
               if (selectedIds.size > 0) {
                 const selId = [...selectedIds][0];
+                const selEl = elements.find(e => e.id === selId);
                 setCurrentElements(prev => prev.map(el => el.id === selId ? { ...el, text: el.text + content } : el));
+                // Estimate new height and reflow
+                if (selEl) {
+                  const plainText = (selEl.text + content).replace(/<[^>]*>/g, '');
+                  const lineCount = Math.max(1, Math.ceil(plainText.length / Math.max(1, Math.floor(selEl.width / (selEl.fontSize * 0.6)))));
+                  const estimatedH = lineCount * selEl.fontSize * 1.5 + 10;
+                  if (estimatedH > selEl.height) {
+                    setTimeout(() => reflowElements(selId, estimatedH), 50);
+                  }
+                }
                 toast.success("Texto colado no elemento selecionado!");
               } else {
                 const el = createDefaultElement("text", 100, 100);
@@ -1352,59 +1439,14 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       if (el.type === "text" || el.type === "rect" || el.type === "circle") setEditingTextId(el.id);
     };
 
-    // Auto-resize helper with auto-pagination
+    // Auto-resize: delegates to shared reflowElements
     const autoResizeElement = (elId: string, textEl: HTMLElement) => {
       const scrollH = textEl.scrollHeight;
       const currentEl = elements.find(e => e.id === elId);
       if (!currentEl) return;
-      
-      if (scrollH > currentEl.height) {
-        const newHeight = Math.max(currentEl.height, scrollH + 4);
-        const overflowsPage = currentEl.y + newHeight > A4_HEIGHT;
-        
-        if (overflowsPage && currentEl.y + newHeight > A4_HEIGHT + 20) {
-          // Auto-paginate: keep current element at page height, create overflow on next page
-          const maxH = A4_HEIGHT - currentEl.y - 10;
-          setCurrentElements(prev => prev.map(p => p.id === elId ? { ...p, height: maxH } : p));
-          
-          // Create or find next page and add overflow element
-          const nextPageIdx = currentPageIdx + 1;
-          const overflowText = textEl.innerHTML;
-          
-          setPages(prev => {
-            const newPages = [...prev];
-            // Create next page if needed
-            if (nextPageIdx >= newPages.length) {
-              newPages.push({ id: pageId(), elements: [], backgroundOpacity: 0.5 });
-            }
-            // Check if overflow element already exists on next page
-            const overflowElId = `overflow_${elId}`;
-            const existingOverflow = newPages[nextPageIdx].elements.find(e => e.id === overflowElId);
-            if (!existingOverflow) {
-              const overflowEl = createDefaultElement("text", currentEl.x, 30);
-              overflowEl.id = overflowElId;
-              overflowEl.width = currentEl.width;
-              overflowEl.height = 100;
-              overflowEl.fontFamily = currentEl.fontFamily;
-              overflowEl.fontSize = currentEl.fontSize;
-              overflowEl.fontWeight = currentEl.fontWeight;
-              overflowEl.fontStyle = currentEl.fontStyle;
-              overflowEl.textDecoration = currentEl.textDecoration;
-              overflowEl.color = currentEl.color;
-              overflowEl.textAlign = currentEl.textAlign;
-              overflowEl.text = "(continuação — edite na página anterior)";
-              newPages[nextPageIdx] = {
-                ...newPages[nextPageIdx],
-                elements: [...newPages[nextPageIdx].elements, overflowEl],
-              };
-              toast.info(`Página ${nextPageIdx + 1} criada automaticamente para o texto excedente.`, { id: "auto-page" });
-            }
-            return newPages;
-          });
-        } else {
-          setCurrentElements(prev => prev.map(p => p.id === elId ? { ...p, height: newHeight } : p));
-        }
-      }
+      const newHeight = Math.max(currentEl.height, scrollH + 4);
+      if (newHeight <= currentEl.height) return;
+      reflowElements(elId, newHeight);
     };
 
     // Rich-text exec command helper
@@ -2985,9 +3027,17 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                       if (!content) { toast.info("Área de transferência vazia"); setContextMenu(null); return; }
                       
                       if (selectedIds.size > 0) {
-                        // Paste into selected element
                         const selId = [...selectedIds][0];
+                        const selEl = elements.find(e => e.id === selId);
                         setCurrentElements(prev => prev.map(el => el.id === selId ? { ...el, text: el.text + content } : el));
+                        if (selEl) {
+                          const plainText = (selEl.text + content).replace(/<[^>]*>/g, '');
+                          const lineCount = Math.max(1, Math.ceil(plainText.length / Math.max(1, Math.floor(selEl.width / (selEl.fontSize * 0.6)))));
+                          const estimatedH = lineCount * selEl.fontSize * 1.5 + 10;
+                          if (estimatedH > selEl.height) {
+                            setTimeout(() => reflowElements(selId, estimatedH), 50);
+                          }
+                        }
                         toast.success("Texto colado no elemento selecionado!");
                       } else {
                         // Create new text element at context menu position
