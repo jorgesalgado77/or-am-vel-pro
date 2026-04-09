@@ -23,6 +23,7 @@ import {
 } from "./contract-editor/types";
 import { useEditorHistory } from "./contract-editor/useEditorHistory";
 import { usePasteHelpers } from "./contract-editor/usePasteHelpers";
+import { useTextSplitter } from "./contract-editor/useTextSplitter";
 import { EditorPropertiesPanel } from "./contract-editor/EditorPropertiesPanel";
 import { exportToPdf, exportToDocx, exportToXlsx } from "./contract-editor/exportHelpers";
 
