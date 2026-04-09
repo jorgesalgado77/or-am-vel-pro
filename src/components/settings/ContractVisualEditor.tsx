@@ -470,6 +470,94 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       return;
     }
 
+    const ext = file.name.split(".").pop()?.toLowerCase();
+
+    // Excel import: convert to table elements
+    if (ext === "xlsx" || ext === "xls") {
+      try {
+        setImportingPdf(true);
+        setPdfProgress({ current: 0, total: 0, status: "Lendo planilha Excel..." });
+        const XLSX = await import("xlsx");
+        const arrayBuffer = await file.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: "array" });
+
+        const newPages: PageData[] = [];
+        const totalSheets = workbook.SheetNames.length;
+
+        for (let si = 0; si < totalSheets; si++) {
+          const sheetName = workbook.SheetNames[si];
+          setPdfProgress({ current: si, total: totalSheets, status: `Processando aba "${sheetName}" (${si + 1}/${totalSheets})...` });
+          const sheet = workbook.Sheets[sheetName];
+          const jsonData: string[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" }) as string[][];
+
+          if (jsonData.length === 0) continue;
+
+          // Split into chunks that fit on A4 pages (~30 rows per page)
+          const ROWS_PER_PAGE = 28;
+          const maxCols = Math.max(...jsonData.map(r => r.length), 1);
+          const colWidth = Math.min(Math.floor((A4_WIDTH - 60) / maxCols), 200);
+          const tableWidth = colWidth * maxCols;
+
+          for (let chunk = 0; chunk < jsonData.length; chunk += ROWS_PER_PAGE) {
+            const rowsSlice = jsonData.slice(chunk, chunk + ROWS_PER_PAGE);
+            const rowHeight = 28;
+            const tableHeight = rowsSlice.length * rowHeight;
+
+            // Add sheet name as title on first chunk
+            const titleElements: CanvasElement[] = chunk === 0 ? [{
+              ...createDefaultElement("text", 30, 20),
+              text: sheetName,
+              fontSize: 16,
+              fontWeight: "bold",
+              width: tableWidth,
+              height: 30,
+            }] : [];
+
+            const tableEl: CanvasElement = {
+              ...createDefaultElement("table", 30, chunk === 0 ? 60 : 30),
+              width: tableWidth,
+              height: tableHeight,
+              tableData: rowsSlice.map(r => {
+                const row = r.map(c => String(c ?? ""));
+                while (row.length < maxCols) row.push("");
+                return row;
+              }),
+              tableRows: rowsSlice.length,
+              tableCols: maxCols,
+              fontSize: 10,
+              stroke: "#333333",
+              fill: "#ffffff",
+            };
+
+            newPages.push({
+              id: pageId(),
+              elements: [...titleElements, tableEl],
+              backgroundOpacity: 0.5,
+            });
+          }
+        }
+
+        if (newPages.length === 0) {
+          toast.error("Nenhuma aba com dados encontrada no Excel");
+          return;
+        }
+
+        setPages(prev => {
+          if (prev.length === 1 && prev[0].elements.length === 0 && !prev[0].backgroundImage) return newPages;
+          return [...prev.slice(0, currentPageIdx + 1), ...newPages, ...prev.slice(currentPageIdx + 1)];
+        });
+        setCurrentPageIdx(pages.length === 1 && pages[0].elements.length === 0 ? 0 : currentPageIdx + 1);
+        toast.success(`Excel importado: ${newPages.length} página(s) de ${totalSheets} aba(s)`);
+      } catch (err: any) {
+        console.error("Excel import error:", err);
+        toast.error("Erro ao importar Excel: " + (err?.message || "Verifique o arquivo"));
+      } finally {
+        setImportingPdf(false);
+        setPdfProgress({ current: 0, total: 0, status: "" });
+      }
+      return;
+    }
+
     setPendingPdfFile(file);
     setShowPdfSettings(true);
   };
