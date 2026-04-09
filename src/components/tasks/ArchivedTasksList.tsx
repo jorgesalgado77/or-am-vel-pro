@@ -31,7 +31,7 @@ const DATE_PRESETS: { value: DatePreset; label: string }[] = [
 
 export function ArchivedTasksList({ tasks, onTaskClick, onRestore }: Props) {
   const [search, setSearch] = useState("");
-  const [datePreset, setDatePreset] = useState<DatePreset>("mes_atual");
+  const [datePreset, setDatePreset] = useState<DatePreset>("90_dias");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
 
@@ -82,7 +82,11 @@ export function ArchivedTasksList({ tasks, onTaskClick, onRestore }: Props) {
       return d >= start && d <= end;
     });
 
-    return filtered.sort((a, b) => b.data_tarefa.localeCompare(a.data_tarefa));
+    return filtered.sort((a, b) => {
+      const aDate = a.updated_at || `${a.data_tarefa}T12:00:00`;
+      const bDate = b.updated_at || `${b.data_tarefa}T12:00:00`;
+      return bDate.localeCompare(aDate);
+    });
   }, [tasks, search, datePreset, customStart, customEnd]);
 
   return (
