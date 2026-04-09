@@ -203,6 +203,13 @@ export function getContractTemplates(): ContractTemplate[] {
             makeText(414, 740, 340, 20, "______________________________", { textAlign: "center" }),
             makeText(414, 765, 340, 20, "{{nome_cliente}}", { textAlign: "center", fontSize: 11 }),
             makeText(414, 785, 340, 15, "CPF: {{cpf_cliente}}", { textAlign: "center", fontSize: 9, color: "#6b7280" }),
+
+            // ── Telefones Úteis da Empresa ──
+            makeLine(40, 820, 714),
+            makeText(40, 830, 714, 20, "TELEFONES ÚTEIS", { fontSize: 12, fontWeight: "bold", color: "#0891b2" }),
+            makeLine(40, 848, 714),
+            makeText(40, 855, 714, 18, "{{telefones_uteis}}", { fontSize: 10, color: "#374151" }),
+            makeText(40, 920, 714, 15, "E-mail: {{email_loja}}", { fontSize: 10, color: "#374151" }),
           ],
         },
       ],
