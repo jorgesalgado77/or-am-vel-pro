@@ -43,6 +43,7 @@ interface CanvasElement {
   tableCols?: number;
   tableRows?: number;
   opacity?: number;
+  groupId?: string;
 }
 
 interface PageData {
