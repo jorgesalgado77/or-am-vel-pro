@@ -1158,7 +1158,29 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     return () => { window.removeEventListener("mousemove", handleMouseMove); window.removeEventListener("mouseup", handleMouseUp); };
   }, [dragState, resizeState, rotateState, draggingGuide, userGuides, zoom, clampToMargins, computeSmartGuides, setCurrentElements]);
 
+  // IntersectionObserver to track visible page during scroll
   useEffect(() => {
+    const scrollContainer = document.querySelector('[data-pages-scroll]');
+    if (!scrollContainer) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        let maxRatio = 0;
+        let maxIdx = visiblePageIdx;
+        entries.forEach(entry => {
+          const idx = Number(entry.target.getAttribute('data-page-idx'));
+          if (!isNaN(idx) && entry.intersectionRatio > maxRatio) {
+            maxRatio = entry.intersectionRatio;
+            maxIdx = idx;
+          }
+        });
+        if (maxRatio > 0) setVisiblePageIdx(maxIdx);
+      },
+      { root: scrollContainer, threshold: [0, 0.25, 0.5, 0.75, 1] }
+    );
+    pageRefsMap.current.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [pages.length, visiblePageIdx]);
+
     if (!contextMenu) return;
     const handler = () => setContextMenu(null);
     window.addEventListener("click", handler);
