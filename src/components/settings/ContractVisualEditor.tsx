@@ -1985,7 +1985,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       )}
 
       {/* Main area */}
-      <div className="flex flex-1 min-h-0 overflow-hidden border border-border rounded-b-lg">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Page thumbnails sidebar */}
         <div className="w-24 min-h-0 border-r border-border bg-muted/20 overflow-y-auto p-2 space-y-2">
           {pages.map((page, idx) => (
