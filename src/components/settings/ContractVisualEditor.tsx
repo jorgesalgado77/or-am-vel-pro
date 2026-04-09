@@ -2170,6 +2170,13 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             <Button variant="outline" size="sm" className="h-6 text-[10px] flex-1" onClick={() => setMargins({ top: 0, right: 0, bottom: 0, left: 0 })}>Nenhuma</Button>
           </div>
         </div>
+
+        {/* Header & Footer config */}
+        <div className="h-px bg-border" />
+        <h3 className="font-semibold text-sm text-foreground">Cabeçalho & Rodapé</h3>
+        <p className="text-[10px] text-muted-foreground">Repetidos automaticamente em todas as páginas. Use {"{{pagina}}"}, {"{{total_paginas}}"}, {"{{nome_cliente}}"} etc.</p>
+        <HeaderFooterConfig label="Cabeçalho" settings={headerSettings} onChange={setHeaderSettings} />
+        <HeaderFooterConfig label="Rodapé" settings={footerSettings} onChange={setFooterSettings} />
       </div>
     );
   };
