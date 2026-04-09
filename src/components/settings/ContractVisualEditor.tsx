@@ -285,8 +285,11 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   }, [selectedIds, setCurrentElements]);
 
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
-    // Only handle direct clicks on the canvas (not on elements)
-    if (e.target !== canvasRef.current && e.target !== canvasRef.current?.querySelector(':scope > div')) return;
+    // Only deselect if clicking directly on canvas background, not on elements
+    const target = e.target as HTMLElement;
+    const isCanvasBg = target === canvasRef.current || target.closest('[data-canvas-bg]') !== null;
+    if (!isCanvasBg) return;
+    
     
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
