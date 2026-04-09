@@ -132,14 +132,14 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [showTemplates, setShowTemplates] = useState(true);
   const [pages, setPages] = useState<PageData[]>([{ id: pageId(), elements: [], backgroundOpacity: 0.5 }]);
   const [currentPageIdx, setCurrentPageIdx] = useState(0);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeTool, setActiveTool] = useState<ToolType>("select");
   const [activeShapeType, setActiveShapeType] = useState<ShapeType>("rect");
   const [zoom, setZoom] = useState(0.75);
-  const [dragState, setDragState] = useState<{ id: string; startX: number; startY: number; elX: number; elY: number } | null>(null);
+  const [dragState, setDragState] = useState<{ ids: string[]; startX: number; startY: number; origins: Record<string, { x: number; y: number }> } | null>(null);
   const [resizeState, setResizeState] = useState<{ id: string; startX: number; startY: number; startW: number; startH: number; corner: string; startElX: number; startElY: number } | null>(null);
   const [rotateState, setRotateState] = useState<{ id: string; startAngle: number; elRotation: number; centerX: number; centerY: number } | null>(null);
-  const [clipboard, setClipboard] = useState<CanvasElement | null>(null);
+  const [clipboard, setClipboard] = useState<CanvasElement[]>([]);
 
   // Undo/Redo history
   const historyRef = useRef<PageData[][]>([]);
