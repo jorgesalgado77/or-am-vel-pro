@@ -324,14 +324,26 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       return t.innerText || t.textContent || "";
     })()).replace(/\r\n/g, "\n");
     if (!raw) return "";
-    return raw.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;").replace(/\n/g, "<br>");
+    return raw
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;")
+      .split("\n")
+      .map((line) => `<span style="color:#000000 !important;background:transparent !important;opacity:1 !important;-webkit-text-fill-color:#000000 !important;filter:none !important;mix-blend-mode:normal !important;">${line || "&nbsp;"}</span>`)
+      .join("<br>");
   }, []);
 
   const forcePastedTextVisible = useCallback((html: string, color = "#000000") => {
     const visibleColor = color;
     return html
       .replace(/color\s*:[^;\"]+;?/gi, "")
-      .replace(/<span\b([^>]*)>/gi, `<span$1 style="color:${visibleColor};">`)
+      .replace(/background(?:-color)?\s*:[^;\"]+;?/gi, "")
+      .replace(/-webkit-text-fill-color\s*:[^;\"]+;?/gi, "")
+      .replace(/opacity\s*:[^;\"]+;?/gi, "")
+      .replace(/mix-blend-mode\s*:[^;\"]+;?/gi, "")
+      .replace(/<span\b([^>]*)>/gi, `<span$1 style="color:${visibleColor} !important;background:transparent !important;opacity:1 !important;-webkit-text-fill-color:${visibleColor} !important;mix-blend-mode:normal !important;">`)
       .replace(/<font\b([^>]*)color=(['\"])[^'\"]*\2([^>]*)>/gi, `<font$1$3>`);
   }, []);
 
@@ -1297,7 +1309,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             html += `<div style="${baseStyle}border-top:${el.strokeWidth}px solid ${el.stroke};"></div>`;
             break;
           case "text":
-            html += `<div style="${baseStyle}font-family:${el.fontFamily};font-size:${el.fontSize}px;font-weight:${el.fontWeight};font-style:${el.fontStyle};text-decoration:${el.textDecoration};color:${el.color};text-align:${el.textAlign};white-space:pre-wrap;overflow:hidden;word-wrap:break-word;">${el.text}</div>`;
+            html += `<div style="${baseStyle}font-family:${el.fontFamily};font-size:${el.fontSize}px;font-weight:${el.fontWeight};font-style:${el.fontStyle};text-decoration:${el.textDecoration};color:${el.color};-webkit-text-fill-color:${el.color};text-align:${el.textAlign};white-space:pre-wrap;overflow:hidden;word-wrap:break-word;">${forcePastedTextVisible(el.text || "", el.color || "#000000")}</div>`;
             break;
           case "image":
             html += `<div style="${baseStyle}overflow:hidden;">`;
@@ -1970,10 +1982,11 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       }}>
         {(() => {
           const displayText = previewVarsMode ? replaceVariablesWithSample(el.text) : el.text;
-          if (displayText && (displayText.includes("<") || (previewVarsMode && displayText.includes("<table")))) {
-            return <div dangerouslySetInnerHTML={{ __html: displayText }} style={{ width: "100%", overflow: "hidden" }} />;
+          const normalizedDisplayText = forcePastedTextVisible(displayText || "", el.color || "#000000");
+          if (normalizedDisplayText && (normalizedDisplayText.includes("<") || (previewVarsMode && normalizedDisplayText.includes("<table")))) {
+            return <div dangerouslySetInnerHTML={{ __html: normalizedDisplayText }} style={{ width: "100%", overflow: "hidden", color: el.color || "#000000", WebkitTextFillColor: el.color || "#000000" }} />;
           }
-          return displayText || (el.type === "text" ? <span className="text-muted-foreground/40 italic text-xs">Clique para editar</span> : null);
+          return normalizedDisplayText || (el.type === "text" ? <span className="text-muted-foreground/40 italic text-xs">Clique para editar</span> : null);
         })()}
       </div>
     );
