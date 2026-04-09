@@ -436,6 +436,12 @@ export function VendaZapChat({ tenantId, userId, initialClientId, initialAttachm
       const template = (templateRow as Record<string, string> | null)?.conteudo_html || "<p>Contrato gerado automaticamente</p>";
       const { buildContractHtml } = await import("@/services/contractService");
       const { data: settingsData } = await supabase.from("company_settings").select("*").limit(1).maybeSingle();
+      // Fetch company phones
+      const { data: companyPhones } = await supabase
+        .from("company_useful_phones")
+        .select("setor, responsavel, telefone")
+        .eq("tenant_id", tenantId)
+        .order("ordem", { ascending: true });
       const contractHtml = buildContractHtml(template, {
         formData,
         client: { nome: selected.nome_cliente, cpf: null, telefone1: selected.phone || null, email: null, numero_orcamento: selected.numero_contrato || null, vendedor: selected.vendedor_nome || null },
@@ -449,6 +455,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, initialAttachm
         comissaoPercentual: 0,
         items: items as Array<{ quantidade: number; descricao_ambiente: string; fornecedor: string; prazo: string; valor_ambiente: number }>,
         itemDetails: itemDetails as Array<{ item_num: number; titulos: string; corpo: string; porta: string; puxador: string; complemento: string; modelo: string }>,
+        companyPhones: (companyPhones as any[]) || [],
       });
       const { error } = await supabase.from("client_contracts").insert({ client_id: selected.client_id!, conteudo_html: contractHtml, tenant_id: tenantId });
       if (error) throw error;
