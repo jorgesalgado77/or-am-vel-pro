@@ -11,96 +11,21 @@ import { getContractTemplates, type ContractTemplate } from "./contractTemplates
 import { useCustomTemplates, type CustomTemplate } from "@/hooks/useCustomTemplates";
 import { toast } from "sonner";
 import * as pdfjsLib from "pdfjs-dist";
-import { jsPDF } from "jspdf";
-import { Document, Packer, Paragraph, TextRun, ImageRun, PageBreak, AlignmentType, BorderStyle, Table, TableRow, TableCell, WidthType, ShadingType } from "docx";
-import { saveAs } from "file-saver";
 import { buildContractDocumentHtml } from "@/lib/contractDocument";
 import { evaluateCell, isFormula, SUPPORTED_FORMULAS, indexToCol } from "@/lib/formulaEngine";
 import { replaceVariablesWithSample, isHtmlVariable, getConditionalStyle, matchesConditionalRule, type ConditionalRule, type ConditionalPreset, DEFAULT_CONDITIONAL_RULES, getAllPresets, loadCustomPresets, saveCustomPresets } from "@/lib/contractPreviewData";
 
+import {
+  type CanvasElement, type PageData, type VariableInfo, type ContractVisualEditorProps,
+  A4_WIDTH, A4_HEIGHT, GRID_SIZE, RULER_SIZE,
+  genId, pageId, createDefaultElement, hexToRgb,
+} from "./contract-editor/types";
+import { useEditorHistory } from "./contract-editor/useEditorHistory";
+import { usePasteHelpers } from "./contract-editor/usePasteHelpers";
+import { EditorPropertiesPanel } from "./contract-editor/EditorPropertiesPanel";
+import { exportToPdf, exportToDocx, exportToXlsx } from "./contract-editor/exportHelpers";
+
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("/pdf.worker.min.mjs", window.location.origin).href;
-
-interface CanvasElement {
-  id: string;
-  type: "rect" | "circle" | "line" | "text" | "image" | "table";
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  rotation: number;
-  fill: string;
-  stroke: string;
-  strokeWidth: number;
-  borderRadius: number;
-  text: string;
-  fontFamily: string;
-  fontSize: number;
-  fontWeight: string;
-  fontStyle: string;
-  textDecoration: string;
-  textAlign: string;
-  color: string;
-  imageUrl?: string;
-  zIndex: number;
-  tableData?: string[][];
-  tableCols?: number;
-  tableRows?: number;
-  opacity?: number;
-  groupId?: string;
-  locked?: boolean;
-}
-
-interface PageData {
-  id: string;
-  elements: CanvasElement[];
-  backgroundImage?: string;
-  backgroundOpacity: number;
-}
-
-interface VariableInfo {
-  var: string;
-  desc: string;
-}
-
-interface ContractVisualEditorProps {
-  onSave: (html: string) => void;
-  onCancel: () => void;
-  variables: VariableInfo[];
-  initialHtml?: string;
-}
-
-const A4_WIDTH = 794;
-const A4_HEIGHT = 1123;
-const GRID_SIZE = 8;
-const RULER_SIZE = 24;
-
-let idCounter = 0;
-function genId() { return `el_${++idCounter}_${Date.now()}`; }
-function pageId() { return `page_${++idCounter}_${Date.now()}`; }
-
-function createDefaultElement(type: CanvasElement["type"], x: number, y: number): CanvasElement {
-  const base: CanvasElement = {
-    id: genId(), type, x, y,
-    width: 200, height: 100, rotation: 0,
-    fill: "transparent", stroke: "#000000", strokeWidth: 1, borderRadius: 0,
-    text: "", fontFamily: "Arial", fontSize: 14, fontWeight: "normal",
-    fontStyle: "normal", textDecoration: "none", textAlign: "left",
-    color: "#000000", zIndex: idCounter,
-  };
-  switch (type) {
-    case "rect": return { ...base, fill: "transparent", stroke: "#000000", strokeWidth: 1, width: 200, height: 120 };
-    case "circle": return { ...base, fill: "transparent", stroke: "#000000", strokeWidth: 1, width: 120, height: 120 };
-    case "line": return { ...base, width: 200, height: 2, strokeWidth: 2, stroke: "#000000" };
-    case "text": return { ...base, text: "Texto", width: 200, height: 40, stroke: "transparent", strokeWidth: 0 };
-    case "image": return { ...base, width: 200, height: 150, stroke: "#cccccc" };
-    case "table": return {
-      ...base, width: 500, height: 160, fill: "#ffffff", stroke: "#333333",
-      tableData: [["Coluna 1", "Coluna 2", "Coluna 3"], ["", "", ""], ["", "", ""]],
-      tableRows: 3, tableCols: 3,
-    };
-    default: return base;
-  }
-}
 
 function hexToRgb(hex: string) {
   const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
