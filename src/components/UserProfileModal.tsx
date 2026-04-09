@@ -7,7 +7,7 @@ import {Avatar, AvatarImage, AvatarFallback} from "@/components/ui/avatar";
 import {Separator} from "@/components/ui/separator";
 import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
 import {Calendar} from "@/components/ui/calendar";
-import {ScrollArea} from "@/components/ui/scroll-area";
+
 import {Progress} from "@/components/ui/progress";
 import {Badge} from "@/components/ui/badge";
 import {Save, Upload, CalendarIcon, Eye, EyeOff, Facebook, Instagram, Linkedin, Palette, RotateCcw, Check} from "lucide-react";
