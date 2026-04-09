@@ -1388,13 +1388,35 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     };
 
     const INLINE_COLORS = ["#000000", "#DC2626", "#2563EB", "#16A34A", "#D97706", "#7C3AED", "#DB2777"];
+    const INLINE_FONT_SIZES = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48];
+
+    // Paste handler: supports rich text from clipboard
+    const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+      e.stopPropagation();
+      const clipboardData = e.clipboardData;
+      const htmlData = clipboardData.getData("text/html");
+      const textData = clipboardData.getData("text/plain");
+      
+      if (htmlData) {
+        e.preventDefault();
+        // Sanitize: keep only inline formatting tags
+        const temp = document.createElement("div");
+        temp.innerHTML = htmlData;
+        // Remove scripts and styles
+        temp.querySelectorAll("script, style, meta, link").forEach(n => n.remove());
+        // Insert cleaned HTML
+        document.execCommand("insertHTML", false, temp.innerHTML);
+      } else if (textData) {
+        // Let default paste handle plain text
+      }
+    };
 
     const textContent = isEditing ? (
       <div style={{ position: "relative", width: "100%", minHeight: "100%" }}>
         {/* Floating rich-text toolbar */}
         <div
           style={{
-            position: "absolute", top: -44, left: 0, zIndex: 99999,
+            position: "absolute", top: -48, left: 0, zIndex: 99999,
             display: "flex", gap: 2, alignItems: "center",
             background: "hsl(var(--popover))",
             border: "1px solid hsl(var(--border))", borderRadius: 8,
@@ -1404,6 +1426,41 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           onClick={e => e.stopPropagation()}
           onMouseDown={e => { e.stopPropagation(); e.preventDefault(); }}
         >
+          {/* Font size selector */}
+          <select
+            defaultValue={el.fontSize}
+            onChange={e => {
+              const size = e.target.value;
+              execRichCmd("fontSize", "7"); // use largest size as placeholder
+              // Replace font size with exact px via span
+              const sel = window.getSelection();
+              if (sel && sel.rangeCount > 0) {
+                const container = sel.getRangeAt(0).commonAncestorContainer;
+                const parent = container.nodeType === 3 ? container.parentElement : container as HTMLElement;
+                const fonts = (parent?.closest?.("[contenteditable]") || parent)?.querySelectorAll?.('font[size="7"]');
+                fonts?.forEach((font: Element) => {
+                  const span = document.createElement("span");
+                  span.style.fontSize = `${size}px`;
+                  span.innerHTML = font.innerHTML;
+                  font.replaceWith(span);
+                });
+              }
+            }}
+            onMouseDown={e => { e.stopPropagation(); }}
+            style={{
+              width: 52, height: 26, borderRadius: 4, fontSize: 11,
+              border: "1px solid hsl(var(--border))", background: "hsl(var(--background))",
+              color: "hsl(var(--foreground))", cursor: "pointer", padding: "0 2px",
+            }}
+            title="Tamanho da fonte"
+          >
+            {INLINE_FONT_SIZES.map(s => (
+              <option key={s} value={s}>{s}px</option>
+            ))}
+          </select>
+
+          <div style={{ width: 1, height: 20, background: "hsl(var(--border))", margin: "0 2px" }} />
+
           {/* Bold */}
           <button onClick={() => execRichCmd("bold")} title="Negrito (Ctrl+B)"
             style={{ width: 26, height: 26, borderRadius: 4, border: "none", cursor: "pointer",
@@ -1462,6 +1519,45 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             onMouseOver={e => (e.currentTarget.style.background = "hsl(var(--accent))")}
             onMouseOut={e => (e.currentTarget.style.background = "transparent")}
           >✕</button>
+
+          <div style={{ width: 1, height: 20, background: "hsl(var(--border))", margin: "0 2px" }} />
+
+          {/* Paste from clipboard */}
+          <button
+            onClick={async () => {
+              try {
+                const items = await navigator.clipboard.read();
+                for (const item of items) {
+                  if (item.types.includes("text/html")) {
+                    const blob = await item.getType("text/html");
+                    const html = await blob.text();
+                    const temp = document.createElement("div");
+                    temp.innerHTML = html;
+                    temp.querySelectorAll("script, style, meta, link").forEach(n => n.remove());
+                    document.execCommand("insertHTML", false, temp.innerHTML);
+                    return;
+                  }
+                  if (item.types.includes("text/plain")) {
+                    const blob = await item.getType("text/plain");
+                    const text = await blob.text();
+                    document.execCommand("insertText", false, text);
+                    return;
+                  }
+                }
+              } catch {
+                toast.error("Não foi possível acessar a área de transferência. Use Ctrl+V.");
+              }
+            }}
+            style={{
+              fontSize: 10, padding: "2px 6px", borderRadius: 4,
+              background: "hsl(var(--muted))", color: "hsl(var(--foreground))",
+              border: "1px solid hsl(var(--border))", cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 3,
+            }}
+            title="Colar da área de transferência (Ctrl+V)"
+          >
+            📋 Colar
+          </button>
 
           <div style={{ width: 1, height: 20, background: "hsl(var(--border))", margin: "0 2px" }} />
 
