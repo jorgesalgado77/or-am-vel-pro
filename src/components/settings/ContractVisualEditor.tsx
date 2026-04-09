@@ -559,11 +559,35 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const handleElementMouseDown = (e: React.MouseEvent, el: CanvasElement) => {
     if (activeTool !== "select") return;
     e.stopPropagation();
-    setSelectedId(el.id);
     setEditingTextId(null);
+
+    // Shift+click: toggle multi-select
+    if (e.shiftKey) {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        if (next.has(el.id)) { next.delete(el.id); } else { next.add(el.id); }
+        return next;
+      });
+      return;
+    }
+
+    // Normal click: select single (or keep multi-selection if already in set)
+    if (!selectedIds.has(el.id)) {
+      setSelectedIds(new Set([el.id]));
+    }
+
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
-    setDragState({ id: el.id, startX: e.clientX, startY: e.clientY, elX: el.x, elY: el.y });
+
+    // Build origins for all selected elements (including the clicked one)
+    const idsToMove = selectedIds.has(el.id) ? [...selectedIds] : [el.id];
+    const origins: Record<string, { x: number; y: number }> = {};
+    for (const id of idsToMove) {
+      const found = elements.find(e => e.id === id);
+      if (found) origins[id] = { x: found.x, y: found.y };
+    }
+    if (!origins[el.id]) origins[el.id] = { x: el.x, y: el.y };
+    setDragState({ ids: idsToMove, startX: e.clientX, startY: e.clientY, origins });
   };
 
   const handleResizeMouseDown = (e: React.MouseEvent, el: CanvasElement, corner: string) => {
@@ -588,9 +612,11 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       if (dragState) {
         const dx = (e.clientX - dragState.startX) / zoom;
         const dy = (e.clientY - dragState.startY) / zoom;
-        setCurrentElements(prev => prev.map(el =>
-          el.id === dragState.id ? { ...el, x: dragState.elX + dx, y: dragState.elY + dy } : el
-        ));
+        setCurrentElements(prev => prev.map(el => {
+          const origin = dragState.origins[el.id];
+          if (!origin) return el;
+          return { ...el, x: origin.x + dx, y: origin.y + dy };
+        }));
       }
       if (resizeState) {
         const dx = (e.clientX - resizeState.startX) / zoom;
@@ -642,35 +668,47 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       if (editingTextId) return;
 
       if (e.key === "Delete" || e.key === "Backspace") {
-        if (selectedId) { e.preventDefault(); deleteSelected(); }
+        if (selectedIds.size > 0) { e.preventDefault(); deleteSelected(); }
       }
 
       // Copy
       if ((e.ctrlKey || e.metaKey) && e.key === "c") {
-        if (selected) { e.preventDefault(); setClipboard({ ...selected }); toast.success("Elemento copiado"); }
+        const selEls = elements.filter(el => selectedIds.has(el.id));
+        if (selEls.length > 0) { e.preventDefault(); setClipboard(selEls.map(el => ({ ...el }))); toast.success(`${selEls.length} elemento(s) copiado(s)`); }
       }
 
       // Paste
       if ((e.ctrlKey || e.metaKey) && e.key === "v") {
-        if (clipboard) {
+        if (clipboard.length > 0) {
           e.preventDefault();
-          const dup = { ...clipboard, id: genId(), x: clipboard.x + 20, y: clipboard.y + 20, zIndex: elements.length + 1 };
-          setCurrentElements(prev => [...prev, dup]);
-          setSelectedId(dup.id);
-          toast.success("Elemento colado");
+          const newIds = new Set<string>();
+          const dups = clipboard.map(el => {
+            const dup = { ...el, id: genId(), x: el.x + 20, y: el.y + 20, zIndex: elements.length + 1 };
+            newIds.add(dup.id);
+            return dup;
+          });
+          setCurrentElements(prev => [...prev, ...dups]);
+          setSelectedIds(newIds);
+          toast.success(`${dups.length} elemento(s) colado(s)`);
         }
       }
 
+      // Select all
+      if ((e.ctrlKey || e.metaKey) && e.key === "a") {
+        e.preventDefault();
+        setSelectedIds(new Set(elements.map(el => el.id)));
+      }
+
       // Arrow keys: move (normal) or resize (Shift)
-      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key) && selectedId) {
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key) && selectedIds.size > 0) {
         e.preventDefault();
         const step = e.ctrlKey || e.metaKey ? 10 : 1;
         const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
         const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
         if (e.shiftKey) {
-          setCurrentElements(prev => prev.map(el => el.id === selectedId ? { ...el, width: Math.max(20, el.width + dx), height: Math.max(10, el.height + dy) } : el));
+          setCurrentElements(prev => prev.map(el => selectedIds.has(el.id) ? { ...el, width: Math.max(20, el.width + dx), height: Math.max(10, el.height + dy) } : el));
         } else {
-          setCurrentElements(prev => prev.map(el => el.id === selectedId ? { ...el, x: el.x + dx, y: el.y + dy } : el));
+          setCurrentElements(prev => prev.map(el => selectedIds.has(el.id) ? { ...el, x: el.x + dx, y: el.y + dy } : el));
         }
       }
 
