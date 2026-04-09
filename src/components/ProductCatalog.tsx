@@ -1,7 +1,7 @@
 /**
  * ProductCatalog — Full product catalog management UI
  */
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { PrazoEntregaSelect } from "@/components/shared/PrazoEntregaSelect";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
@@ -149,6 +149,31 @@ export function ProductCatalog() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [promoOpen, setPromoOpen] = useState(false);
   const [promoProduct, setPromoProduct] = useState<Product | null>(null);
+
+  // Promotions map: productId -> { desconto, validade }
+  const [promoMap, setPromoMap] = useState<Record<string, { desconto_percentual: number; valor_promocional: number; validade: string }>>({});
+  const loadPromotions = useCallback(async () => {
+    const tenantId = getTenantId();
+    if (!tenantId) return;
+    const { data } = await supabase
+      .from("product_promotions" as any)
+      .select("product_id, desconto_percentual, valor_promocional, validade")
+      .eq("tenant_id", tenantId)
+      .eq("ativo", true)
+      .gt("validade", new Date().toISOString());
+    if (data) {
+      const map: typeof promoMap = {};
+      (data as any[]).forEach(p => {
+        if (!map[p.product_id]) {
+          map[p.product_id] = { desconto_percentual: Number(p.desconto_percentual), valor_promocional: Number(p.valor_promocional), validade: p.validade };
+        }
+      });
+      setPromoMap(map);
+    }
+  }, []);
+
+  useEffect(() => { loadPromotions(); }, [loadPromotions]);
+
   const openSaleDialog = (p: Product) => {
     setSaleProduct(p);
     setSaleQty(1);
