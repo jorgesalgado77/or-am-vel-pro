@@ -249,7 +249,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       .replace(/<font\b([^>]*)color=(['\"])[^'\"]*\2([^>]*)>/gi, `<font$1$3>`);
   }, []);
 
-  const { splitHtmlAtHeight } = useTextSplitter();
+  const { splitHtmlAtHeight, measureHtmlHeight } = useTextSplitter();
   const repeatedPageChrome = buildRepeatedElementFingerprints(pages);
 
   // Resolve header/footer text placeholders
@@ -401,41 +401,55 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           }
 
           if (isTextual) {
-            const availableHeight = Math.max(40, pageBottomY - candidate.y);
-            const [fitHtml, remHtml] = splitHtmlAtHeight(
-              candidate.text,
-              candidate.width,
-              {
-                fontFamily: candidate.fontFamily,
-                fontSize: candidate.fontSize,
-                fontWeight: candidate.fontWeight,
-                fontStyle: candidate.fontStyle,
-                textAlign: candidate.textAlign,
-              },
-              availableHeight,
-            );
+            const availableHeight = pageBottomY - candidate.y;
+            const minSplitHeight = Math.max(candidate.fontSize * 1.6, 28);
 
-            if (fitHtml && remHtml) {
-              const continuationId = genId();
-              pageFlow.push({
-                ...candidate,
-                text: fitHtml,
-                height: availableHeight,
-                splitContinuationId: continuationId,
-              });
-              // Continuation: use full available width and let it fill next page's flow area
-              nextPending.push({
-                ...stripSplitMetadata(candidate),
-                id: continuationId,
-                text: remHtml,
-                y: pageStartY,
-                // Don't pre-set height - will be recalculated on next page
-                width: Math.max(candidate.width, A4_WIDTH - margins.left - margins.right),
-                height: candidate.height,
-                splitFrom: candidate.id,
-              });
-              cursorY = candidate.y + availableHeight + 10;
-              continue;
+            if (availableHeight >= minSplitHeight) {
+              const [fitHtml, remHtml] = splitHtmlAtHeight(
+                candidate.text,
+                candidate.width,
+                {
+                  fontFamily: candidate.fontFamily,
+                  fontSize: candidate.fontSize,
+                  fontWeight: candidate.fontWeight,
+                  fontStyle: candidate.fontStyle,
+                  textAlign: candidate.textAlign,
+                },
+                availableHeight,
+              );
+
+              const fitHeight = fitHtml
+                ? measureHtmlHeight(fitHtml, candidate.width, {
+                    fontFamily: candidate.fontFamily,
+                    fontSize: candidate.fontSize,
+                    fontWeight: candidate.fontWeight,
+                    fontStyle: candidate.fontStyle,
+                    textAlign: candidate.textAlign,
+                  })
+                : 0;
+
+              const didSplit = !!fitHtml && !!remHtml && fitHtml !== candidate.text && fitHeight > 0 && fitHeight < candidate.height;
+
+              if (didSplit) {
+                const continuationId = genId();
+                pageFlow.push({
+                  ...candidate,
+                  text: fitHtml,
+                  height: Math.min(availableHeight, fitHeight + 4),
+                  splitContinuationId: continuationId,
+                });
+                nextPending.push({
+                  ...stripSplitMetadata(candidate),
+                  id: continuationId,
+                  text: remHtml,
+                  y: pageStartY,
+                  width: Math.max(candidate.width, A4_WIDTH - margins.left - margins.right),
+                  height: Math.max(candidate.fontSize * 2, candidate.height - fitHeight),
+                  splitFrom: candidate.id,
+                });
+                cursorY = candidate.y + Math.min(availableHeight, fitHeight + 4) + 10;
+                continue;
+              }
             }
           }
 
@@ -449,7 +463,10 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           elements: [...pageStatic, ...pageFlow].sort((a, b) => a.zIndex - b.zIndex),
         };
 
-        pending = nextPending;
+        const noProgress = nextPending.length === pending.length
+          && nextPending.every((el, idx) => el.text === pending[idx]?.text && Math.round(el.y) === Math.round(pageStartY));
+
+        pending = noProgress ? [] : nextPending;
         pageIdx += 1;
 
         if (pageIdx >= rewrittenPages.length && pending.length > 0) {
@@ -460,20 +477,19 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           activeTemplatePage = rewrittenPages[Math.min(pageIdx, rewrittenPages.length - 1)] ?? activeTemplatePage;
         }
 
-        if (pageIdx > currentPageIdx + 80) break;
+        if (noProgress || pageIdx > currentPageIdx + 40) break;
       }
 
-      const lastUsedPage = Math.max(currentPageIdx, pageIdx - 1);
       const trimmedPages = rewrittenPages.filter((page, idx) => {
-        if (idx <= lastUsedPage) return true;
-        const hasOnlyChrome = page.elements.every(el => isLikelyPageChrome(el, repeatedChrome, margins));
-        return !hasOnlyChrome;
+        if (idx <= currentPageIdx) return true;
+        const hasFlowContent = page.elements.some(el => !isLikelyPageChrome(el, repeatedChrome, margins));
+        return hasFlowContent;
       });
 
       toast.info("Contrato reorganizado mantendo margens e continuidade.", { id: "auto-reflow" });
-      return trimmedPages;
+      return trimmedPages.length > 0 ? trimmedPages : prev;
     });
-  }, [currentPageIdx, margins, splitHtmlAtHeight]);
+  }, [currentPageIdx, margins, measureHtmlHeight, splitHtmlAtHeight]);
 
   // --- Element operations ---
   const updateSelected = useCallback((updates: Partial<CanvasElement>) => {
