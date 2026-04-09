@@ -158,6 +158,19 @@ export const SAMPLE_PREVIEW_DATA: Record<string, string> = {
   "{{ambientes_prazos}}": "(ver tabela de prazos)",
   "{{ambientes_prazos_lista}}": "(ver lista de prazos)",
   "{{ambientes_detalhes_completos}}": "(ver tabela completa)",
+
+  "{{telefones_uteis}}": `<table border="1" cellpadding="4" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:10px;">
+    <tr style="background:#0891b2;color:#fff;"><th>Setor</th><th>Responsável</th><th>Telefone</th></tr>
+    <tr><td>Financeiro</td><td>Maria Silva</td><td>(11)99999-0001</td></tr>
+    <tr><td>Projeto</td><td>João Santos</td><td>(11)99999-0002</td></tr>
+    <tr><td>Montagem</td><td>Carlos Oliveira</td><td>(11)99999-0003</td></tr>
+  </table>`,
+  "{{telefone_util_setor_1}}": "Financeiro",
+  "{{telefone_util_responsavel_1}}": "Maria Silva",
+  "{{telefone_util_numero_1}}": "(11)99999-0001",
+  "{{telefone_util_setor_2}}": "Projeto",
+  "{{telefone_util_responsavel_2}}": "João Santos",
+  "{{telefone_util_numero_2}}": "(11)99999-0002",
 };
 
 /**

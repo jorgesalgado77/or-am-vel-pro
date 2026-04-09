@@ -107,6 +107,10 @@ const AVAILABLE_VARIABLES = [
   { var: "{{valor_total_produtos}}", desc: "Valor total dos produtos do catálogo" },
   { var: "{{valor_total_ambientes}}", desc: "Valor total dos ambientes" },
   { var: "{{valor_por_extenso}}", desc: "Valor final por extenso" },
+  { var: "{{telefones_uteis}}", desc: "Tabela de telefones úteis da empresa (setor, responsável, telefone)" },
+  { var: "{{telefone_util_setor_N}}", desc: "Setor do telefone útil N (ex: _1, _2...)" },
+  { var: "{{telefone_util_responsavel_N}}", desc: "Responsável do telefone útil N" },
+  { var: "{{telefone_util_numero_N}}", desc: "Número do telefone útil N" },
 ];
 
 export function ContratosTab() {
