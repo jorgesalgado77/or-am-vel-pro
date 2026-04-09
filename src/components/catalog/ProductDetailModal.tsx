@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/lib/supabaseClient";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
+import { getTenantId } from "@/lib/tenantState";
 import type { Product } from "@/hooks/useProductCatalog";
 import { formatCurrency } from "@/lib/financing";
-import { X, ZoomIn, ZoomOut, Play, Pause, UserPlus, ShoppingCart, Maximize, Volume2, VolumeX, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, ZoomIn, ZoomOut, Play, Pause, UserPlus, ShoppingCart, Maximize, Volume2, VolumeX, ChevronLeft, ChevronRight, Tag, CreditCard, FileText, Clock } from "lucide-react";
 import { toast } from "sonner";
 
 interface ProductImage {
