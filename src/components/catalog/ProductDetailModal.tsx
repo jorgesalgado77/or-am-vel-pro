@@ -173,6 +173,10 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
   const [selectedSimId, setSelectedSimId] = useState("");
   const [loadingClients, setLoadingClients] = useState(false);
 
+  // Promotion data
+  const [promoData, setPromoData] = useState<any>(null);
+  const [promoRates, setPromoRates] = useState<any[]>([]);
+
   const cargoNome = (currentUser?.cargo_nome || "").toLowerCase();
   const isAdmin = ["administrador", "admin"].includes(cargoNome);
   const isRestricted = ["vendedor", "projetista"].includes(cargoNome);
