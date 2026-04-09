@@ -295,12 +295,46 @@ export function ContratosTab() {
   const handleDelete = async (id: string) => {
     if (!confirm("Excluir este modelo de contrato?")) return;
     const tenantId = getTenantId();
+    const linkedContractsQuery = supabase
+      .from("client_contracts")
+      .select("id", { count: "exact", head: true })
+      .eq("template_id", id);
+
+    const { count: linkedContractsCount, error: linkedContractsError } = tenantId
+      ? await linkedContractsQuery.eq("tenant_id", tenantId)
+      : await linkedContractsQuery;
+
+    if (linkedContractsError) {
+      console.error("Erro ao verificar vínculos do modelo:", linkedContractsError);
+      toast.error("Não foi possível verificar vínculos deste modelo");
+      return;
+    }
+
+    if ((linkedContractsCount || 0) > 0) {
+      const { error: unlinkError } = await (tenantId
+        ? supabase
+            .from("client_contracts")
+            .update({ template_id: null } as never)
+            .eq("template_id", id)
+            .eq("tenant_id", tenantId)
+        : supabase
+            .from("client_contracts")
+            .update({ template_id: null } as never)
+            .eq("template_id", id));
+
+      if (unlinkError) {
+        console.error("Erro ao desvincular contratos do modelo:", unlinkError);
+        toast.error("Erro ao desvincular contratos ligados a este modelo");
+        return;
+      }
+    }
+
     let query = supabase.from("contract_templates").delete().eq("id", id);
     if (tenantId) query = query.eq("tenant_id", tenantId);
     const { error } = await query;
     if (error) {
       console.error("Erro ao excluir:", error);
-      toast.error("Erro ao excluir modelo");
+      toast.error(error.message || "Erro ao excluir modelo");
       return;
     }
     // Immediately remove from local state

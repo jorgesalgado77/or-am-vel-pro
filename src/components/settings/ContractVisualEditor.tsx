@@ -327,6 +327,14 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     return raw.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;").replace(/\n/g, "<br>");
   }, []);
 
+  const forcePastedTextVisible = useCallback((html: string, color?: string) => {
+    const visibleColor = color || "#000000";
+    return html
+      .replace(/color\s*:[^;\"]+;?/gi, "")
+      .replace(/<span\b([^>]*)>/gi, `<span$1 style="color:${visibleColor};">`)
+      .replace(/<font\b([^>]*)color=(['\"])[^'\"]*\2([^>]*)>/gi, `<font$1$3>`);
+  }, []);
+
   // Derived text formatting
   const fontFamily = selected?.fontFamily || "Arial";
   const fontSize = selected?.fontSize || 14;
@@ -1703,7 +1711,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       if (!safeHtml) return;
       const target = e.currentTarget;
       // Wrap pasted content in a span with explicit color to prevent invisible text
-      const coloredHtml = `<span style="color:${el.color || '#000000'}">${safeHtml}</span>`;
+      const coloredHtml = forcePastedTextVisible(`<span>${safeHtml}</span>`, el.color || "#000000");
       const sel = window.getSelection();
       if (sel && sel.rangeCount > 0) {
         const range = sel.getRangeAt(0);
@@ -1846,7 +1854,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                   let html = "", plain = "";
                   if (item.types.includes("text/plain")) { const b = await item.getType("text/plain"); plain = await b.text(); }
                   if (item.types.includes("text/html")) { const b = await item.getType("text/html"); html = await b.text(); }
-                  const safe = sanitizeClipboard(html, plain);
+                  const safe = forcePastedTextVisible(sanitizeClipboard(html, plain), el.color || "#000000");
                   if (!safe) continue;
                   document.execCommand("insertHTML", false, safe);
                   if (target) {
