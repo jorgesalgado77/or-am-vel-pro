@@ -1772,9 +1772,9 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         <span className="text-xs text-muted-foreground w-10 text-center shrink-0">{Math.round(zoom * 100)}%</span>
         <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setZoom(z => Math.min(2, z + 0.1))} title="Zoom +"><ZoomIn className="h-3.5 w-3.5" /></Button>
         <div className="h-5 w-px bg-border" />
-        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={goToPrevPage} disabled={currentPageIdx === 0}><ChevronLeft className="h-3.5 w-3.5" /></Button>
-        <span className="text-xs text-foreground font-medium shrink-0">Pág. {currentPageIdx + 1}/{pages.length}</span>
-        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={goToNextPage} disabled={currentPageIdx >= pages.length - 1}><ChevronRight className="h-3.5 w-3.5" /></Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={goToPrevPage} disabled={currentPageIdx === 0} title="Página anterior"><ChevronLeft className="h-3.5 w-3.5" /></Button>
+        <span className="text-xs text-foreground font-medium shrink-0" title={`Página ${currentPageIdx + 1} de ${pages.length}`}>Pág. {currentPageIdx + 1}/{pages.length}</span>
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={goToNextPage} disabled={currentPageIdx >= pages.length - 1} title="Próxima página"><ChevronRight className="h-3.5 w-3.5" /></Button>
         <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={addPage} title="Adicionar página"><Plus className="h-3.5 w-3.5" /></Button>
         <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={duplicatePage} title="Duplicar página"><Copy className="h-3.5 w-3.5" /></Button>
         <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={deletePage} disabled={pages.length <= 1} title="Excluir página"><Trash2 className="h-3.5 w-3.5" /></Button>
@@ -1807,17 +1807,20 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           </>
         )}
         <div className="flex-1" />
-        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={() => setShowPreview(true)}>
+        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={() => setShowPreview(true)} title="Visualizar preview do contrato">
           <Eye className="h-3 w-3" /> Preview
         </Button>
-        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={onCancel}><X className="h-3 w-3" /> Cancelar</Button>
-        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleExportPdf} disabled={exporting}>
+        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={onCancel} title="Cancelar edição"><X className="h-3 w-3" /> Cancelar</Button>
+        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleExportPdf} disabled={exporting} title="Exportar como PDF">
           <Download className="h-3 w-3" /> PDF
         </Button>
-        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleExportDocx} disabled={exportingDocx}>
+        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleExportDocx} disabled={exportingDocx} title="Exportar como DOCX (Word)">
           <FileText className="h-3 w-3" /> DOCX
         </Button>
-        <Button size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleSave}><Save className="h-3 w-3" /> Salvar</Button>
+        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleExportXlsx} disabled={exportingXlsx} title="Exportar como Excel (.xlsx)">
+          <FileSpreadsheet className="h-3 w-3" /> Excel
+        </Button>
+        <Button size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleSave} title="Salvar contrato"><Save className="h-3 w-3" /> Salvar</Button>
       </div>
 
       {/* Save as Template Dialog */}
