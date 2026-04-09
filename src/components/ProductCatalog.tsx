@@ -126,6 +126,8 @@ export function ProductCatalog() {
   const canManageProducts = hasPermission("cadastrar_produtos");
   const isAdmin = ["administrador", "admin"].includes((currentUser?.cargo_nome || "").toLowerCase());
 
+  usePromoExpirationAlerts();
+
   const [activeTab, setActiveTab] = useState("products");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<ProductFormData>(emptyForm);
@@ -434,9 +436,10 @@ export function ProductCatalog() {
   return (
     <div className="space-y-4">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-2 w-full max-w-xs">
+        <TabsList className="grid grid-cols-3 w-full max-w-md">
           <TabsTrigger value="products" className="gap-1.5 text-xs"><Package className="h-3.5 w-3.5" />Produtos</TabsTrigger>
-          <TabsTrigger value="suppliers" className="gap-1.5 text-xs"><Factory className="h-3.5 w-3.5" />Fornecedor Decorados</TabsTrigger>
+          <TabsTrigger value="promotions" className="gap-1.5 text-xs"><Tag className="h-3.5 w-3.5" />Promoções</TabsTrigger>
+          <TabsTrigger value="suppliers" className="gap-1.5 text-xs"><Factory className="h-3.5 w-3.5" />Fornecedores</TabsTrigger>
         </TabsList>
 
         {/* === PRODUCTS TAB === */}
