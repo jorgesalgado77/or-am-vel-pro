@@ -243,6 +243,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       .replace(/<font\b([^>]*)color=(['\"])[^'\"]*\2([^>]*)>/gi, `<font$1$3>`);
   }, []);
 
+  const { splitHtmlAtHeight } = useTextSplitter();
+
   // Derived text formatting
   const fontFamily = selected?.fontFamily || "Arial";
   const fontSize = selected?.fontSize || 14;
