@@ -69,6 +69,8 @@ interface ContractVisualEditorProps {
 
 const A4_WIDTH = 794;
 const A4_HEIGHT = 1123;
+const GRID_SIZE = 8;
+const RULER_SIZE = 24;
 
 let idCounter = 0;
 function genId() { return `el_${++idCounter}_${Date.now()}`; }
@@ -252,12 +254,36 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
+  const editableRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const currentPage = pages[currentPageIdx];
   const elements = currentPage?.elements || [];
   // Derive selectedId as first in set for properties panel backward compat
   const selectedId = selectedIds.size > 0 ? [...selectedIds][0] : null;
   const selected = elements.find(e => e.id === selectedId) || null;
+
+  const snapToGrid = useCallback((v: number) => Math.round(v / GRID_SIZE) * GRID_SIZE, []);
+
+  const clampToMargins = useCallback((el: { width: number; height: number }, x: number, y: number) => {
+    const maxX = Math.max(margins.left, A4_WIDTH - margins.right - el.width);
+    const maxY = Math.max(margins.top, A4_HEIGHT - margins.bottom - el.height);
+    return {
+      x: Math.min(Math.max(snapToGrid(x), margins.left), maxX),
+      y: Math.min(Math.max(snapToGrid(y), margins.top), maxY),
+    };
+  }, [margins, snapToGrid]);
+
+  const sanitizeClipboard = useCallback((htmlData: string, textData: string) => {
+    const raw = (textData || (() => {
+      if (!htmlData) return "";
+      const t = document.createElement("div");
+      t.innerHTML = htmlData;
+      t.querySelectorAll("script,style,meta,link").forEach(n => n.remove());
+      return t.innerText || t.textContent || "";
+    })()).replace(/\r\n/g, "\n");
+    if (!raw) return "";
+    return raw.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;").replace(/\n/g, "<br>");
+  }, []);
 
   // Derived text formatting
   const fontFamily = selected?.fontFamily || "Arial";
@@ -321,13 +347,14 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     });
     
     // Split into fits / overflows
-    const fits = updated.filter(el => el.y + el.height <= A4_HEIGHT);
-    const overflows = updated.filter(el => el.y + el.height > A4_HEIGHT);
+    const pageBottom = A4_HEIGHT - margins.bottom;
+    const fits = updated.filter(el => el.y + el.height <= pageBottom);
+    const overflows = updated.filter(el => el.y + el.height > pageBottom);
     
     // Cap changed element if it itself overflows
     const cappedFits = fits.map(el => {
-      if (el.id === changedElId && el.y + el.height > A4_HEIGHT) {
-        return { ...el, height: A4_HEIGHT - el.y - 10 };
+      if (el.id === changedElId && el.y + el.height > pageBottom) {
+        return { ...el, height: Math.max(24, pageBottom - el.y) };
       }
       return el;
     });
@@ -344,8 +371,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         
         const existingNextEls = newPages[nextIdx].elements;
         let nextY = existingNextEls.length > 0
-          ? Math.max(...existingNextEls.map(e => e.y + e.height)) + 10
-          : 30;
+          ? Math.max(margins.top, Math.max(...existingNextEls.map(e => e.y + e.height)) + 10)
+          : margins.top;
         
         const movedElements = overflows.map(el => {
           const moved = { ...el, y: nextY };
@@ -353,8 +380,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           return moved;
         });
         
-        const fitsNext = movedElements.filter(e => e.y + e.height <= A4_HEIGHT);
-        const overflowsNext = movedElements.filter(e => e.y + e.height > A4_HEIGHT);
+        const fitsNext = movedElements.filter(e => e.y + e.height <= pageBottom);
+        const overflowsNext = movedElements.filter(e => e.y + e.height > pageBottom);
         
         newPages[nextIdx] = { ...newPages[nextIdx], elements: [...existingNextEls, ...fitsNext] };
         
@@ -363,7 +390,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           if (extraIdx >= newPages.length) {
             newPages.push({ id: pageId(), elements: [], backgroundOpacity: 0.5 });
           }
-          let extraY = 30;
+          let extraY = margins.top;
           const extraMoved = overflowsNext.map(el => {
             const moved = { ...el, y: extraY };
             extraY += el.height + 10;
@@ -378,13 +405,53 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     } else {
       setCurrentElements(() => updated);
     }
-  }, [pages, currentPageIdx, setCurrentElements, setPages]);
+  }, [pages, currentPageIdx, margins, setCurrentElements, setPages]);
 
   // --- Element operations ---
   const updateSelected = useCallback((updates: Partial<CanvasElement>) => {
     if (selectedIds.size === 0) return;
     setCurrentElements(prev => prev.map(el => selectedIds.has(el.id) ? { ...el, ...updates } : el));
   }, [selectedIds, setCurrentElements]);
+
+  const moveSelectionToNextPage = useCallback((ids: string[], positions?: Record<string, { x: number; y: number }>) => {
+    if (ids.length === 0) return;
+    setPages(prev => {
+      const np = [...prev];
+      const src = np[currentPageIdx];
+      if (!src) return prev;
+      const nextIdx = currentPageIdx + 1;
+      if (nextIdx >= np.length) np.push({ id: pageId(), elements: [], backgroundOpacity: 0.5 });
+      const moving = src.elements.filter(el => ids.includes(el.id));
+      if (moving.length === 0) return prev;
+      const minY = Math.min(...moving.map(el => positions?.[el.id]?.y ?? el.y));
+      const tgt = np[nextIdx];
+      const stackY = tgt.elements.length > 0
+        ? Math.max(margins.top, Math.max(...tgt.elements.map(e => e.y + e.height)) + 16)
+        : margins.top;
+      const moved = moving.map(el => {
+        const d = positions?.[el.id] ?? { x: el.x, y: el.y };
+        const p = clampToMargins(el, d.x, stackY + (d.y - minY));
+        return { ...el, x: p.x, y: p.y };
+      });
+      np[currentPageIdx] = { ...src, elements: src.elements.filter(el => !ids.includes(el.id)) };
+      np[nextIdx] = { ...tgt, elements: [...tgt.elements, ...moved] };
+      return np;
+    });
+    setCurrentPageIdx(prev => prev + 1);
+    setSelectedIds(new Set(ids));
+  }, [clampToMargins, currentPageIdx, margins.top]);
+
+  const updateSelectedPosition = useCallback((axis: "x" | "y", value: number) => {
+    if (!selected) return;
+    const target = { x: axis === "x" ? value : selected.x, y: axis === "y" ? value : selected.y };
+    if (axis === "y" && target.y + selected.height > A4_HEIGHT - margins.bottom) {
+      moveSelectionToNextPage([selected.id], { [selected.id]: target });
+      toast.info("Elemento movido para a próxima página.");
+      return;
+    }
+    const np = clampToMargins(selected, target.x, target.y);
+    updateSelected(np);
+  }, [selected, margins.bottom, moveSelectionToNextPage, clampToMargins, updateSelected]);
 
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
     // Only deselect if clicking directly on canvas background, not on elements
@@ -400,11 +467,13 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
     if (activeTool === "shape") {
       const el = createDefaultElement(activeShapeType, x, y);
+      const cp = clampToMargins(el, x, y); el.x = cp.x; el.y = cp.y;
       setCurrentElements(prev => [...prev, el]);
       setSelectedIds(new Set([el.id]));
       setActiveTool("select");
     } else if (activeTool === "text") {
       const el = createDefaultElement("text", x, y);
+      const cp = clampToMargins(el, x, y); el.x = cp.x; el.y = cp.y;
       setCurrentElements(prev => [...prev, el]);
       setSelectedIds(new Set([el.id]));
       setEditingTextId(el.id);
@@ -891,7 +960,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         setCurrentElements(prev => prev.map(el => {
           const origin = dragState.origins[el.id];
           if (!origin) return el;
-          return { ...el, x: origin.x + dx, y: origin.y + dy };
+          const cp = clampToMargins(el, origin.x + dx, origin.y + dy);
+          return { ...el, x: cp.x, y: cp.y };
         }));
       }
       if (resizeState) {
@@ -930,7 +1000,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
     return () => { window.removeEventListener("mousemove", handleMouseMove); window.removeEventListener("mouseup", handleMouseUp); };
-  }, [dragState, resizeState, rotateState, zoom, setCurrentElements]);
+  }, [dragState, resizeState, rotateState, zoom, clampToMargins, setCurrentElements]);
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -991,20 +1061,11 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
               const items = await navigator.clipboard.read();
               let content = "";
               for (const item of items) {
-                if (item.types.includes("text/html")) {
-                  const blob = await item.getType("text/html");
-                  const html = await blob.text();
-                  const temp = document.createElement("div");
-                  temp.innerHTML = html;
-                  temp.querySelectorAll("script, style, meta, link").forEach(n => n.remove());
-                  content = temp.innerHTML;
-                  break;
-                }
-                if (item.types.includes("text/plain")) {
-                  const blob = await item.getType("text/plain");
-                  content = await blob.text();
-                  break;
-                }
+                let html = "", plain = "";
+                if (item.types.includes("text/plain")) { const b = await item.getType("text/plain"); plain = await b.text(); }
+                if (item.types.includes("text/html")) { const b = await item.getType("text/html"); html = await b.text(); }
+                content = sanitizeClipboard(html, plain);
+                if (content) break;
               }
               if (!content) return;
               if (selectedIds.size > 0) {
@@ -1050,7 +1111,11 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         if (e.shiftKey) {
           setCurrentElements(prev => prev.map(el => selectedIds.has(el.id) ? { ...el, width: Math.max(20, el.width + dx), height: Math.max(10, el.height + dy) } : el));
         } else {
-          setCurrentElements(prev => prev.map(el => selectedIds.has(el.id) ? { ...el, x: el.x + dx, y: el.y + dy } : el));
+          setCurrentElements(prev => prev.map(el => {
+            if (!selectedIds.has(el.id)) return el;
+            const cp = clampToMargins(el, el.x + dx, el.y + dy);
+            return { ...el, x: cp.x, y: cp.y };
+          }));
         }
       }
 
@@ -1489,25 +1554,31 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     const INLINE_COLORS = ["#000000", "#DC2626", "#2563EB", "#16A34A", "#D97706", "#7C3AED", "#DB2777"];
     const INLINE_FONT_SIZES = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48];
 
-    // Paste handler: supports rich text from clipboard
+    // Paste handler: sanitizes clipboard to visible plain text with line breaks
     const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
       e.stopPropagation();
       e.preventDefault();
-      const clipboardData = e.clipboardData;
-      const htmlData = clipboardData.getData("text/html");
-      const textData = clipboardData.getData("text/plain");
+      const safeHtml = sanitizeClipboard(
+        e.clipboardData.getData("text/html"),
+        e.clipboardData.getData("text/plain"),
+      );
+      if (!safeHtml) return;
       const target = e.currentTarget;
-      
-      if (htmlData) {
-        const temp = document.createElement("div");
-        temp.innerHTML = htmlData;
-        temp.querySelectorAll("script, style, meta, link").forEach(n => n.remove());
-        document.execCommand("insertHTML", false, temp.innerHTML);
-      } else if (textData) {
-        document.execCommand("insertText", false, textData);
+      // Insert at cursor position
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        range.deleteContents();
+        const tmp = document.createElement("span");
+        tmp.innerHTML = safeHtml;
+        const frag = document.createDocumentFragment();
+        let lastNode: Node | null = null;
+        while (tmp.firstChild) { lastNode = frag.appendChild(tmp.firstChild); }
+        range.insertNode(frag);
+        if (lastNode) { range.setStartAfter(lastNode); range.collapse(true); sel.removeAllRanges(); sel.addRange(range); }
+      } else {
+        target.innerHTML += safeHtml;
       }
-
-      // After paste, update state and auto-resize
       requestAnimationFrame(() => {
         const newText = target.innerHTML;
         setCurrentElements(prev => prev.map(p => p.id === el.id ? { ...p, text: newText } : p));
@@ -1631,22 +1702,22 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             onClick={async () => {
               try {
                 const items = await navigator.clipboard.read();
+                const target = editableRefs.current[el.id];
                 for (const item of items) {
-                  if (item.types.includes("text/html")) {
-                    const blob = await item.getType("text/html");
-                    const html = await blob.text();
-                    const temp = document.createElement("div");
-                    temp.innerHTML = html;
-                    temp.querySelectorAll("script, style, meta, link").forEach(n => n.remove());
-                    document.execCommand("insertHTML", false, temp.innerHTML);
-                    return;
+                  let html = "", plain = "";
+                  if (item.types.includes("text/plain")) { const b = await item.getType("text/plain"); plain = await b.text(); }
+                  if (item.types.includes("text/html")) { const b = await item.getType("text/html"); html = await b.text(); }
+                  const safe = sanitizeClipboard(html, plain);
+                  if (!safe) continue;
+                  document.execCommand("insertHTML", false, safe);
+                  if (target) {
+                    requestAnimationFrame(() => {
+                      const nt = target.innerHTML;
+                      setCurrentElements(prev => prev.map(p => p.id === el.id ? { ...p, text: nt } : p));
+                      autoResizeElement(el.id, target);
+                    });
                   }
-                  if (item.types.includes("text/plain")) {
-                    const blob = await item.getType("text/plain");
-                    const text = await blob.text();
-                    document.execCommand("insertText", false, text);
-                    return;
-                  }
+                  return;
                 }
               } catch {
                 toast.error("Não foi possível acessar a área de transferência. Use Ctrl+V.");
@@ -1699,6 +1770,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           contentEditable
           suppressContentEditableWarning
           ref={(ref) => {
+            editableRefs.current[el.id] = ref;
             if (ref && !ref.dataset.initialized) {
               ref.innerHTML = el.text;
               ref.dataset.initialized = "1";
@@ -1930,8 +2002,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             <div className="space-y-1.5">
               <label className="text-muted-foreground">Posição</label>
               <div className="grid grid-cols-2 gap-1">
-                <div><span className="text-muted-foreground">X</span><input type="number" value={Math.round(selected.x)} onChange={e => updateSelected({ x: Number(e.target.value) })} className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" /></div>
-                <div><span className="text-muted-foreground">Y</span><input type="number" value={Math.round(selected.y)} onChange={e => updateSelected({ y: Number(e.target.value) })} className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" /></div>
+                <div><span className="text-muted-foreground">X</span><input type="number" value={Math.round(selected.x)} onChange={e => updateSelectedPosition("x", Number(e.target.value))} className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" /></div>
+                <div><span className="text-muted-foreground">Y</span><input type="number" value={Math.round(selected.y)} onChange={e => updateSelectedPosition("y", Number(e.target.value))} className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" /></div>
               </div>
             </div>
             <div className="space-y-1.5">
@@ -3018,50 +3090,87 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         </div>
         {/* Canvas area with Word-like feel */}
         <div className="flex-1 min-w-0 min-h-0 overflow-auto" style={{ background: "hsl(var(--muted) / 0.6)" }}>
-          <div className="min-h-full flex justify-center py-6 px-4" style={{ minWidth: A4_WIDTH * zoom + 48 }}>
-            <div
-              ref={canvasRef}
-              style={{
-                width: A4_WIDTH * zoom, height: A4_HEIGHT * zoom,
-                position: "relative", background: "#fff",
-                boxShadow: "0 4px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08)",
-                overflow: "hidden", flexShrink: 0,
-              }}
-              onMouseDown={handleCanvasMouseDown}
-              onContextMenu={handleContextMenu}
-            >
-              {/* Background image */}
-              {currentPage?.backgroundImage && (
-                <img
-                  src={currentPage.backgroundImage}
-                  alt=""
-                  style={{
-                    position: "absolute", top: 0, left: 0,
-                    width: A4_WIDTH * zoom, height: A4_HEIGHT * zoom,
-                    objectFit: "contain", pointerEvents: "none",
-                    opacity: currentPage.backgroundOpacity,
-                  }}
-                />
-              )}
-              {/* Scaled inner */}
-              <div data-canvas-bg style={{ transform: `scale(${zoom})`, transformOrigin: "0 0", width: A4_WIDTH, height: A4_HEIGHT, position: "relative" }}>
-                {/* Margin guides */}
-                <div style={{ position: "absolute", top: margins.top, left: margins.left, right: margins.right, bottom: margins.bottom, border: "1px dashed hsl(210 60% 70% / 0.4)", pointerEvents: "none", zIndex: 1 }} />
-                {/* Page bottom limit indicator */}
-                <div style={{
-                  position: "absolute", left: 0, right: 0, top: A4_HEIGHT - margins.bottom,
-                  borderTop: "2px dashed hsl(0 70% 55% / 0.5)", pointerEvents: "none", zIndex: 2,
-                }}>
-                  <span style={{
-                    position: "absolute", right: 4, top: -16,
-                    fontSize: 9, color: "hsl(0 70% 55% / 0.7)", fontWeight: 600,
-                    background: "hsl(0 0% 100% / 0.85)", padding: "1px 5px", borderRadius: 3,
-                  }}>
-                    Limite da página
-                  </span>
-                </div>
-                {elements.map(renderElement)}
+          <div className="min-h-full flex justify-center py-6 px-4" style={{ minWidth: A4_WIDTH * zoom + RULER_SIZE + 48 }}>
+            <div style={{ position: "relative", width: A4_WIDTH * zoom + RULER_SIZE, height: A4_HEIGHT * zoom + RULER_SIZE, flexShrink: 0 }}>
+              {/* Horizontal ruler */}
+              <div style={{
+                position: "absolute", left: RULER_SIZE, top: 0, width: A4_WIDTH * zoom, height: RULER_SIZE,
+                background: "hsl(var(--background))", borderBottom: "1px solid hsl(var(--border))", boxSizing: "border-box", overflow: "hidden",
+              }}>
+                {Array.from({ length: Math.ceil(A4_WIDTH / 50) + 1 }).map((_, i) => {
+                  const v = i * 50;
+                  const major = v % 100 === 0;
+                  return (
+                    <div key={`rh${v}`} style={{ position: "absolute", left: v * zoom, top: 0, bottom: 0, width: 1 }}>
+                      <div style={{ position: "absolute", bottom: 0, width: 1, height: major ? 14 : 8, background: "hsl(var(--border))" }} />
+                      {major && <span style={{ position: "absolute", top: 2, left: 3, fontSize: 8, color: "hsl(var(--muted-foreground))", userSelect: "none" }}>{v}</span>}
+                    </div>
+                  );
+                })}
               </div>
+              {/* Vertical ruler */}
+              <div style={{
+                position: "absolute", left: 0, top: RULER_SIZE, width: RULER_SIZE, height: A4_HEIGHT * zoom,
+                background: "hsl(var(--background))", borderRight: "1px solid hsl(var(--border))", boxSizing: "border-box", overflow: "hidden",
+              }}>
+                {Array.from({ length: Math.ceil(A4_HEIGHT / 50) + 1 }).map((_, i) => {
+                  const v = i * 50;
+                  const major = v % 100 === 0;
+                  return (
+                    <div key={`rv${v}`} style={{ position: "absolute", top: v * zoom, left: 0, right: 0, height: 1 }}>
+                      <div style={{ position: "absolute", right: 0, height: 1, width: major ? 14 : 8, background: "hsl(var(--border))" }} />
+                      {major && <span style={{ position: "absolute", top: 2, left: 2, fontSize: 8, color: "hsl(var(--muted-foreground))", userSelect: "none" }}>{v}</span>}
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Corner box */}
+              <div style={{ position: "absolute", left: 0, top: 0, width: RULER_SIZE, height: RULER_SIZE, background: "hsl(var(--muted))", borderRight: "1px solid hsl(var(--border))", borderBottom: "1px solid hsl(var(--border))", boxSizing: "border-box" }} />
+              <div
+                ref={canvasRef}
+                style={{
+                  position: "absolute", left: RULER_SIZE, top: RULER_SIZE,
+                  width: A4_WIDTH * zoom, height: A4_HEIGHT * zoom,
+                  background: "#fff",
+                  boxShadow: "0 4px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08)",
+                  overflow: "hidden",
+                }}
+                onMouseDown={handleCanvasMouseDown}
+                onContextMenu={handleContextMenu}
+              >
+                {/* Background image */}
+                {currentPage?.backgroundImage && (
+                  <img
+                    src={currentPage.backgroundImage}
+                    alt=""
+                    style={{
+                      position: "absolute", top: 0, left: 0,
+                      width: A4_WIDTH * zoom, height: A4_HEIGHT * zoom,
+                      objectFit: "contain", pointerEvents: "none",
+                      opacity: currentPage.backgroundOpacity,
+                    }}
+                  />
+                )}
+                {/* Scaled inner */}
+                <div data-canvas-bg style={{ transform: `scale(${zoom})`, transformOrigin: "0 0", width: A4_WIDTH, height: A4_HEIGHT, position: "relative" }}>
+                  {/* Margin guides */}
+                  <div style={{ position: "absolute", top: margins.top, left: margins.left, right: margins.right, bottom: margins.bottom, border: "1px dashed hsl(var(--primary) / 0.35)", pointerEvents: "none", zIndex: 1 }} />
+                  {/* Page bottom limit indicator */}
+                  <div style={{
+                    position: "absolute", left: 0, right: 0, top: A4_HEIGHT - margins.bottom,
+                    borderTop: "2px dashed hsl(var(--destructive) / 0.55)", pointerEvents: "none", zIndex: 2,
+                  }}>
+                    <span style={{
+                      position: "absolute", right: 4, top: -16,
+                      fontSize: 9, color: "hsl(var(--destructive) / 0.9)", fontWeight: 600,
+                      background: "hsl(var(--background) / 0.92)", padding: "1px 5px", borderRadius: 3,
+                    }}>
+                      Limite da página
+                    </span>
+                  </div>
+                  {elements.map(renderElement)}
+                </div>
+
 
               {/* Context menu */}
               {contextMenu && (
@@ -3085,20 +3194,11 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                       const items = await navigator.clipboard.read();
                       let content = "";
                       for (const item of items) {
-                        if (item.types.includes("text/html")) {
-                          const blob = await item.getType("text/html");
-                          const html = await blob.text();
-                          const temp = document.createElement("div");
-                          temp.innerHTML = html;
-                          temp.querySelectorAll("script, style, meta, link").forEach(n => n.remove());
-                          content = temp.innerHTML;
-                          break;
-                        }
-                        if (item.types.includes("text/plain")) {
-                          const blob = await item.getType("text/plain");
-                          content = await blob.text();
-                          break;
-                        }
+                        let html = "", plain = "";
+                        if (item.types.includes("text/plain")) { const b = await item.getType("text/plain"); plain = await b.text(); }
+                        if (item.types.includes("text/html")) { const b = await item.getType("text/html"); html = await b.text(); }
+                        content = sanitizeClipboard(html, plain);
+                        if (content) break;
                       }
                       if (!content) { toast.info("Área de transferência vazia"); setContextMenu(null); return; }
                       
@@ -3123,6 +3223,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                         el.text = content;
                         el.width = Math.min(500, Math.max(200, content.length * 4));
                         el.height = Math.max(40, Math.ceil(content.length / 60) * 20);
+                        const cp = clampToMargins(el, x, y); el.x = cp.x; el.y = cp.y;
                         setCurrentElements(prev => [...prev, el]);
                         setSelectedIds(new Set([el.id]));
                         toast.success("Texto colado como novo elemento!");
@@ -3174,6 +3275,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                 </div>
               )}
             </div>
+          </div>
             {/* Add page button below canvas */}
             <div className="flex justify-center py-4">
               <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={addPage} title="Adicionar nova página">
