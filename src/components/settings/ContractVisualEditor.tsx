@@ -290,16 +290,16 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     if (activeTool === "shape") {
       const el = createDefaultElement(activeShapeType, x, y);
       setCurrentElements(prev => [...prev, el]);
-      setSelectedId(el.id);
+      setSelectedIds(new Set([el.id]));
       setActiveTool("select");
     } else if (activeTool === "text") {
       const el = createDefaultElement("text", x, y);
       setCurrentElements(prev => [...prev, el]);
-      setSelectedId(el.id);
+      setSelectedIds(new Set([el.id]));
       setEditingTextId(el.id);
       setActiveTool("select");
     } else if (activeTool === "select") {
-      setSelectedId(null);
+      setSelectedIds(new Set());
       setEditingTextId(null);
     }
   };
@@ -307,7 +307,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const handleTableInsert = () => {
     const el = createDefaultElement("table", 100, 200);
     setCurrentElements(prev => [...prev, el]);
-    setSelectedId(el.id);
+    setSelectedIds(new Set([el.id]));
     setActiveTool("select");
   };
 
@@ -363,15 +363,15 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       el.text = varText;
       el.width = Math.max(200, varText.length * 10);
       setCurrentElements(prev => [...prev, el]);
-      setSelectedId(el.id);
+      setSelectedIds(new Set([el.id]));
     }
     setContextMenu(null);
   };
 
   const deleteSelected = () => {
-    if (!selectedId) return;
-    setCurrentElements(prev => prev.filter(e => e.id !== selectedId));
-    setSelectedId(null);
+    if (selectedIds.size === 0) return;
+    setCurrentElements(prev => prev.filter(e => !selectedIds.has(e.id)));
+    setSelectedIds(new Set());
     setContextMenu(null);
   };
 
@@ -379,17 +379,47 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     if (!selected) return;
     const dup = { ...selected, id: genId(), x: selected.x + 20, y: selected.y + 20, zIndex: elements.length + 1 };
     setCurrentElements(prev => [...prev, dup]);
-    setSelectedId(dup.id);
+    setSelectedIds(new Set([dup.id]));
     setContextMenu(null);
   };
 
   // --- Alignment functions ---
   const alignElements = useCallback((alignment: "left" | "center-h" | "right" | "top" | "center-v" | "bottom" | "distribute-h" | "distribute-v") => {
-    if (!selectedId) return;
-    // Align selected element to canvas
+    if (selectedIds.size === 0) return;
     setCurrentElements(prev => {
-      const sel = prev.find(e => e.id === selectedId);
-      if (!sel) return prev;
+      const selEls = prev.filter(e => selectedIds.has(e.id));
+      if (selEls.length === 0) return prev;
+
+      // If multiple selected, align them relative to each other
+      if (selEls.length > 1) {
+        switch (alignment) {
+          case "left": { const minX = Math.min(...selEls.map(e => e.x)); return prev.map(e => selectedIds.has(e.id) ? { ...e, x: minX } : e); }
+          case "right": { const maxR = Math.max(...selEls.map(e => e.x + e.width)); return prev.map(e => selectedIds.has(e.id) ? { ...e, x: maxR - e.width } : e); }
+          case "center-h": { const minX = Math.min(...selEls.map(e => e.x)); const maxR = Math.max(...selEls.map(e => e.x + e.width)); const centerX = (minX + maxR) / 2; return prev.map(e => selectedIds.has(e.id) ? { ...e, x: centerX - e.width / 2 } : e); }
+          case "top": { const minY = Math.min(...selEls.map(e => e.y)); return prev.map(e => selectedIds.has(e.id) ? { ...e, y: minY } : e); }
+          case "bottom": { const maxB = Math.max(...selEls.map(e => e.y + e.height)); return prev.map(e => selectedIds.has(e.id) ? { ...e, y: maxB - e.height } : e); }
+          case "center-v": { const minY = Math.min(...selEls.map(e => e.y)); const maxB = Math.max(...selEls.map(e => e.y + e.height)); const centerY = (minY + maxB) / 2; return prev.map(e => selectedIds.has(e.id) ? { ...e, y: centerY - e.height / 2 } : e); }
+          case "distribute-h": {
+            if (selEls.length < 3) return prev;
+            const sorted = [...selEls].sort((a, b) => a.x - b.x);
+            const minX = sorted[0].x; const maxX = sorted[sorted.length - 1].x;
+            const step = (maxX - minX) / (sorted.length - 1);
+            const posMap = new Map(sorted.map((el, i) => [el.id, minX + step * i]));
+            return prev.map(el => posMap.has(el.id) ? { ...el, x: posMap.get(el.id)! } : el);
+          }
+          case "distribute-v": {
+            if (selEls.length < 3) return prev;
+            const sorted = [...selEls].sort((a, b) => a.y - b.y);
+            const minY = sorted[0].y; const maxY = sorted[sorted.length - 1].y;
+            const step = (maxY - minY) / (sorted.length - 1);
+            const posMap = new Map(sorted.map((el, i) => [el.id, minY + step * i]));
+            return prev.map(el => posMap.has(el.id) ? { ...el, y: posMap.get(el.id)! } : el);
+          }
+        }
+      }
+
+      // Single selected: align to canvas
+      const sel = selEls[0];
       let updates: Partial<CanvasElement> = {};
       switch (alignment) {
         case "left": updates = { x: 0 }; break;
@@ -398,33 +428,13 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         case "top": updates = { y: 0 }; break;
         case "center-v": updates = { y: (A4_HEIGHT - sel.height) / 2 }; break;
         case "bottom": updates = { y: A4_HEIGHT - sel.height }; break;
-        case "distribute-h": {
-          // Distribute all elements evenly horizontally
-          const sorted = [...prev].sort((a, b) => a.x - b.x);
-          if (sorted.length < 3) return prev;
-          const minX = sorted[0].x;
-          const maxX = sorted[sorted.length - 1].x;
-          const step = (maxX - minX) / (sorted.length - 1);
-          return prev.map(el => {
-            const idx = sorted.findIndex(s => s.id === el.id);
-            return { ...el, x: minX + step * idx };
-          });
-        }
-        case "distribute-v": {
-          const sorted = [...prev].sort((a, b) => a.y - b.y);
-          if (sorted.length < 3) return prev;
-          const minY = sorted[0].y;
-          const maxY = sorted[sorted.length - 1].y;
-          const step = (maxY - minY) / (sorted.length - 1);
-          return prev.map(el => {
-            const idx = sorted.findIndex(s => s.id === el.id);
-            return { ...el, y: minY + step * idx };
-          });
-        }
+        case "distribute-h":
+        case "distribute-v":
+          return prev;
       }
-      return prev.map(el => el.id === selectedId ? { ...el, ...updates } : el);
+      return prev.map(el => el.id === sel.id ? { ...el, ...updates } : el);
     });
-  }, [selectedId, setCurrentElements]);
+  }, [selectedIds, setCurrentElements]);
 
   // --- Image upload ---
   const handleImageUpload = () => { fileInputRef.current?.click(); };
@@ -438,7 +448,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       const el = createDefaultElement("image", 100, 100);
       el.imageUrl = url;
       setCurrentElements(prev => [...prev, el]);
-      setSelectedId(el.id);
+      setSelectedIds(new Set([el.id]));
       setActiveTool("select");
     };
     reader.readAsDataURL(file);
