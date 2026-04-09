@@ -1724,22 +1724,36 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   // --- Insert company logo ---
   const handleInsertCompanyLogo = async () => {
     try {
-      const { data: { user } } = await (supabase as any).auth.getUser();
-      if (!user) { toast.error("Usuário não autenticado"); return; }
-      
-      const { data: tenant } = await (supabase as any)
-        .from("tenants")
+      let logoUrl: string | null = null;
+
+      // Try company_settings first (where the logo is saved in settings > empresa)
+      const { data: companySettings } = await (supabase as any)
+        .from("company_settings")
         .select("logo_url")
-        .eq("id", tenantId)
-        .single();
-      
-      if (!tenant?.logo_url) {
-        toast.error("Nenhum logo encontrado. Configure o logo da empresa nas configurações.");
+        .limit(1)
+        .maybeSingle();
+
+      if (companySettings?.logo_url) {
+        logoUrl = companySettings.logo_url;
+      }
+
+      // Fallback to tenants table
+      if (!logoUrl && tenantId) {
+        const { data: tenant } = await (supabase as any)
+          .from("tenants")
+          .select("logo_url")
+          .eq("id", tenantId)
+          .single();
+        if (tenant?.logo_url) logoUrl = tenant.logo_url;
+      }
+
+      if (!logoUrl) {
+        toast.error("Nenhum logo encontrado. Configure o logo da empresa nas configurações → Empresa.");
         return;
       }
       
       const el = createDefaultElement("image", 40, 40);
-      el.imageUrl = tenant.logo_url;
+      el.imageUrl = logoUrl;
       el.width = 180;
       el.height = 80;
       setCurrentElements(prev => [...prev, el]);
