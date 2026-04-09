@@ -14,6 +14,7 @@ import { Upload, Save } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { useCompanyPhones, type UsefulPhone } from "@/hooks/useCompanyPhones";
 import { isNotificationSoundEnabled, setNotificationSoundEnabled, getNotificationVolume, setNotificationVolume, playNotificationSound } from "@/lib/notificationSound";
 
 const NotificationSoundToggle = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<"div">>(function NotificationSoundToggle({ className, ...props }, ref) {
@@ -41,6 +42,13 @@ const NotificationSoundToggle = forwardRef<HTMLDivElement, ComponentPropsWithout
   );
 });
 
+const formatPhone = (value: string) => {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 2) return digits.length ? `(${digits}` : "";
+  if (digits.length <= 7) return `(${digits.slice(0, 2)})${digits.slice(2)}`;
+  return `(${digits.slice(0, 2)})${digits.slice(2, 7)}-${digits.slice(7)}`;
+};
+
 const InactivitySoundToggle = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<"div">>(function InactivitySoundToggle({ className, ...props }, ref) {
   const [enabled, setEnabled] = useState(() => {
     const val = localStorage.getItem("inactivity_sound_enabled");
@@ -60,6 +68,14 @@ const InactivitySoundToggle = forwardRef<HTMLDivElement, ComponentPropsWithoutRe
 
 export function CompanySettingsTab() {
   const { settings, refresh } = useCompanySettings();
+  const { phones, addPhone, updatePhone, deletePhone } = useCompanyPhones();
+  const [newSetor, setNewSetor] = useState("");
+  const [newResponsavel, setNewResponsavel] = useState("");
+  const [newTelefone, setNewTelefone] = useState("");
+  const [editingPhoneId, setEditingPhoneId] = useState<string | null>(null);
+  const [editSetor, setEditSetor] = useState("");
+  const [editResponsavel, setEditResponsavel] = useState("");
+  const [editTelefone, setEditTelefone] = useState("");
   const [name, setName] = useState("");
   const [subtitle, setSubtitle] = useState("");
   const [codigoLoja, setCodigoLoja] = useState("");
@@ -245,6 +261,71 @@ export function CompanySettingsTab() {
                 <p className="text-xs text-destructive mt-1">As senhas não coincidem</p>
               )}
             </div>
+          </div>
+        </div>
+        <Separator />
+        {/* ── Telefones Úteis ── */}
+        <div className="space-y-3">
+          <Label className="text-sm font-semibold">Telefones Úteis da Empresa</Label>
+          <p className="text-xs text-muted-foreground">Cadastre os telefones dos setores da empresa. Eles ficam disponíveis como variáveis nos contratos.</p>
+          
+          {/* Existing phones */}
+          {phones.length > 0 && (
+            <div className="space-y-2">
+              {phones.map((phone) => (
+                <div key={phone.id} className="flex items-center gap-2 rounded-lg border border-border p-2 bg-muted/20">
+                  {editingPhoneId === phone.id ? (
+                    <>
+                      <Input value={editSetor} onChange={(e) => setEditSetor(e.target.value)} placeholder="Setor" className="h-8 text-sm flex-1" />
+                      <Input value={editResponsavel} onChange={(e) => setEditResponsavel(e.target.value)} placeholder="Responsável" className="h-8 text-sm flex-1" />
+                      <Input value={editTelefone} onChange={(e) => setEditTelefone(formatPhone(e.target.value))} placeholder="(99)99999-9999" className="h-8 text-sm w-[160px]" />
+                      <Button size="sm" className="h-8 text-xs gap-1" onClick={async () => {
+                        try {
+                          await updatePhone(phone.id, { setor: editSetor, responsavel: editResponsavel, telefone: editTelefone });
+                          setEditingPhoneId(null);
+                          toast.success("Telefone atualizado!");
+                        } catch { toast.error("Erro ao atualizar"); }
+                      }}><Save className="h-3 w-3" />Salvar</Button>
+                      <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setEditingPhoneId(null)}>Cancelar</Button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-xs font-medium text-foreground min-w-[100px]">{phone.setor}</span>
+                      <span className="text-xs text-muted-foreground flex-1">{phone.responsavel}</span>
+                      <span className="text-xs font-mono text-foreground w-[140px]">{phone.telefone}</span>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                        setEditingPhoneId(phone.id);
+                        setEditSetor(phone.setor);
+                        setEditResponsavel(phone.responsavel);
+                        setEditTelefone(phone.telefone);
+                      }} title="Editar">
+                        <Eye className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={async () => {
+                        try { await deletePhone(phone.id); toast.success("Removido!"); } catch { toast.error("Erro ao remover"); }
+                      }} title="Remover">
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add new phone */}
+          <div className="flex items-end gap-2">
+            <div className="flex-1"><Label className="text-xs">Setor</Label><Input value={newSetor} onChange={(e) => setNewSetor(e.target.value)} placeholder="Ex: Financeiro" className="mt-1 h-8 text-sm" /></div>
+            <div className="flex-1"><Label className="text-xs">Responsável</Label><Input value={newResponsavel} onChange={(e) => setNewResponsavel(e.target.value)} placeholder="Ex: João Silva" className="mt-1 h-8 text-sm" /></div>
+            <div className="w-[160px]"><Label className="text-xs">Telefone</Label><Input value={newTelefone} onChange={(e) => setNewTelefone(formatPhone(e.target.value))} placeholder="(99)99999-9999" className="mt-1 h-8 text-sm" /></div>
+            <Button size="sm" className="h-8 gap-1 text-xs" onClick={async () => {
+              if (!newSetor.trim() || !newTelefone.trim()) { toast.error("Preencha setor e telefone"); return; }
+              try {
+                await addPhone({ setor: newSetor.trim(), responsavel: newResponsavel.trim(), telefone: newTelefone.trim() });
+                setNewSetor(""); setNewResponsavel(""); setNewTelefone("");
+                toast.success("Telefone adicionado!");
+              } catch { toast.error("Erro ao adicionar"); }
+            }}>+ Adicionar</Button>
           </div>
         </div>
         <Separator />
