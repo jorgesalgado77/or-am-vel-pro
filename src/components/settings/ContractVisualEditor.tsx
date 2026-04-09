@@ -4,7 +4,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { ContractEditorToolbar, type ToolType, type ShapeType } from "./ContractEditorToolbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText, LayoutTemplate, BookmarkPlus, Pencil, Trash, Upload, Image as ImageIcon, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd } from "lucide-react";
+import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText, LayoutTemplate, BookmarkPlus, Pencil, Trash, Upload, Image as ImageIcon, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, Eye } from "lucide-react";
 import { getContractTemplates, type ContractTemplate } from "./contractTemplates";
 import { useCustomTemplates, type CustomTemplate } from "@/hooks/useCustomTemplates";
 import { toast } from "sonner";
@@ -12,6 +12,7 @@ import * as pdfjsLib from "pdfjs-dist";
 import { jsPDF } from "jspdf";
 import { Document, Packer, Paragraph, TextRun, ImageRun, PageBreak, AlignmentType, BorderStyle, Table, TableRow, TableCell, WidthType, ShadingType } from "docx";
 import { saveAs } from "file-saver";
+import { buildContractDocumentHtml } from "@/lib/contractDocument";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("/pdf.worker.min.mjs", window.location.origin).href;
 
@@ -215,6 +216,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   // Custom templates state
   const { templates: customTemplates, loading: loadingCustom, saveTemplate, updateTemplate, deleteTemplate } = useCustomTemplates();
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [saveTemplateName, setSaveTemplateName] = useState("");
   const [saveTemplateDesc, setSaveTemplateDesc] = useState("");
   const [editingCustomId, setEditingCustomId] = useState<string | null>(null);
@@ -1370,21 +1372,31 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       toast.error("Informe um nome para o template");
       return;
     }
-    let ok: boolean;
-    if (overwriteTemplateId) {
-      ok = await updateTemplate(overwriteTemplateId, {
-        name: saveTemplateName.trim(),
-        description: saveTemplateDesc.trim(),
-        pages_data: pages,
-      });
-    } else {
-      ok = await saveTemplate(saveTemplateName.trim(), saveTemplateDesc.trim(), pages);
-    }
-    if (ok) {
+    try {
+      let ok: boolean;
+      if (overwriteTemplateId) {
+        ok = await updateTemplate(overwriteTemplateId, {
+          name: saveTemplateName.trim(),
+          description: saveTemplateDesc.trim(),
+          pages_data: pages,
+        });
+      } else {
+        ok = await saveTemplate(saveTemplateName.trim(), saveTemplateDesc.trim(), pages);
+      }
+      // Always close dialog and reset
       setShowSaveDialog(false);
       setSaveTemplateName("");
       setSaveTemplateDesc("");
       setOverwriteTemplateId(null);
+      if (!ok) {
+        toast.error("Não foi possível salvar o template. Verifique se a tabela existe no banco.");
+      }
+    } catch (err) {
+      setShowSaveDialog(false);
+      setSaveTemplateName("");
+      setSaveTemplateDesc("");
+      setOverwriteTemplateId(null);
+      toast.error("Erro inesperado ao salvar template");
     }
   };
 
@@ -1666,6 +1678,9 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           </>
         )}
         <div className="flex-1" />
+        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={() => setShowPreview(true)}>
+          <Eye className="h-3 w-3" /> Preview
+        </Button>
         <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={onCancel}><X className="h-3 w-3" /> Cancelar</Button>
         <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleExportPdf} disabled={exporting}>
           <Download className="h-3 w-3" /> PDF
@@ -2010,6 +2025,29 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         {/* Properties panel */}
         {renderPropertiesPanel()}
       </div>
+
+      {/* Preview Modal */}
+      {showPreview && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowPreview(false)}>
+          <div className="bg-background rounded-xl border border-border shadow-2xl w-[90vw] max-w-4xl h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Eye className="h-4 w-4 text-primary" /> Preview do Contrato
+              </h3>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowPreview(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <iframe
+                title="Preview do contrato"
+                className="w-full h-full bg-white"
+                srcDoc={buildContractDocumentHtml(convertToHtml(), "Preview do Contrato")}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
