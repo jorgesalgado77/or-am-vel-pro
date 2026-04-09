@@ -14,6 +14,7 @@ import { jsPDF } from "jspdf";
 import { Document, Packer, Paragraph, TextRun, ImageRun, PageBreak, AlignmentType, BorderStyle, Table, TableRow, TableCell, WidthType, ShadingType } from "docx";
 import { saveAs } from "file-saver";
 import { buildContractDocumentHtml } from "@/lib/contractDocument";
+import { evaluateCell, isFormula, SUPPORTED_FORMULAS, indexToCol } from "@/lib/formulaEngine";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("/pdf.worker.min.mjs", window.location.origin).href;
 
