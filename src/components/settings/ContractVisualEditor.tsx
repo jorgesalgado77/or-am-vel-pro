@@ -1738,8 +1738,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={duplicatePage} title="Duplicar página"><Copy className="h-3.5 w-3.5" /></Button>
         <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={deletePage} disabled={pages.length <= 1} title="Excluir página"><Trash2 className="h-3.5 w-3.5" /></Button>
         <div className="h-5 w-px bg-border" />
-        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handlePdfImport} disabled={importingPdf} title="Importar PDF como fundo">
-          <FileUp className="h-3.5 w-3.5" /> {importingPdf ? "Importando..." : "PDF fundo"}
+        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handlePdfImport} disabled={importingPdf} title="Importar PDF, DOCX ou Excel">
+          <FileUp className="h-3.5 w-3.5" /> {importingPdf ? "Importando..." : "Importar"}
         </Button>
         <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleInsertCompanyLogo} title="Inserir logo da empresa">
           <ImageIcon className="h-3.5 w-3.5" /> Logo
@@ -2042,9 +2042,9 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             </div>
           ))}
         </div>
-        {/* Canvas */}
-        <div className="flex-1 min-w-0 min-h-0 overflow-auto bg-muted/40 p-6" style={{ background: "repeating-conic-gradient(hsl(var(--muted)) 0% 25%, hsl(var(--background)) 0% 50%) 50% / 20px 20px" }}>
-          <div
+        {/* Canvas area with Word-like rulers feel */}
+        <div className="flex-1 min-w-0 min-h-0 overflow-auto" style={{ background: "hsl(var(--muted) / 0.6)" }}>
+          <div className="min-h-full flex justify-center py-6 px-4" style={{ minWidth: A4_WIDTH * zoom + 48 }}>
             ref={canvasRef}
             style={{
               width: A4_WIDTH * zoom, height: A4_HEIGHT * zoom, margin: "0 auto",
