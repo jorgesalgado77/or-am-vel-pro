@@ -470,6 +470,94 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       return;
     }
 
+    const ext = file.name.split(".").pop()?.toLowerCase();
+
+    // Excel import: convert to table elements
+    if (ext === "xlsx" || ext === "xls") {
+      try {
+        setImportingPdf(true);
+        setPdfProgress({ current: 0, total: 0, status: "Lendo planilha Excel..." });
+        const XLSX = await import("xlsx");
+        const arrayBuffer = await file.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: "array" });
+
+        const newPages: PageData[] = [];
+        const totalSheets = workbook.SheetNames.length;
+
+        for (let si = 0; si < totalSheets; si++) {
+          const sheetName = workbook.SheetNames[si];
+          setPdfProgress({ current: si, total: totalSheets, status: `Processando aba "${sheetName}" (${si + 1}/${totalSheets})...` });
+          const sheet = workbook.Sheets[sheetName];
+          const jsonData: string[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" }) as string[][];
+
+          if (jsonData.length === 0) continue;
+
+          // Split into chunks that fit on A4 pages (~30 rows per page)
+          const ROWS_PER_PAGE = 28;
+          const maxCols = Math.max(...jsonData.map(r => r.length), 1);
+          const colWidth = Math.min(Math.floor((A4_WIDTH - 60) / maxCols), 200);
+          const tableWidth = colWidth * maxCols;
+
+          for (let chunk = 0; chunk < jsonData.length; chunk += ROWS_PER_PAGE) {
+            const rowsSlice = jsonData.slice(chunk, chunk + ROWS_PER_PAGE);
+            const rowHeight = 28;
+            const tableHeight = rowsSlice.length * rowHeight;
+
+            // Add sheet name as title on first chunk
+            const titleElements: CanvasElement[] = chunk === 0 ? [{
+              ...createDefaultElement("text", 30, 20),
+              text: sheetName,
+              fontSize: 16,
+              fontWeight: "bold",
+              width: tableWidth,
+              height: 30,
+            }] : [];
+
+            const tableEl: CanvasElement = {
+              ...createDefaultElement("table", 30, chunk === 0 ? 60 : 30),
+              width: tableWidth,
+              height: tableHeight,
+              tableData: rowsSlice.map(r => {
+                const row = r.map(c => String(c ?? ""));
+                while (row.length < maxCols) row.push("");
+                return row;
+              }),
+              tableRows: rowsSlice.length,
+              tableCols: maxCols,
+              fontSize: 10,
+              stroke: "#333333",
+              fill: "#ffffff",
+            };
+
+            newPages.push({
+              id: pageId(),
+              elements: [...titleElements, tableEl],
+              backgroundOpacity: 0.5,
+            });
+          }
+        }
+
+        if (newPages.length === 0) {
+          toast.error("Nenhuma aba com dados encontrada no Excel");
+          return;
+        }
+
+        setPages(prev => {
+          if (prev.length === 1 && prev[0].elements.length === 0 && !prev[0].backgroundImage) return newPages;
+          return [...prev.slice(0, currentPageIdx + 1), ...newPages, ...prev.slice(currentPageIdx + 1)];
+        });
+        setCurrentPageIdx(pages.length === 1 && pages[0].elements.length === 0 ? 0 : currentPageIdx + 1);
+        toast.success(`Excel importado: ${newPages.length} página(s) de ${totalSheets} aba(s)`);
+      } catch (err: any) {
+        console.error("Excel import error:", err);
+        toast.error("Erro ao importar Excel: " + (err?.message || "Verifique o arquivo"));
+      } finally {
+        setImportingPdf(false);
+        setPdfProgress({ current: 0, total: 0, status: "" });
+      }
+      return;
+    }
+
     setPendingPdfFile(file);
     setShowPdfSettings(true);
   };
@@ -1611,7 +1699,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   return (
     <div className="flex flex-col h-full min-h-0">
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-      <input ref={pdfInputRef} type="file" accept=".pdf" className="hidden" onChange={handlePdfFileChange} />
+      <input ref={pdfInputRef} type="file" accept=".pdf,.docx,.doc,.xlsx,.xls" className="hidden" onChange={handlePdfFileChange} />
       <input ref={jsonInputRef} type="file" accept=".json" className="hidden" onChange={handleImportTemplatesJson} />
 
       {/* Toolbar */}
@@ -1650,8 +1738,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={duplicatePage} title="Duplicar página"><Copy className="h-3.5 w-3.5" /></Button>
         <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={deletePage} disabled={pages.length <= 1} title="Excluir página"><Trash2 className="h-3.5 w-3.5" /></Button>
         <div className="h-5 w-px bg-border" />
-        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handlePdfImport} disabled={importingPdf} title="Importar PDF como fundo">
-          <FileUp className="h-3.5 w-3.5" /> {importingPdf ? "Importando..." : "PDF fundo"}
+        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handlePdfImport} disabled={importingPdf} title="Importar PDF, DOCX ou Excel">
+          <FileUp className="h-3.5 w-3.5" /> {importingPdf ? "Importando..." : "Importar"}
         </Button>
         <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleInsertCompanyLogo} title="Inserir logo da empresa">
           <ImageIcon className="h-3.5 w-3.5" /> Logo
@@ -1897,7 +1985,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       )}
 
       {/* Main area */}
-      <div className="flex flex-1 min-h-0 overflow-hidden border border-border rounded-b-lg">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Page thumbnails sidebar */}
         <div className="w-24 min-h-0 border-r border-border bg-muted/20 overflow-y-auto p-2 space-y-2">
           {pages.map((page, idx) => (
@@ -1954,71 +2042,74 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             </div>
           ))}
         </div>
-        {/* Canvas */}
-        <div className="flex-1 min-w-0 min-h-0 overflow-auto bg-muted/40 p-6" style={{ background: "repeating-conic-gradient(hsl(var(--muted)) 0% 25%, hsl(var(--background)) 0% 50%) 50% / 20px 20px" }}>
-          <div
-            ref={canvasRef}
-            style={{
-              width: A4_WIDTH * zoom, height: A4_HEIGHT * zoom, margin: "0 auto",
-              position: "relative", background: "#fff",
-              boxShadow: "0 2px 16px rgba(0,0,0,0.1)", overflow: "hidden",
-            }}
-            onClick={handleCanvasClick}
-            onContextMenu={handleContextMenu}
-          >
-            {/* Background image */}
-            {currentPage?.backgroundImage && (
-              <img
-                src={currentPage.backgroundImage}
-                alt=""
-                style={{
-                  position: "absolute", top: 0, left: 0,
-                  width: A4_WIDTH * zoom, height: A4_HEIGHT * zoom,
-                  objectFit: "contain", pointerEvents: "none",
-                  opacity: currentPage.backgroundOpacity,
-                }}
-              />
-            )}
-            {/* Scaled inner */}
-            <div style={{ transform: `scale(${zoom})`, transformOrigin: "0 0", width: A4_WIDTH, height: A4_HEIGHT, position: "relative" }}>
-              {elements.map(renderElement)}
-            </div>
-
-            {/* Context menu */}
-            {contextMenu && (
-              <div
-                style={{ position: "absolute", left: contextMenu.x, top: contextMenu.y, zIndex: 99999 }}
-                onClick={e => e.stopPropagation()}
-                className="min-w-[200px] rounded-md border border-border bg-popover shadow-lg"
-              >
-                {selectedIds.size > 0 && (
-                  <>
-                    <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground" onClick={duplicateSelected}>Duplicar</button>
-                    <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-destructive/10 text-destructive" onClick={deleteSelected}>Excluir</button>
-                    <div className="h-px bg-border my-1" />
-                  </>
-                )}
-                <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground flex items-center gap-2" onClick={() => { setContextMenu(null); handleInsertCompanyLogo(); }}>
-                  <ImageIcon className="h-3.5 w-3.5" /> Inserir Logo da Empresa
-                </button>
-                <div className="h-px bg-border my-1" />
-                <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">Inserir Variável</div>
-                <div className="px-2 pb-1">
-                  <input type="text" placeholder="Buscar..." value={varSearch}
-                    onChange={e => setVarSearch(e.target.value)}
-                    className="w-full rounded border border-border bg-muted/30 px-2 py-1 text-xs outline-none"
-                    autoFocus onClick={e => e.stopPropagation()} />
-                </div>
-                <div className="max-h-[200px] overflow-y-auto">
-                  {filteredVars.map(v => (
-                    <button key={v.var} className="w-full px-3 py-1 text-left hover:bg-accent" onClick={() => insertVariable(v.var)}>
-                      <div className="text-xs font-mono text-primary">{v.var}</div>
-                      <div className="text-[10px] text-muted-foreground">{v.desc}</div>
-                    </button>
-                  ))}
-                </div>
+        {/* Canvas area with Word-like feel */}
+        <div className="flex-1 min-w-0 min-h-0 overflow-auto" style={{ background: "hsl(var(--muted) / 0.6)" }}>
+          <div className="min-h-full flex justify-center py-6 px-4" style={{ minWidth: A4_WIDTH * zoom + 48 }}>
+            <div
+              ref={canvasRef}
+              style={{
+                width: A4_WIDTH * zoom, height: A4_HEIGHT * zoom,
+                position: "relative", background: "#fff",
+                boxShadow: "0 4px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08)",
+                overflow: "hidden", flexShrink: 0,
+              }}
+              onClick={handleCanvasClick}
+              onContextMenu={handleContextMenu}
+            >
+              {/* Background image */}
+              {currentPage?.backgroundImage && (
+                <img
+                  src={currentPage.backgroundImage}
+                  alt=""
+                  style={{
+                    position: "absolute", top: 0, left: 0,
+                    width: A4_WIDTH * zoom, height: A4_HEIGHT * zoom,
+                    objectFit: "contain", pointerEvents: "none",
+                    opacity: currentPage.backgroundOpacity,
+                  }}
+                />
+              )}
+              {/* Scaled inner */}
+              <div style={{ transform: `scale(${zoom})`, transformOrigin: "0 0", width: A4_WIDTH, height: A4_HEIGHT, position: "relative" }}>
+                {elements.map(renderElement)}
               </div>
-            )}
+
+              {/* Context menu */}
+              {contextMenu && (
+                <div
+                  style={{ position: "absolute", left: contextMenu.x, top: contextMenu.y, zIndex: 99999 }}
+                  onClick={e => e.stopPropagation()}
+                  className="min-w-[200px] rounded-md border border-border bg-popover shadow-lg"
+                >
+                  {selectedIds.size > 0 && (
+                    <>
+                      <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground" onClick={duplicateSelected}>Duplicar</button>
+                      <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-destructive/10 text-destructive" onClick={deleteSelected}>Excluir</button>
+                      <div className="h-px bg-border my-1" />
+                    </>
+                  )}
+                  <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground flex items-center gap-2" onClick={() => { setContextMenu(null); handleInsertCompanyLogo(); }}>
+                    <ImageIcon className="h-3.5 w-3.5" /> Inserir Logo da Empresa
+                  </button>
+                  <div className="h-px bg-border my-1" />
+                  <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">Inserir Variável</div>
+                  <div className="px-2 pb-1">
+                    <input type="text" placeholder="Buscar..." value={varSearch}
+                      onChange={e => setVarSearch(e.target.value)}
+                      className="w-full rounded border border-border bg-muted/30 px-2 py-1 text-xs outline-none"
+                      autoFocus onClick={e => e.stopPropagation()} />
+                  </div>
+                  <div className="max-h-[200px] overflow-y-auto">
+                    {filteredVars.map(v => (
+                      <button key={v.var} className="w-full px-3 py-1 text-left hover:bg-accent" onClick={() => insertVariable(v.var)}>
+                        <div className="text-xs font-mono text-primary">{v.var}</div>
+                        <div className="text-[10px] text-muted-foreground">{v.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

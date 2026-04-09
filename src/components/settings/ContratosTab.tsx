@@ -582,14 +582,16 @@ export function ContratosTab() {
 
   if (visualEditorMode) {
     return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="min-w-[200px] flex-1 max-w-md">
-            <Label className="mb-1 block text-xs">Nome do Modelo</Label>
-            <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome do contrato" />
+      <div className="fixed inset-0 z-50 bg-background flex flex-col">
+        {/* Top header bar */}
+        <div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-muted/30 shrink-0">
+          <div className="min-w-[200px] flex-1 max-w-md flex items-center gap-2">
+            <Label className="text-xs whitespace-nowrap font-medium">Nome do Modelo</Label>
+            <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome do contrato" className="h-8 text-sm" />
           </div>
         </div>
-        <div className="h-[80vh]">
+        {/* Editor fills remaining space */}
+        <div className="flex-1 min-h-0">
           <ContractVisualEditor
             onSave={handleVisualEditorSave}
             onCancel={() => setVisualEditorMode(false)}
