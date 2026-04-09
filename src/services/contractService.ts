@@ -74,6 +74,7 @@ interface ContractData {
   items: any[];
   itemDetails: any[];
   catalogProducts?: Array<{ name: string; internal_code: string; quantity: number; sale_price: number }>;
+  companyPhones?: Array<{ setor: string; responsavel: string; telefone: string }>;
 }
 
 export function buildContractHtml(templateHtml: string, data: ContractData): string {
