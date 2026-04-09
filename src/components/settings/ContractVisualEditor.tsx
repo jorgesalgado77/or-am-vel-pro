@@ -3296,7 +3296,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                       Limite da página
                     </span>
                   </div>
-                  {elements.map(renderElement)}
+                  {elements.filter(el => !hiddenIds.has(el.id)).map(renderElement)}
                   {/* Smart alignment guides */}
                   {smartGuides.x.map((gx, i) => (
                     <div key={`sgx-${i}`} style={{
