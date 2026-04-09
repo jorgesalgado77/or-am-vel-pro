@@ -78,7 +78,7 @@ interface ContractData {
 }
 
 export function buildContractHtml(templateHtml: string, data: ContractData): string {
-  const { formData, client, valorTela, result, formaPagamento, parcelas, valorEntrada, settings, selectedIndicador, comissaoPercentual, items, itemDetails, catalogProducts } = data;
+  const { formData, client, valorTela, result, formaPagamento, parcelas, valorEntrada, settings, selectedIndicador, comissaoPercentual, items, itemDetails, catalogProducts, companyPhones } = data;
 
   const dataAtual = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
 
