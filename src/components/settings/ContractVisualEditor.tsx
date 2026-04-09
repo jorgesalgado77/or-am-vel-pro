@@ -264,21 +264,33 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     return resolved;
   }, [pages.length, previewVarsMode]);
 
-  const GENERAL_CONDITIONS_BOX = { x: 40, y: 100, width: 714, height: 966 };
+  const FIXED_SECTION_BOX = { x: 40, y: 100, width: 714, height: 966 };
+  // Alias for backward compat in reflow
+  const GENERAL_CONDITIONS_BOX = FIXED_SECTION_BOX;
+
+  // Patterns for all section titles that should use fixed-layout continuity
+  const FIXED_SECTION_PATTERNS = [
+    /CONDI(?:ÇÕES|COES)\s+GERAIS/i,
+    /OBSERVA(?:ÇÕES|COES)/i,
+    /AMBIENTES?\s+E\s+VALORES/i,
+    /DETALHES?\s+D[OE]S?\s+AMBIENTES?/i,
+    /PRODUTOS?\s+D[OE]\s+CAT[AÁ]LOGO/i,
+  ];
+
   const isGeneralConditionsElement = useCallback((el: CanvasElement, page: PageData) => {
     const isTextual = (el.type === "text" || el.type === "rect") && !!el.text;
-    const matchesFrame = Math.abs(el.x - GENERAL_CONDITIONS_BOX.x) <= 8
-      && Math.abs(el.y - GENERAL_CONDITIONS_BOX.y) <= 24
-      && Math.abs(el.width - GENERAL_CONDITIONS_BOX.width) <= 16;
+    const matchesFrame = Math.abs(el.x - FIXED_SECTION_BOX.x) <= 8
+      && Math.abs(el.y - FIXED_SECTION_BOX.y) <= 24
+      && Math.abs(el.width - FIXED_SECTION_BOX.width) <= 16;
 
     if (!isTextual || !matchesFrame) return false;
 
     return page.elements.some((other) =>
       other.id !== el.id
       && other.type === "text"
-      && /CONDI(?:ÇÕES|COES)\s+GERAIS/i.test(other.text)
+      && FIXED_SECTION_PATTERNS.some(pat => pat.test(other.text))
       && other.y < el.y
-      && Math.abs(other.x - GENERAL_CONDITIONS_BOX.x) <= 16,
+      && Math.abs(other.x - FIXED_SECTION_BOX.x) <= 16,
     );
   }, []);
 
