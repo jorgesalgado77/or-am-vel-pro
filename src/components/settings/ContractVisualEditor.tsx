@@ -5,9 +5,10 @@ import { ContractEditorToolbar, type ToolType, type ShapeType } from "./Contract
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText, BookmarkPlus, Pencil, Trash, Upload, Image as ImageIcon, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, Eye, FileSpreadsheet, ToggleLeft, ToggleRight, Palette, Layers } from "lucide-react";
+import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText, BookmarkPlus, Pencil, Trash, Upload, Image as ImageIcon, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, Eye, FileSpreadsheet, ToggleLeft, ToggleRight, Palette, Layers, ListOrdered } from "lucide-react";
 // jsPDF/docx imports removed - now in contract-editor/exportHelpers
 import { ContractLayersPanel } from "./ContractLayersPanel";
+import { ContractSectionsPanel } from "./ContractSectionsPanel";
 import { getContractTemplates, type ContractTemplate } from "./contractTemplates";
 import { useCustomTemplates, type CustomTemplate } from "@/hooks/useCustomTemplates";
 import { toast } from "sonner";
@@ -145,6 +146,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [smartGuides, setSmartGuides] = useState<{ x: number[]; y: number[] }>({ x: [], y: [] });
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [showLayersPanel, setShowLayersPanel] = useState(true);
+  const [showSectionsPanel, setShowSectionsPanel] = useState(true);
 
   // User-placed draggable guide lines
   const [userGuides, setUserGuides] = useState<{ id: string; axis: "x" | "y"; pos: number }[]>([]);
@@ -3285,6 +3287,26 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                     if (next.has(id)) next.delete(id); else next.add(id);
                     return next;
                   })}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Sections order panel */}
+          <div className="border-t border-border">
+            <button
+              onClick={() => setShowSectionsPanel(!showSectionsPanel)}
+              className="w-full flex items-center gap-1.5 px-2 py-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hover:bg-muted/40 transition-colors"
+            >
+              <ListOrdered className="h-3.5 w-3.5" />
+              Ordem das Seções
+              <span className="ml-auto text-[10px]">{showSectionsPanel ? "▾" : "▸"}</span>
+            </button>
+            {showSectionsPanel && (
+              <div className="px-2 pb-2">
+                <ContractSectionsPanel
+                  elements={elements as any}
+                  onReorder={(reordered) => setCurrentElements(() => reordered as any)}
                 />
               </div>
             )}
