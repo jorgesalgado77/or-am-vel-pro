@@ -20,10 +20,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import {
   Package, Plus, Trash2, Pencil, Search, Loader2, Upload, Image as ImageIcon,
-  Factory, ChevronLeft, ChevronRight, AlertTriangle, FileSpreadsheet, X, ShoppingCart, Video, Star,
+  Factory, ChevronLeft, ChevronRight, AlertTriangle, FileSpreadsheet, X, ShoppingCart, Video, Star, Tag,
 } from "lucide-react";
 import { useProductCatalog, calculateSalePrice, type Product, type Supplier, type ProductImage } from "@/hooks/useProductCatalog";
 import { ProductDetailModal } from "@/components/catalog/ProductDetailModal";
+import { ProductPromotionModal } from "@/components/catalog/ProductPromotionModal";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { maskCpfCnpj, maskPhone, maskCep } from "@/lib/masks";
 import { toast } from "sonner";
@@ -146,6 +147,8 @@ export function ProductCatalog() {
   const [saleSaving, setSaleSaving] = useState(false);
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [promoOpen, setPromoOpen] = useState(false);
+  const [promoProduct, setPromoProduct] = useState<Product | null>(null);
   const openSaleDialog = (p: Product) => {
     setSaleProduct(p);
     setSaleQty(1);
@@ -861,7 +864,21 @@ export function ProductCatalog() {
             </div>
           </div>
 
-          <DialogFooter className="px-4 sm:px-6 py-3 border-t shrink-0">
+          <DialogFooter className="px-4 sm:px-6 py-3 border-t shrink-0 flex-row gap-2">
+            {form.id && canManageProducts && (
+              <Button
+                variant="secondary"
+                size="sm"
+                className="mr-auto gap-1.5"
+                onClick={() => {
+                  const p = products.find(pr => pr.id === form.id);
+                  if (p) { setPromoProduct(p); setPromoOpen(true); }
+                }}
+              >
+                <Tag className="h-3.5 w-3.5" />
+                Criar Promoção
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={isSaving} className="w-full sm:w-auto">Cancelar</Button>
             <Button onClick={handleSaveProduct} disabled={isSaving || saving} className="w-full sm:w-auto gap-1.5">
               {isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
@@ -1021,6 +1038,17 @@ export function ProductCatalog() {
 
       {/* Product Detail Modal */}
       <ProductDetailModal product={detailProduct} open={detailOpen} onOpenChange={setDetailOpen} />
+
+      {/* Promotion Modal */}
+      {promoProduct && (
+        <ProductPromotionModal
+          open={promoOpen}
+          onOpenChange={setPromoOpen}
+          productId={promoProduct.id}
+          productName={promoProduct.name}
+          currentPrice={promoProduct.sale_price}
+        />
+      )}
     </div>
   );
 }
