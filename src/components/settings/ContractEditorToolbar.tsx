@@ -42,6 +42,10 @@ interface ContractEditorToolbarProps {
   onImageUpload: () => void;
   onTableInsert: () => void;
   onBack?: () => void;
+  // Eyedropper
+  eyedropperColor?: string | null;
+  eyedropperMode?: "fill" | "stroke" | "text" | null;
+  onEyedropperClick?: () => void;
 }
 
 const SYSTEM_FONTS = [
