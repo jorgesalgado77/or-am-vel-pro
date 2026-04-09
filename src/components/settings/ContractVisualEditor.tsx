@@ -3027,9 +3027,17 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                       if (!content) { toast.info("Área de transferência vazia"); setContextMenu(null); return; }
                       
                       if (selectedIds.size > 0) {
-                        // Paste into selected element
                         const selId = [...selectedIds][0];
+                        const selEl = elements.find(e => e.id === selId);
                         setCurrentElements(prev => prev.map(el => el.id === selId ? { ...el, text: el.text + content } : el));
+                        if (selEl) {
+                          const plainText = (selEl.text + content).replace(/<[^>]*>/g, '');
+                          const lineCount = Math.max(1, Math.ceil(plainText.length / Math.max(1, Math.floor(selEl.width / (selEl.fontSize * 0.6)))));
+                          const estimatedH = lineCount * selEl.fontSize * 1.5 + 10;
+                          if (estimatedH > selEl.height) {
+                            setTimeout(() => reflowElements(selId, estimatedH), 50);
+                          }
+                        }
                         toast.success("Texto colado no elemento selecionado!");
                       } else {
                         // Create new text element at context menu position
