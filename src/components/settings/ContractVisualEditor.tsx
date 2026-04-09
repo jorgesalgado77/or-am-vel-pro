@@ -1610,6 +1610,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             setCurrentElements(prev => prev.map(p => p.id === el.id ? { ...p, text: newText } : p));
             autoResizeElement(el.id, e.currentTarget as HTMLElement);
           }}
+          onPaste={handlePaste}
           onBlur={() => setEditingTextId(null)}
           onKeyDown={(e) => {
             e.stopPropagation();
