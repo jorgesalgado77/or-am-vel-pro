@@ -4,7 +4,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { ContractEditorToolbar, type ToolType, type ShapeType } from "./ContractEditorToolbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText, LayoutTemplate, BookmarkPlus, Pencil, Trash, Upload, Image as ImageIcon, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd } from "lucide-react";
+import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText, LayoutTemplate, BookmarkPlus, Pencil, Trash, Upload, Image as ImageIcon, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, Eye } from "lucide-react";
 import { getContractTemplates, type ContractTemplate } from "./contractTemplates";
 import { useCustomTemplates, type CustomTemplate } from "@/hooks/useCustomTemplates";
 import { toast } from "sonner";
