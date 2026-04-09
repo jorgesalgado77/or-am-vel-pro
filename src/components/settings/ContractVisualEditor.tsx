@@ -1370,21 +1370,31 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       toast.error("Informe um nome para o template");
       return;
     }
-    let ok: boolean;
-    if (overwriteTemplateId) {
-      ok = await updateTemplate(overwriteTemplateId, {
-        name: saveTemplateName.trim(),
-        description: saveTemplateDesc.trim(),
-        pages_data: pages,
-      });
-    } else {
-      ok = await saveTemplate(saveTemplateName.trim(), saveTemplateDesc.trim(), pages);
-    }
-    if (ok) {
+    try {
+      let ok: boolean;
+      if (overwriteTemplateId) {
+        ok = await updateTemplate(overwriteTemplateId, {
+          name: saveTemplateName.trim(),
+          description: saveTemplateDesc.trim(),
+          pages_data: pages,
+        });
+      } else {
+        ok = await saveTemplate(saveTemplateName.trim(), saveTemplateDesc.trim(), pages);
+      }
+      // Always close dialog and reset
       setShowSaveDialog(false);
       setSaveTemplateName("");
       setSaveTemplateDesc("");
       setOverwriteTemplateId(null);
+      if (!ok) {
+        toast.error("Não foi possível salvar o template. Verifique se a tabela existe no banco.");
+      }
+    } catch (err) {
+      setShowSaveDialog(false);
+      setSaveTemplateName("");
+      setSaveTemplateDesc("");
+      setOverwriteTemplateId(null);
+      toast.error("Erro inesperado ao salvar template");
     }
   };
 
