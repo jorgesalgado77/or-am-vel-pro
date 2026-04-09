@@ -1017,12 +1017,28 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       if (dragState) {
         const dx = (e.clientX - dragState.startX) / zoom;
         const dy = (e.clientY - dragState.startY) / zoom;
+        const GUIDE_SNAP = 6;
         setCurrentElements(prev => {
           const updated = prev.map(el => {
             const origin = dragState.origins[el.id];
             if (!origin) return el;
             const cp = clampToMargins(el, origin.x + dx, origin.y + dy);
-            return { ...el, x: cp.x, y: cp.y };
+            let sx = cp.x, sy = cp.y;
+            // Snap to user guides
+            for (const g of userGuides) {
+              if (g.axis === "x") {
+                const edges = [sx, sx + el.width / 2, sx + el.width];
+                for (const edge of edges) {
+                  if (Math.abs(edge - g.pos) < GUIDE_SNAP) { sx += g.pos - edge; break; }
+                }
+              } else {
+                const edges = [sy, sy + el.height / 2, sy + el.height];
+                for (const edge of edges) {
+                  if (Math.abs(edge - g.pos) < GUIDE_SNAP) { sy += g.pos - edge; break; }
+                }
+              }
+            }
+            return { ...el, x: sx, y: sy };
           });
           setSmartGuides(computeSmartGuides(dragState.ids, updated));
           return updated;
