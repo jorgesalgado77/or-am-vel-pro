@@ -386,7 +386,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       const workingPages = [...prev];
 
       const staticElements = sourceElements
-        .filter(el => isLikelyPageChrome(el, repeatedChrome, margins) || el.y < changedEl.y)
+        .filter(el => isLikelyPageChrome(el, repeatedChrome, margins) || (!isGeneralConditionsBox && el.y < changedEl.y))
         .map(stripSplitMetadata);
 
       const flowCandidates = sourceElements
