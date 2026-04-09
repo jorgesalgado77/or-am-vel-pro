@@ -5,7 +5,8 @@ import { ContractEditorToolbar, type ToolType, type ShapeType } from "./Contract
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText, BookmarkPlus, Pencil, Trash, Upload, Image as ImageIcon, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, Eye, FileSpreadsheet, ToggleLeft, ToggleRight, Palette } from "lucide-react";
+import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText, BookmarkPlus, Pencil, Trash, Upload, Image as ImageIcon, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, Eye, FileSpreadsheet, ToggleLeft, ToggleRight, Palette, Layers } from "lucide-react";
+import { ContractLayersPanel } from "./ContractLayersPanel";
 import { getContractTemplates, type ContractTemplate } from "./contractTemplates";
 import { useCustomTemplates, type CustomTemplate } from "@/hooks/useCustomTemplates";
 import { toast } from "sonner";
@@ -242,6 +243,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [dragPageIdx, setDragPageIdx] = useState<number | null>(null);
   const [dragOverPageIdx, setDragOverPageIdx] = useState<number | null>(null);
   const [smartGuides, setSmartGuides] = useState<{ x: number[]; y: number[] }>({ x: [], y: [] });
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const [showLayersPanel, setShowLayersPanel] = useState(true);
 
   // Custom templates state
   const { templates: customTemplates, loading: loadingCustom, saveTemplate, updateTemplate, deleteTemplate } = useCustomTemplates();
@@ -336,7 +339,16 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   }, [currentPageIdx]);
 
   const addPage = () => {
-    const newPage: PageData = { id: pageId(), elements: [], backgroundOpacity: 0.5 };
+    const clienteEl = createDefaultElement("text", margins.left, margins.top + 90);
+    clienteEl.text = "{{nome_cliente}}";
+    clienteEl.fontSize = 13;
+    clienteEl.fontWeight = "bold";
+    clienteEl.color = "#333333";
+    clienteEl.width = A4_WIDTH - margins.left - margins.right;
+    clienteEl.height = 24;
+    clienteEl.stroke = "transparent";
+    clienteEl.strokeWidth = 0;
+    const newPage: PageData = { id: pageId(), elements: [clienteEl], backgroundOpacity: 0.5 };
     setPages(prev => [...prev.slice(0, currentPageIdx + 1), newPage, ...prev.slice(currentPageIdx + 1)]);
     setCurrentPageIdx(currentPageIdx + 1);
     setSelectedIds(new Set());
@@ -1168,6 +1180,33 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             const cp = clampToMargins(el, el.x + dx, el.y + dy);
             return { ...el, x: cp.x, y: cp.y };
           }));
+        }
+      }
+
+      // Lock/Unlock selected (Ctrl+L)
+      if ((e.ctrlKey || e.metaKey) && e.key === "l" && !e.shiftKey) {
+        if (selectedIds.size > 0) {
+          e.preventDefault();
+          const selEls = elements.filter(el => selectedIds.has(el.id));
+          const allLocked = selEls.every(el => el.locked);
+          setCurrentElements(prev => prev.map(el => selectedIds.has(el.id) ? { ...el, locked: !allLocked } : el));
+          toast.success(allLocked ? "Elemento(s) desbloqueado(s)" : "Elemento(s) bloqueado(s)");
+        }
+      }
+
+      // Center on page (Ctrl+Shift+C)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "C") {
+        if (selectedIds.size > 0) {
+          e.preventDefault();
+          setCurrentElements(prev => prev.map(el => {
+            if (!selectedIds.has(el.id)) return el;
+            return {
+              ...el,
+              x: (A4_WIDTH - el.width) / 2,
+              y: (A4_HEIGHT - el.height) / 2,
+            };
+          }));
+          toast.success("Elemento(s) centralizado(s) na página");
         }
       }
 
@@ -2209,8 +2248,27 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     );
   };
 
+  // Helper: insert {{nome_cliente}} on all pages below header area
+  const insertNomeClienteOnPages = (pagesData: PageData[]): PageData[] => {
+    return pagesData.map(p => {
+      const hasClienteVar = p.elements.some(el => el.text?.includes("{{nome_cliente}}"));
+      if (hasClienteVar) return p;
+      const clienteEl = createDefaultElement("text", margins.left, margins.top + 90);
+      clienteEl.text = "{{nome_cliente}}";
+      clienteEl.fontSize = 13;
+      clienteEl.fontWeight = "bold";
+      clienteEl.color = "#333333";
+      clienteEl.width = A4_WIDTH - margins.left - margins.right;
+      clienteEl.height = 24;
+      clienteEl.stroke = "transparent";
+      clienteEl.strokeWidth = 0;
+      return { ...p, elements: [...p.elements, clienteEl] };
+    });
+  };
+
   const applyTemplate = (tpl: ContractTemplate) => {
-    setPages(tpl.pages.map(p => ({ ...p, id: pageId(), elements: p.elements.map(e => ({ ...e, id: genId() })) })));
+    const pagesData = tpl.pages.map(p => ({ ...p, id: pageId(), elements: p.elements.map(e => ({ ...e, id: genId() })) }));
+    setPages(insertNomeClienteOnPages(pagesData));
     setCurrentPageIdx(0);
     setSelectedIds(new Set());
     setShowTemplates(false);
@@ -2218,8 +2276,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   };
 
   const applyCustomTemplate = (ct: CustomTemplate) => {
-    const pagesData = ct.pages_data as PageData[];
-    setPages(pagesData.map(p => ({ ...p, id: pageId(), elements: (p.elements || []).map(e => ({ ...e, id: genId() })) })));
+    const pagesData = (ct.pages_data as PageData[]).map(p => ({ ...p, id: pageId(), elements: (p.elements || []).map(e => ({ ...e, id: genId() })) }));
+    setPages(insertNomeClienteOnPages(pagesData));
     setCurrentPageIdx(0);
     setSelectedIds(new Set());
     setShowTemplates(false);
@@ -3111,61 +3169,93 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
       {/* Main area */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Page thumbnails sidebar */}
-        <div className="w-24 min-h-0 border-r border-border bg-muted/20 overflow-y-auto p-2 space-y-2">
-          {pages.map((page, idx) => (
-            <div
-              key={page.id}
-              draggable
-              onDragStart={() => setDragPageIdx(idx)}
-              onDragOver={(e) => { e.preventDefault(); setDragOverPageIdx(idx); }}
-              onDragLeave={() => setDragOverPageIdx(null)}
-              onDrop={() => {
-                if (dragPageIdx !== null && dragPageIdx !== idx) {
-                  setPages(prev => {
-                    const arr = [...prev];
-                    const [moved] = arr.splice(dragPageIdx, 1);
-                    arr.splice(idx, 0, moved);
-                    return arr;
-                  });
-                  setCurrentPageIdx(idx);
-                }
-                setDragPageIdx(null);
-                setDragOverPageIdx(null);
-              }}
-              onDragEnd={() => { setDragPageIdx(null); setDragOverPageIdx(null); }}
-              onClick={() => { setCurrentPageIdx(idx); setSelectedIds(new Set()); }}
-              className={`w-full rounded border-2 transition-all cursor-pointer ${idx === currentPageIdx ? "border-primary shadow-sm" : "border-border hover:border-muted-foreground/30"} ${dragOverPageIdx === idx && dragPageIdx !== idx ? "border-primary/50 bg-primary/5" : ""} ${dragPageIdx === idx ? "opacity-40" : ""}`}
-              title={`Página ${idx + 1} — arraste para reordenar`}
-            >
-              <div className="relative w-full bg-background group/thumb" style={{ aspectRatio: `${A4_WIDTH}/${A4_HEIGHT}` }}>
-                {page.backgroundImage && (
-                  <img src={page.backgroundImage} alt="" className="absolute inset-0 w-full h-full object-contain" style={{ opacity: page.backgroundOpacity }} />
-                )}
-                {pages.length > 1 && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!confirm(`Excluir página ${idx + 1}?`)) return;
-                      setPages(prev => {
-                        const arr = prev.filter((_, i) => i !== idx);
-                        return arr;
-                      });
-                      setCurrentPageIdx(prev => prev >= pages.length - 1 ? Math.max(0, pages.length - 2) : prev > idx ? prev - 1 : prev);
-                      setSelectedIds(new Set());
-                    }}
-                    className="absolute top-0.5 right-0.5 z-10 opacity-0 group-hover/thumb:opacity-100 transition-opacity bg-destructive/90 hover:bg-destructive text-destructive-foreground rounded p-0.5"
-                    title={`Excluir página ${idx + 1}`}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                )}
-                <div className="absolute bottom-0 left-0 right-0 bg-foreground/60 text-background text-[9px] text-center py-0.5 font-medium">
-                  {idx + 1}
+        {/* Left sidebar: thumbnails + layers */}
+        <div className="w-48 min-h-0 border-r border-border bg-muted/20 overflow-y-auto flex flex-col">
+          {/* Page thumbnails */}
+          <div className="p-2 space-y-2 shrink-0">
+            <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-1">Páginas</h4>
+            {pages.map((page, idx) => (
+              <div
+                key={page.id}
+                draggable
+                onDragStart={() => setDragPageIdx(idx)}
+                onDragOver={(e) => { e.preventDefault(); setDragOverPageIdx(idx); }}
+                onDragLeave={() => setDragOverPageIdx(null)}
+                onDrop={() => {
+                  if (dragPageIdx !== null && dragPageIdx !== idx) {
+                    setPages(prev => {
+                      const arr = [...prev];
+                      const [moved] = arr.splice(dragPageIdx, 1);
+                      arr.splice(idx, 0, moved);
+                      return arr;
+                    });
+                    setCurrentPageIdx(idx);
+                  }
+                  setDragPageIdx(null);
+                  setDragOverPageIdx(null);
+                }}
+                onDragEnd={() => { setDragPageIdx(null); setDragOverPageIdx(null); }}
+                onClick={() => { setCurrentPageIdx(idx); setSelectedIds(new Set()); }}
+                className={`w-full rounded border-2 transition-all cursor-pointer ${idx === currentPageIdx ? "border-primary shadow-sm" : "border-border hover:border-muted-foreground/30"} ${dragOverPageIdx === idx && dragPageIdx !== idx ? "border-primary/50 bg-primary/5" : ""} ${dragPageIdx === idx ? "opacity-40" : ""}`}
+                title={`Página ${idx + 1} — arraste para reordenar`}
+              >
+                <div className="relative w-full bg-background group/thumb" style={{ aspectRatio: `${A4_WIDTH}/${A4_HEIGHT}` }}>
+                  {page.backgroundImage && (
+                    <img src={page.backgroundImage} alt="" className="absolute inset-0 w-full h-full object-contain" style={{ opacity: page.backgroundOpacity }} />
+                  )}
+                  {pages.length > 1 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!confirm(`Excluir página ${idx + 1}?`)) return;
+                        setPages(prev => {
+                          const arr = prev.filter((_, i) => i !== idx);
+                          return arr;
+                        });
+                        setCurrentPageIdx(prev => prev >= pages.length - 1 ? Math.max(0, pages.length - 2) : prev > idx ? prev - 1 : prev);
+                        setSelectedIds(new Set());
+                      }}
+                      className="absolute top-0.5 right-0.5 z-10 opacity-0 group-hover/thumb:opacity-100 transition-opacity bg-destructive/90 hover:bg-destructive text-destructive-foreground rounded p-0.5"
+                      title={`Excluir página ${idx + 1}`}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  )}
+                  <div className="absolute bottom-0 left-0 right-0 bg-foreground/60 text-background text-[9px] text-center py-0.5 font-medium">
+                    {idx + 1}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+
+          {/* Layers panel */}
+          <div className="border-t border-border">
+            <button
+              onClick={() => setShowLayersPanel(!showLayersPanel)}
+              className="w-full flex items-center gap-1.5 px-2 py-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hover:bg-muted/40 transition-colors"
+            >
+              <Layers className="h-3.5 w-3.5" />
+              Camadas
+              <span className="ml-auto text-[10px]">{showLayersPanel ? "▾" : "▸"}</span>
+            </button>
+            {showLayersPanel && (
+              <div className="px-2 pb-2">
+                <ContractLayersPanel
+                  elements={elements}
+                  selectedIds={selectedIds}
+                  onSelect={setSelectedIds}
+                  onUpdate={setCurrentElements}
+                  hiddenIds={hiddenIds}
+                  onToggleHidden={(id) => setHiddenIds(prev => {
+                    const next = new Set(prev);
+                    if (next.has(id)) next.delete(id); else next.add(id);
+                    return next;
+                  })}
+                />
+              </div>
+            )}
+          </div>
         </div>
         {/* Canvas area with Word-like feel */}
         <div className="flex-1 min-w-0 min-h-0 overflow-auto" style={{ background: "hsl(var(--muted) / 0.6)" }}>
@@ -3247,7 +3337,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                       Limite da página
                     </span>
                   </div>
-                  {elements.map(renderElement)}
+                  {elements.filter(el => !hiddenIds.has(el.id)).map(renderElement)}
                   {/* Smart alignment guides */}
                   {smartGuides.x.map((gx, i) => (
                     <div key={`sgx-${i}`} style={{
