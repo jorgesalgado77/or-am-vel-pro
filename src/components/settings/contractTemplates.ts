@@ -148,58 +148,6 @@ export function getContractTemplates(): ContractTemplate[] {
       ],
     },
     {
-      id: "prestacao-servicos",
-      name: "Prestação de Serviços",
-      description: "Contrato genérico para prestação de serviços com escopo e prazos",
-      icon: "📋",
-      pages: [
-        {
-          id: tplId(), backgroundOpacity: 0.5, elements: [
-            makeRect(0, 0, 794, 70, { fill: "#1e40af", stroke: "transparent" }),
-            makeText(40, 18, 500, 30, "CONTRATO DE PRESTAÇÃO DE SERVIÇOS", { fontSize: 18, fontWeight: "bold", color: "#ffffff" }),
-            makeText(40, 48, 300, 18, "Nº {{numero_contrato}}", { fontSize: 11, color: "#bfdbfe" }),
-
-            makeText(40, 90, 714, 20, "CONTRATANTE", { fontSize: 12, fontWeight: "bold", color: "#1e40af" }),
-            makeLine(40, 108, 714, { stroke: "#1e40af" }),
-            makeText(40, 115, 714, 20, "Nome/Razão Social: {{cliente_nome}}"),
-            makeText(40, 138, 350, 20, "CPF/CNPJ: {{cliente_cpf}}"),
-            makeText(400, 138, 350, 20, "Tel: {{cliente_telefone}}"),
-
-            makeText(40, 175, 714, 20, "CONTRATADA", { fontSize: 12, fontWeight: "bold", color: "#1e40af" }),
-            makeLine(40, 193, 714, { stroke: "#1e40af" }),
-            makeText(40, 200, 714, 20, "Razão Social: {{empresa_nome}}"),
-            makeText(40, 223, 350, 20, "CNPJ: {{empresa_cnpj}}"),
-
-            makeText(40, 260, 714, 20, "OBJETO DO CONTRATO", { fontSize: 12, fontWeight: "bold", color: "#1e40af" }),
-            makeLine(40, 278, 714, { stroke: "#1e40af" }),
-            makeText(40, 285, 714, 80, "O presente contrato tem como objeto a prestação dos seguintes serviços:\n\n{{descricao_servico}}", { fontSize: 11, color: "#374151" }),
-
-            makeText(40, 380, 714, 20, "VALORES E PAGAMENTO", { fontSize: 12, fontWeight: "bold", color: "#1e40af" }),
-            makeLine(40, 398, 714, { stroke: "#1e40af" }),
-            makeTable(40, 405, 714, 100, [
-              ["Descrição", "Valor"],
-              ["Serviço principal", "{{valor_servico}}"],
-              ["Materiais", "{{valor_materiais}}"],
-              ["Total", "{{valor_total}}"],
-            ]),
-
-            makeText(40, 525, 714, 20, "PRAZO", { fontSize: 12, fontWeight: "bold", color: "#1e40af" }),
-            makeLine(40, 543, 714, { stroke: "#1e40af" }),
-            makeText(40, 550, 714, 50, "O prazo para execução dos serviços é de {{prazo_execucao}} dias, iniciando em {{data_inicio}} com previsão de conclusão em {{data_fim}}.", { fontSize: 11, color: "#374151" }),
-
-            makeText(40, 620, 714, 20, "CLÁUSULAS GERAIS", { fontSize: 12, fontWeight: "bold", color: "#1e40af" }),
-            makeLine(40, 638, 714, { stroke: "#1e40af" }),
-            makeText(40, 645, 714, 150, "1. A CONTRATADA se compromete a executar os serviços com qualidade e dentro do prazo estipulado.\n\n2. Qualquer alteração no escopo deverá ser acordada por escrito entre as partes.\n\n3. A rescisão poderá ser feita por qualquer parte com aviso prévio de 30 dias.\n\n4. Fica eleito o foro da comarca de {{cidade_foro}} para resolução de litígios.", { fontSize: 11, color: "#374151" }),
-
-            makeText(40, 830, 340, 20, "______________________________", { textAlign: "center" }),
-            makeText(40, 855, 340, 15, "CONTRATADA", { textAlign: "center", fontSize: 10, color: "#6b7280" }),
-            makeText(414, 830, 340, 20, "______________________________", { textAlign: "center" }),
-            makeText(414, 855, 340, 15, "CONTRATANTE", { textAlign: "center", fontSize: 10, color: "#6b7280" }),
-          ],
-        },
-      ],
-    },
-    {
       id: "termo-garantia",
       name: "Termo de Garantia",
       description: "Termo de garantia para produtos ou serviços prestados",
