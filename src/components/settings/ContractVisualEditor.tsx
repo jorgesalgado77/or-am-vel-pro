@@ -1760,16 +1760,11 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         onUndo={handleUndo} onRedo={handleRedo} canUndo={canUndo} canRedo={canRedo}
         onImageUpload={handleImageUpload}
         onTableInsert={handleTableInsert}
+        onBack={() => setShowTemplates(true)}
       />
 
       {/* Action bar */}
-      <div className="flex items-center flex-wrap gap-1 border-x border-border bg-muted/20 px-2 py-1">
-        {/* Voltar */}
-        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={() => setShowTemplates(true)} title="Voltar para seleção de templates">
-          <ChevronLeft className="h-3.5 w-3.5" /> Voltar
-        </Button>
-        <div className="h-5 w-px bg-border" />
-
+      <div className="flex items-center flex-wrap gap-1.5 border-x border-border bg-muted/20 px-3 py-1.5">
         {/* Zoom */}
         <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setZoom(z => Math.max(0.25, z - 0.1))} title="Diminuir zoom"><ZoomOut className="h-3.5 w-3.5" /></Button>
         <span className="text-xs text-muted-foreground w-10 text-center shrink-0">{Math.round(zoom * 100)}%</span>
