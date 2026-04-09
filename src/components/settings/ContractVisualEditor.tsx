@@ -162,6 +162,11 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   // Conditional formatting
   const [conditionalRules, setConditionalRules] = useState<ConditionalRule[]>(DEFAULT_CONDITIONAL_RULES);
   const [showConditionalPanel, setShowConditionalPanel] = useState(false);
+  const [customPresets, setCustomPresets] = useState<ConditionalPreset[]>(() => loadCustomPresets());
+  const [activePresetId, setActivePresetId] = useState<string | null>("preset_valores_padrao");
+  const [savePresetName, setSavePresetName] = useState("");
+  const [showSavePreset, setShowSavePreset] = useState(false);
+  const allPresets = [...getAllPresets().filter(p => p.builtIn), ...customPresets];
   // Undo/Redo history
   const historyRef = useRef<PageData[][]>([]);
   const historyIdxRef = useRef(-1);
