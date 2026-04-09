@@ -4,7 +4,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { ContractEditorToolbar, type ToolType, type ShapeType } from "./ContractEditorToolbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText, LayoutTemplate, BookmarkPlus, Pencil, Trash, Upload, Image as ImageIcon } from "lucide-react";
+import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText, LayoutTemplate, BookmarkPlus, Pencil, Trash, Upload, Image as ImageIcon, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd } from "lucide-react";
 import { getContractTemplates, type ContractTemplate } from "./contractTemplates";
 import { useCustomTemplates, type CustomTemplate } from "@/hooks/useCustomTemplates";
 import { toast } from "sonner";
@@ -140,6 +140,61 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [resizeState, setResizeState] = useState<{ id: string; startX: number; startY: number; startW: number; startH: number; corner: string; startElX: number; startElY: number } | null>(null);
   const [rotateState, setRotateState] = useState<{ id: string; startAngle: number; elRotation: number; centerX: number; centerY: number } | null>(null);
   const [clipboard, setClipboard] = useState<CanvasElement | null>(null);
+
+  // Undo/Redo history
+  const historyRef = useRef<PageData[][]>([]);
+  const historyIdxRef = useRef(-1);
+  const skipHistoryRef = useRef(false);
+
+  const pushHistory = useCallback((snapshot: PageData[]) => {
+    if (skipHistoryRef.current) { skipHistoryRef.current = false; return; }
+    const h = historyRef.current;
+    const idx = historyIdxRef.current;
+    // Trim future states
+    historyRef.current = h.slice(0, idx + 1);
+    historyRef.current.push(JSON.parse(JSON.stringify(snapshot)));
+    // Keep max 50 states
+    if (historyRef.current.length > 50) historyRef.current.shift();
+    historyIdxRef.current = historyRef.current.length - 1;
+  }, []);
+
+  // Push initial state
+  useEffect(() => {
+    if (historyRef.current.length === 0) {
+      pushHistory(pages);
+    }
+  }, []);
+
+  // Track pages changes for history
+  const prevPagesRef = useRef<string>("");
+  useEffect(() => {
+    const serialized = JSON.stringify(pages);
+    if (serialized !== prevPagesRef.current) {
+      prevPagesRef.current = serialized;
+      pushHistory(pages);
+    }
+  }, [pages, pushHistory]);
+
+  const canUndo = historyIdxRef.current > 0;
+  const canRedo = historyIdxRef.current < historyRef.current.length - 1;
+
+  const handleUndo = useCallback(() => {
+    if (historyIdxRef.current <= 0) return;
+    historyIdxRef.current -= 1;
+    const snapshot = historyRef.current[historyIdxRef.current];
+    skipHistoryRef.current = true;
+    prevPagesRef.current = JSON.stringify(snapshot);
+    setPages(JSON.parse(JSON.stringify(snapshot)));
+  }, []);
+
+  const handleRedo = useCallback(() => {
+    if (historyIdxRef.current >= historyRef.current.length - 1) return;
+    historyIdxRef.current += 1;
+    const snapshot = historyRef.current[historyIdxRef.current];
+    skipHistoryRef.current = true;
+    prevPagesRef.current = JSON.stringify(snapshot);
+    setPages(JSON.parse(JSON.stringify(snapshot)));
+  }, []);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [varSearch, setVarSearch] = useState("");
@@ -325,6 +380,49 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     setSelectedId(dup.id);
     setContextMenu(null);
   };
+
+  // --- Alignment functions ---
+  const alignElements = useCallback((alignment: "left" | "center-h" | "right" | "top" | "center-v" | "bottom" | "distribute-h" | "distribute-v") => {
+    if (!selectedId) return;
+    // Align selected element to canvas
+    setCurrentElements(prev => {
+      const sel = prev.find(e => e.id === selectedId);
+      if (!sel) return prev;
+      let updates: Partial<CanvasElement> = {};
+      switch (alignment) {
+        case "left": updates = { x: 0 }; break;
+        case "center-h": updates = { x: (A4_WIDTH - sel.width) / 2 }; break;
+        case "right": updates = { x: A4_WIDTH - sel.width }; break;
+        case "top": updates = { y: 0 }; break;
+        case "center-v": updates = { y: (A4_HEIGHT - sel.height) / 2 }; break;
+        case "bottom": updates = { y: A4_HEIGHT - sel.height }; break;
+        case "distribute-h": {
+          // Distribute all elements evenly horizontally
+          const sorted = [...prev].sort((a, b) => a.x - b.x);
+          if (sorted.length < 3) return prev;
+          const minX = sorted[0].x;
+          const maxX = sorted[sorted.length - 1].x;
+          const step = (maxX - minX) / (sorted.length - 1);
+          return prev.map(el => {
+            const idx = sorted.findIndex(s => s.id === el.id);
+            return { ...el, x: minX + step * idx };
+          });
+        }
+        case "distribute-v": {
+          const sorted = [...prev].sort((a, b) => a.y - b.y);
+          if (sorted.length < 3) return prev;
+          const minY = sorted[0].y;
+          const maxY = sorted[sorted.length - 1].y;
+          const step = (maxY - minY) / (sorted.length - 1);
+          return prev.map(el => {
+            const idx = sorted.findIndex(s => s.id === el.id);
+            return { ...el, y: minY + step * idx };
+          });
+        }
+      }
+      return prev.map(el => el.id === selectedId ? { ...el, ...updates } : el);
+    });
+  }, [selectedId, setCurrentElements]);
 
   // --- Image upload ---
   const handleImageUpload = () => { fileInputRef.current?.click(); };
@@ -564,8 +662,9 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         }
       }
 
-      if ((e.ctrlKey || e.metaKey) && e.key === "z") { e.preventDefault(); }
-      if ((e.ctrlKey || e.metaKey) && e.key === "y") { e.preventDefault(); }
+      // Undo / Redo
+      if ((e.ctrlKey || e.metaKey) && e.key === "z") { e.preventDefault(); handleUndo(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === "y") { e.preventDefault(); handleRedo(); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -1458,7 +1557,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         onStrikethroughToggle={() => { const c = selected?.textDecoration || "none"; const h = c.includes("line-through"); updateSelected({ textDecoration: h ? c.replace("line-through", "").trim() || "none" : (c === "none" ? "line-through" : c + " line-through") }); }}
         textColor={textColor} onTextColorChange={v => updateSelected({ color: v })}
         textAlign={textAlign} onTextAlignChange={v => updateSelected({ textAlign: v })}
-        onUndo={() => {}} onRedo={() => {}} canUndo={false} canRedo={false}
+        onUndo={handleUndo} onRedo={handleRedo} canUndo={canUndo} canRedo={canRedo}
         onImageUpload={handleImageUpload}
         onTableInsert={handleTableInsert}
       />
@@ -1489,6 +1588,24 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={() => setShowSaveDialog(true)} title="Salvar como Template">
           <BookmarkPlus className="h-3.5 w-3.5" /> Salvar Template
         </Button>
+        {selectedId && (
+          <>
+            <div className="h-5 w-px bg-border" />
+            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => alignElements("left")} title="Alinhar à esquerda"><AlignHorizontalJustifyStart className="h-3.5 w-3.5" /></Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => alignElements("center-h")} title="Centralizar horizontalmente"><AlignHorizontalJustifyCenter className="h-3.5 w-3.5" /></Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => alignElements("right")} title="Alinhar à direita"><AlignHorizontalJustifyEnd className="h-3.5 w-3.5" /></Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => alignElements("top")} title="Alinhar ao topo"><AlignVerticalJustifyStart className="h-3.5 w-3.5" /></Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => alignElements("center-v")} title="Centralizar verticalmente"><AlignVerticalJustifyCenter className="h-3.5 w-3.5" /></Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => alignElements("bottom")} title="Alinhar abaixo"><AlignVerticalJustifyEnd className="h-3.5 w-3.5" /></Button>
+            {elements.length >= 3 && (
+              <>
+                <div className="h-5 w-px bg-border" />
+                <Button variant="ghost" size="sm" className="h-7 text-[10px] shrink-0" onClick={() => alignElements("distribute-h")} title="Distribuir horizontalmente">Dist. H</Button>
+                <Button variant="ghost" size="sm" className="h-7 text-[10px] shrink-0" onClick={() => alignElements("distribute-v")} title="Distribuir verticalmente">Dist. V</Button>
+              </>
+            )}
+          </>
+        )}
         <div className="flex-1" />
         <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={onCancel}><X className="h-3 w-3" /> Cancelar</Button>
         <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleExportPdf} disabled={exporting}>
