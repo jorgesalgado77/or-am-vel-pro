@@ -297,86 +297,89 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
   // --- Reflow: push elements down and auto-paginate ---
   const reflowElements = useCallback((changedElId: string, newHeight: number, changedElUpdates?: Partial<CanvasElement>) => {
-    const els = pages[currentPageIdx]?.elements || [];
-    const changedEl = els.find(e => e.id === changedElId);
-    if (!changedEl) return;
-    
-    const oldBottom = changedEl.y + changedEl.height;
-    const heightDelta = newHeight - changedEl.height;
-    if (heightDelta <= 0) {
-      if (changedElUpdates && Object.keys(changedElUpdates).length > 0) {
-        setCurrentElements(prev => prev.map(el => el.id === changedElId ? { ...el, ...changedElUpdates } : el));
+    setPages(prev => {
+      const page = prev[currentPageIdx];
+      if (!page) return prev;
+
+      const els = page.elements;
+      const changedEl = els.find(e => e.id === changedElId);
+      if (!changedEl) return prev;
+
+      const oldBottom = changedEl.y + changedEl.height;
+      const heightDelta = newHeight - changedEl.height;
+
+      if (heightDelta <= 0) {
+        if (!changedElUpdates || Object.keys(changedElUpdates).length === 0) return prev;
+        const nextElements = els.map(el => el.id === changedElId ? { ...el, ...changedElUpdates } : el);
+        const nextPages = [...prev];
+        nextPages[currentPageIdx] = { ...page, elements: nextElements };
+        return nextPages;
       }
-      return;
-    }
-    
-    // Update elements: resize changed + push below ones down
-    const updated = els.map(el => {
-      if (el.id === changedElId) return { ...el, ...changedElUpdates, height: newHeight };
-      if (el.y >= oldBottom - 5) return { ...el, y: el.y + heightDelta };
-      return el;
-    });
-    
-    // Split into fits / overflows
-    const pageBottom = A4_HEIGHT - margins.bottom;
-    const fits = updated.filter(el => el.y + el.height <= pageBottom);
-    const overflows = updated.filter(el => el.y + el.height > pageBottom);
-    
-    // Cap changed element if it itself overflows
-    const cappedFits = fits.map(el => {
-      if (el.id === changedElId && el.y + el.height > pageBottom) {
-        return { ...el, ...changedElUpdates, height: Math.max(24, pageBottom - el.y) };
-      }
-      return el;
-    });
-    
-    if (overflows.length > 0) {
-      setPages(prev => {
-        const newPages = [...prev];
-        newPages[currentPageIdx] = { ...newPages[currentPageIdx], elements: cappedFits };
-        
-        let nextIdx = currentPageIdx + 1;
-        if (nextIdx >= newPages.length) {
-          newPages.push({ id: pageId(), elements: [], backgroundOpacity: 0.5 });
+
+      const updated = els.map(el => {
+        if (el.id === changedElId) return { ...el, ...changedElUpdates, height: newHeight };
+        if (el.y >= oldBottom - 5) return { ...el, y: el.y + heightDelta };
+        return el;
+      });
+
+      const pageBottom = A4_HEIGHT - margins.bottom;
+      const fits = updated.filter(el => el.y + el.height <= pageBottom);
+      const overflows = updated.filter(el => el.y + el.height > pageBottom);
+      const cappedFits = fits.map(el => {
+        if (el.id === changedElId && el.y + el.height > pageBottom) {
+          return { ...el, ...changedElUpdates, height: Math.max(24, pageBottom - el.y) };
         }
-        
-        const existingNextEls = newPages[nextIdx].elements;
-        let nextY = existingNextEls.length > 0
-          ? Math.max(margins.top, Math.max(...existingNextEls.map(e => e.y + e.height)) + 10)
-          : margins.top;
-        
-        const movedElements = overflows.map(el => {
-          const moved = { ...el, y: nextY };
-          nextY += el.height + 10;
+        return el;
+      });
+
+      const nextPages = [...prev];
+
+      if (overflows.length === 0) {
+        nextPages[currentPageIdx] = { ...page, elements: updated };
+        return nextPages;
+      }
+
+      nextPages[currentPageIdx] = { ...page, elements: cappedFits };
+
+      let nextIdx = currentPageIdx + 1;
+      if (nextIdx >= nextPages.length) {
+        nextPages.push({ id: pageId(), elements: [], backgroundOpacity: 0.5 });
+      }
+
+      const existingNextEls = nextPages[nextIdx].elements;
+      let nextY = existingNextEls.length > 0
+        ? Math.max(margins.top, Math.max(...existingNextEls.map(e => e.y + e.height)) + 10)
+        : margins.top;
+
+      const movedElements = overflows.map(el => {
+        const moved = { ...el, y: nextY };
+        nextY += el.height + 10;
+        return moved;
+      });
+
+      const fitsNext = movedElements.filter(e => e.y + e.height <= pageBottom);
+      const overflowsNext = movedElements.filter(e => e.y + e.height > pageBottom);
+
+      nextPages[nextIdx] = { ...nextPages[nextIdx], elements: [...existingNextEls, ...fitsNext] };
+
+      if (overflowsNext.length > 0) {
+        let extraIdx = nextIdx + 1;
+        if (extraIdx >= nextPages.length) {
+          nextPages.push({ id: pageId(), elements: [], backgroundOpacity: 0.5 });
+        }
+        let extraY = margins.top;
+        const extraMoved = overflowsNext.map(el => {
+          const moved = { ...el, y: extraY };
+          extraY += el.height + 10;
           return moved;
         });
-        
-        const fitsNext = movedElements.filter(e => e.y + e.height <= pageBottom);
-        const overflowsNext = movedElements.filter(e => e.y + e.height > pageBottom);
-        
-        newPages[nextIdx] = { ...newPages[nextIdx], elements: [...existingNextEls, ...fitsNext] };
-        
-        if (overflowsNext.length > 0) {
-          let extraIdx = nextIdx + 1;
-          if (extraIdx >= newPages.length) {
-            newPages.push({ id: pageId(), elements: [], backgroundOpacity: 0.5 });
-          }
-          let extraY = margins.top;
-          const extraMoved = overflowsNext.map(el => {
-            const moved = { ...el, y: extraY };
-            extraY += el.height + 10;
-            return moved;
-          });
-          newPages[extraIdx] = { ...newPages[extraIdx], elements: [...newPages[extraIdx].elements, ...extraMoved] };
-        }
-        
-        toast.info("Elementos reorganizados automaticamente entre páginas.", { id: "auto-reflow" });
-        return newPages;
-      });
-    } else {
-      setCurrentElements(() => updated);
-    }
-  }, [pages, currentPageIdx, margins, setCurrentElements, setPages]);
+        nextPages[extraIdx] = { ...nextPages[extraIdx], elements: [...nextPages[extraIdx].elements, ...extraMoved] };
+      }
+
+      toast.info("Elementos reorganizados automaticamente entre páginas.", { id: "auto-reflow" });
+      return nextPages;
+    });
+  }, [currentPageIdx, margins.bottom, margins.top, setPages]);
 
   // --- Element operations ---
   const updateSelected = useCallback((updates: Partial<CanvasElement>) => {
@@ -3198,13 +3201,14 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                       if (selectedIds.size > 0) {
                         const selId = [...selectedIds][0];
                         const selEl = elements.find(e => e.id === selId);
+                        const nextText = (selEl?.text || "") + content;
                         setCurrentElements(prev => prev.map(el => el.id === selId ? { ...el, text: el.text + content } : el));
                         if (selEl) {
-                          const plainText = (selEl.text + content).replace(/<[^>]*>/g, '');
+                          const plainText = nextText.replace(/<[^>]*>/g, '');
                           const lineCount = Math.max(1, Math.ceil(plainText.length / Math.max(1, Math.floor(selEl.width / (selEl.fontSize * 0.6)))));
                           const estimatedH = lineCount * selEl.fontSize * 1.5 + 10;
                           if (estimatedH > selEl.height) {
-                            setTimeout(() => reflowElements(selId, estimatedH), 50);
+                            setTimeout(() => reflowElements(selId, estimatedH, { text: nextText }), 50);
                           }
                         }
                         toast.success("Texto colado no elemento selecionado!");
