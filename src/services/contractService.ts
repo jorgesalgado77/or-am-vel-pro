@@ -144,6 +144,7 @@ export function buildContractHtml(templateHtml: string, data: ContractData): str
     "{{cidade_entrega}}": formData.cidade_entrega || "",
     "{{uf_entrega}}": formData.uf_entrega || "",
     "{{cep_entrega}}": formData.cep_entrega || "",
+    "{{complemento_entrega}}": formData.complemento_entrega || "",
     "{{prazo_entrega}}": formData.prazo_entrega || "",
     "{{observacoes}}": formData.observacoes || "",
     "{{projetista}}": formData.responsavel_venda || client.vendedor || "",
