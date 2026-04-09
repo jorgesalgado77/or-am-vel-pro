@@ -4,7 +4,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { ContractEditorToolbar, type ToolType, type ShapeType } from "./ContractEditorToolbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText, LayoutTemplate, BookmarkPlus, Pencil, Trash, Upload, Image as ImageIcon, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, Eye } from "lucide-react";
+import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText, LayoutTemplate, BookmarkPlus, Pencil, Trash, Upload, Image as ImageIcon, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, Eye, FileSpreadsheet } from "lucide-react";
 import { getContractTemplates, type ContractTemplate } from "./contractTemplates";
 import { useCustomTemplates, type CustomTemplate } from "@/hooks/useCustomTemplates";
 import { toast } from "sonner";
@@ -1130,6 +1130,47 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     }
   };
 
+  const [exportingXlsx, setExportingXlsx] = useState(false);
+
+  const handleExportXlsx = async () => {
+    setExportingXlsx(true);
+    try {
+      const XLSX = await import("xlsx");
+      const wb = XLSX.utils.book_new();
+
+      for (let pageIdx = 0; pageIdx < pages.length; pageIdx++) {
+        const page = pages[pageIdx];
+        const sortedEls = [...page.elements].sort((a, b) => a.y - b.y || a.x - b.x);
+        const rows: string[][] = [];
+
+        for (const el of sortedEls) {
+          if (el.type === "table" && el.tableData) {
+            for (const row of el.tableData) {
+              rows.push([...row]);
+            }
+            rows.push([]); // blank separator
+          } else if (el.type === "text" && el.text?.trim()) {
+            rows.push([el.text]);
+          } else if ((el.type === "rect" || el.type === "circle") && el.text?.trim()) {
+            rows.push([el.text]);
+          }
+        }
+
+        if (rows.length === 0) rows.push(["(Página vazia)"]);
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        XLSX.utils.book_append_sheet(wb, ws, `Página ${pageIdx + 1}`);
+      }
+
+      XLSX.writeFile(wb, "contrato.xlsx");
+      toast.success("Excel exportado com sucesso!");
+    } catch (err) {
+      console.error("Export XLSX error:", err);
+      toast.error("Erro ao exportar Excel");
+    } finally {
+      setExportingXlsx(false);
+    }
+  };
+
   const filteredVars = variables
     .filter(v => !varSearch || v.var.toLowerCase().includes(varSearch.toLowerCase()) || v.desc.toLowerCase().includes(varSearch.toLowerCase()))
     .sort((a, b) => a.var.localeCompare(b.var));
@@ -1727,13 +1768,13 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           <LayoutTemplate className="h-3.5 w-3.5" /> Templates
         </Button>
         <div className="h-5 w-px bg-border" />
-        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setZoom(z => Math.max(0.25, z - 0.1))} title="Zoom -"><ZoomOut className="h-3.5 w-3.5" /></Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setZoom(z => Math.max(0.25, z - 0.1))} title="Diminuir zoom"><ZoomOut className="h-3.5 w-3.5" /></Button>
         <span className="text-xs text-muted-foreground w-10 text-center shrink-0">{Math.round(zoom * 100)}%</span>
-        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setZoom(z => Math.min(2, z + 0.1))} title="Zoom +"><ZoomIn className="h-3.5 w-3.5" /></Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setZoom(z => Math.min(2, z + 0.1))} title="Aumentar zoom (Ctrl++)"><ZoomIn className="h-3.5 w-3.5" /></Button>
         <div className="h-5 w-px bg-border" />
-        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={goToPrevPage} disabled={currentPageIdx === 0}><ChevronLeft className="h-3.5 w-3.5" /></Button>
-        <span className="text-xs text-foreground font-medium shrink-0">Pág. {currentPageIdx + 1}/{pages.length}</span>
-        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={goToNextPage} disabled={currentPageIdx >= pages.length - 1}><ChevronRight className="h-3.5 w-3.5" /></Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={goToPrevPage} disabled={currentPageIdx === 0} title="Página anterior"><ChevronLeft className="h-3.5 w-3.5" /></Button>
+        <span className="text-xs text-foreground font-medium shrink-0" title={`Página ${currentPageIdx + 1} de ${pages.length}`}>Pág. {currentPageIdx + 1}/{pages.length}</span>
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={goToNextPage} disabled={currentPageIdx >= pages.length - 1} title="Próxima página"><ChevronRight className="h-3.5 w-3.5" /></Button>
         <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={addPage} title="Adicionar página"><Plus className="h-3.5 w-3.5" /></Button>
         <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={duplicatePage} title="Duplicar página"><Copy className="h-3.5 w-3.5" /></Button>
         <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={deletePage} disabled={pages.length <= 1} title="Excluir página"><Trash2 className="h-3.5 w-3.5" /></Button>
@@ -1766,17 +1807,20 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           </>
         )}
         <div className="flex-1" />
-        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={() => setShowPreview(true)}>
+        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={() => setShowPreview(true)} title="Visualizar preview do contrato">
           <Eye className="h-3 w-3" /> Preview
         </Button>
-        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={onCancel}><X className="h-3 w-3" /> Cancelar</Button>
-        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleExportPdf} disabled={exporting}>
+        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={onCancel} title="Cancelar edição"><X className="h-3 w-3" /> Cancelar</Button>
+        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleExportPdf} disabled={exporting} title="Exportar como PDF">
           <Download className="h-3 w-3" /> PDF
         </Button>
-        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleExportDocx} disabled={exportingDocx}>
+        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleExportDocx} disabled={exportingDocx} title="Exportar como DOCX (Word)">
           <FileText className="h-3 w-3" /> DOCX
         </Button>
-        <Button size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleSave}><Save className="h-3 w-3" /> Salvar</Button>
+        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleExportXlsx} disabled={exportingXlsx} title="Exportar como Excel (.xlsx)">
+          <FileSpreadsheet className="h-3 w-3" /> Excel
+        </Button>
+        <Button size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleSave} title="Salvar contrato"><Save className="h-3 w-3" /> Salvar</Button>
       </div>
 
       {/* Save as Template Dialog */}
