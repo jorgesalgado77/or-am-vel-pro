@@ -255,13 +255,13 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
       setViewerImage(null);
       setPlayingVideo(false);
       setShowAddFlow(false);
+      setPromoData(null);
 
       supabase.from("product_images" as any)
         .select("id, image_url, is_default")
         .eq("product_id", product.id)
         .then(({ data, error }) => {
           if (error) {
-            // Fallback without is_default
             supabase.from("product_images" as any)
               .select("id, image_url")
               .eq("product_id", product.id)
@@ -277,6 +277,36 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
             setPlayingVideo(false);
           }
         });
+
+      // Load promotion
+      const tenantId = getTenantId();
+      if (tenantId) {
+        supabase
+          .from("product_promotions" as any)
+          .select("*")
+          .eq("product_id", product.id)
+          .eq("tenant_id", tenantId)
+          .eq("ativo", true)
+          .gt("validade", new Date().toISOString())
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .then(({ data }) => {
+            const promo = (data as any[])?.[0];
+            setPromoData(promo || null);
+            if (promo) {
+              // Load financing rates for display
+              supabase
+                .from("financing_rates" as any)
+                .select("*")
+                .eq("tenant_id", tenantId)
+                .order("provider_name")
+                .order("installments")
+                .then(({ data: ratesData }) => {
+                  setPromoRates((ratesData || []) as any[]);
+                });
+            }
+          });
+      }
     }
   }, [product, open]);
 
