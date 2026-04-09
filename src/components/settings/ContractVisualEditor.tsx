@@ -295,7 +295,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const goToPrevPage = () => { if (currentPageIdx > 0) { setCurrentPageIdx(currentPageIdx - 1); setSelectedIds(new Set()); } };
   const goToNextPage = () => { if (currentPageIdx < pages.length - 1) { setCurrentPageIdx(currentPageIdx + 1); setSelectedIds(new Set()); } };
 
-  // --- Reflow: push elements down and auto-paginate ---
+  // --- Reflow: push elements down and auto-paginate (recursive, unlimited pages) ---
   const reflowElements = useCallback((changedElId: string, newHeight: number, changedElUpdates?: Partial<CanvasElement>) => {
     setPages(prev => {
       const page = prev[currentPageIdx];
@@ -316,6 +316,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         return nextPages;
       }
 
+      // Apply change and push elements below downward
       const updated = els.map(el => {
         if (el.id === changedElId) return { ...el, ...changedElUpdates, height: newHeight };
         if (el.y >= oldBottom - 5) return { ...el, y: el.y + heightDelta };
@@ -323,14 +324,22 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       });
 
       const pageBottom = A4_HEIGHT - margins.bottom;
-      const fits = updated.filter(el => el.y + el.height <= pageBottom);
-      const overflows = updated.filter(el => el.y + el.height > pageBottom);
-      const cappedFits = fits.map(el => {
-        if (el.id === changedElId && el.y + el.height > pageBottom) {
-          return { ...el, ...changedElUpdates, height: Math.max(24, pageBottom - el.y) };
+
+      // The changed element stays on the current page (never moved entirely)
+      // Other overflowing elements cascade to subsequent pages
+      const fits: typeof updated = [];
+      const overflows: typeof updated = [];
+
+      for (const el of updated) {
+        if (el.id === changedElId) {
+          // Always keep changed element on current page
+          fits.push(el);
+        } else if (el.y + el.height > pageBottom) {
+          overflows.push(el);
+        } else {
+          fits.push(el);
         }
-        return el;
-      });
+      }
 
       const nextPages = [...prev];
 
@@ -339,41 +348,38 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         return nextPages;
       }
 
-      nextPages[currentPageIdx] = { ...page, elements: cappedFits };
+      nextPages[currentPageIdx] = { ...page, elements: fits };
 
-      let nextIdx = currentPageIdx + 1;
-      if (nextIdx >= nextPages.length) {
-        nextPages.push({ id: pageId(), elements: [], backgroundOpacity: 0.5 });
-      }
+      // Recursive cascade: distribute overflows across as many pages as needed
+      let pendingOverflows = overflows;
+      let targetIdx = currentPageIdx + 1;
 
-      const existingNextEls = nextPages[nextIdx].elements;
-      let nextY = existingNextEls.length > 0
-        ? Math.max(margins.top, Math.max(...existingNextEls.map(e => e.y + e.height)) + 10)
-        : margins.top;
-
-      const movedElements = overflows.map(el => {
-        const moved = { ...el, y: nextY };
-        nextY += el.height + 10;
-        return moved;
-      });
-
-      const fitsNext = movedElements.filter(e => e.y + e.height <= pageBottom);
-      const overflowsNext = movedElements.filter(e => e.y + e.height > pageBottom);
-
-      nextPages[nextIdx] = { ...nextPages[nextIdx], elements: [...existingNextEls, ...fitsNext] };
-
-      if (overflowsNext.length > 0) {
-        let extraIdx = nextIdx + 1;
-        if (extraIdx >= nextPages.length) {
+      while (pendingOverflows.length > 0) {
+        if (targetIdx >= nextPages.length) {
           nextPages.push({ id: pageId(), elements: [], backgroundOpacity: 0.5 });
         }
-        let extraY = margins.top;
-        const extraMoved = overflowsNext.map(el => {
-          const moved = { ...el, y: extraY };
-          extraY += el.height + 10;
-          return moved;
-        });
-        nextPages[extraIdx] = { ...nextPages[extraIdx], elements: [...nextPages[extraIdx].elements, ...extraMoved] };
+
+        const existingEls = nextPages[targetIdx].elements;
+        let nextY = existingEls.length > 0
+          ? Math.max(margins.top, Math.max(...existingEls.map(e => e.y + e.height)) + 10)
+          : margins.top;
+
+        const placed: typeof pendingOverflows = [];
+        const stillOverflows: typeof pendingOverflows = [];
+
+        for (const el of pendingOverflows) {
+          const moved = { ...el, y: nextY };
+          nextY += el.height + 10;
+          if (moved.y + moved.height <= pageBottom) {
+            placed.push(moved);
+          } else {
+            stillOverflows.push(moved);
+          }
+        }
+
+        nextPages[targetIdx] = { ...nextPages[targetIdx], elements: [...existingEls, ...placed] };
+        pendingOverflows = stillOverflows;
+        targetIdx++;
       }
 
       toast.info("Elementos reorganizados automaticamente entre páginas.", { id: "auto-reflow" });
@@ -1472,6 +1478,31 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             onMouseOver={e => (e.currentTarget.style.background = "hsl(var(--accent))")}
             onMouseOut={e => (e.currentTarget.style.background = "transparent")}
           >S</button>
+
+          <div style={{ width: 1, height: 20, background: "hsl(var(--border))", margin: "0 2px" }} />
+
+          {/* Text alignment for selected text */}
+          <button onClick={() => execRichCmd("justifyLeft")} title="Alinhar à esquerda"
+            style={{ width: 26, height: 26, borderRadius: 4, border: "none", cursor: "pointer",
+              background: "transparent", fontSize: 13, color: "hsl(var(--foreground))",
+              display: "flex", alignItems: "center", justifyContent: "center" }}
+            onMouseOver={e => (e.currentTarget.style.background = "hsl(var(--accent))")}
+            onMouseOut={e => (e.currentTarget.style.background = "transparent")}
+          >☰</button>
+          <button onClick={() => execRichCmd("justifyCenter")} title="Centralizar"
+            style={{ width: 26, height: 26, borderRadius: 4, border: "none", cursor: "pointer",
+              background: "transparent", fontSize: 13, color: "hsl(var(--foreground))",
+              display: "flex", alignItems: "center", justifyContent: "center" }}
+            onMouseOver={e => (e.currentTarget.style.background = "hsl(var(--accent))")}
+            onMouseOut={e => (e.currentTarget.style.background = "transparent")}
+          >≡</button>
+          <button onClick={() => execRichCmd("justifyRight")} title="Alinhar à direita"
+            style={{ width: 26, height: 26, borderRadius: 4, border: "none", cursor: "pointer",
+              background: "transparent", fontSize: 13, color: "hsl(var(--foreground))",
+              display: "flex", alignItems: "center", justifyContent: "center" }}
+            onMouseOver={e => (e.currentTarget.style.background = "hsl(var(--accent))")}
+            onMouseOut={e => (e.currentTarget.style.background = "transparent")}
+          >☰</button>
 
           <div style={{ width: 1, height: 20, background: "hsl(var(--border))", margin: "0 2px" }} />
 
