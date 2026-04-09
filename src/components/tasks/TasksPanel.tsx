@@ -196,6 +196,7 @@ export function TasksPanel({ tenantId, userId, userName, cargoNome }: Props) {
             <TabsList className="h-8">
               <TabsTrigger value="kanban" className="text-xs gap-1 px-2 h-7"><LayoutGrid className="h-3.5 w-3.5" />Kanban</TabsTrigger>
               <TabsTrigger value="calendar" className="text-xs gap-1 px-2 h-7"><CalendarDays className="h-3.5 w-3.5" />Calendário</TabsTrigger>
+              <TabsTrigger value="archived" className="text-xs gap-1 px-2 h-7"><Archive className="h-3.5 w-3.5" />Arquivadas</TabsTrigger>
             </TabsList>
           </Tabs>
           <Button
@@ -221,11 +222,14 @@ export function TasksPanel({ tenantId, userId, userName, cargoNome }: Props) {
         </div>
       ) : view === "kanban" ? (
         <TaskKanbanBoard
-          tasks={filteredTasks}
+          tasks={filteredTasks.filter(t => t.status !== ("arquivada" as any))}
           onStatusChange={updateTaskStatus}
           onTaskClick={handleTaskClick}
           onTaskDelete={handleDelete}
+          onTaskArchive={handleArchive}
         />
+      ) : view === "archived" ? (
+        <ArchivedTasksList tasks={tasks} onTaskClick={handleTaskClick} onRestore={handleRestore} />
       ) : (
         <TaskCalendarView tasks={filteredTasks} onTaskClick={handleTaskClick} />
       )}
