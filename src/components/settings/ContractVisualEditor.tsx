@@ -12,6 +12,7 @@ import * as pdfjsLib from "pdfjs-dist";
 import { jsPDF } from "jspdf";
 import { Document, Packer, Paragraph, TextRun, ImageRun, PageBreak, AlignmentType, BorderStyle, Table, TableRow, TableCell, WidthType, ShadingType } from "docx";
 import { saveAs } from "file-saver";
+import { buildContractDocumentHtml } from "@/lib/contractDocument";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("/pdf.worker.min.mjs", window.location.origin).href;
 
@@ -2024,6 +2025,29 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         {/* Properties panel */}
         {renderPropertiesPanel()}
       </div>
+
+      {/* Preview Modal */}
+      {showPreview && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowPreview(false)}>
+          <div className="bg-background rounded-xl border border-border shadow-2xl w-[90vw] max-w-4xl h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Eye className="h-4 w-4 text-primary" /> Preview do Contrato
+              </h3>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowPreview(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <iframe
+                title="Preview do contrato"
+                className="w-full h-full bg-white"
+                srcDoc={buildContractDocumentHtml(convertToHtml(), "Preview do Contrato")}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
