@@ -535,7 +535,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
       }
 
       // Fetch company phones for contract variables
-      const { data: companyPhones } = await supabase
+      const { data: companyPhones } = await (supabase as any)
         .from("company_useful_phones")
         .select("setor, responsavel, telefone")
         .eq("tenant_id", resolvedTenantId)

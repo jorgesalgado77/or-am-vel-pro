@@ -437,7 +437,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, initialAttachm
       const { buildContractHtml } = await import("@/services/contractService");
       const { data: settingsData } = await supabase.from("company_settings").select("*").limit(1).maybeSingle();
       // Fetch company phones
-      const { data: companyPhones } = await supabase
+      const { data: companyPhones } = await (supabase as any)
         .from("company_useful_phones")
         .select("setor, responsavel, telefone")
         .eq("tenant_id", tenantId)
