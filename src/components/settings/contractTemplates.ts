@@ -172,7 +172,9 @@ export function getContractTemplates(): ContractTemplate[] {
           id: tplId(), backgroundOpacity: 0.5, elements: [
             // ── Page 2: Condições e Assinaturas ──
             makeRect(0, 0, 794, 50, { fill: "#0891b2", stroke: "transparent" }),
-            makeText(40, 12, 714, 25, "CONTRATO DE VENDA — {{empresa_nome}}", { fontSize: 14, fontWeight: "bold", color: "#ffffff" }),
+            makeText(10, 8, 40, 34, "{{logo_empresa}}", { fontSize: 8, color: "#ffffff", textAlign: "center" }),
+            makeText(55, 12, 400, 25, "CONTRATO DE VENDA — {{empresa_nome}}", { fontSize: 13, fontWeight: "bold", color: "#ffffff" }),
+            makeText(500, 15, 254, 20, "Nº {{numero_contrato}}", { fontSize: 10, color: "#e0f2fe", textAlign: "right" }),
 
             makeText(40, 70, 714, 25, "CONDIÇÕES GERAIS", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
             makeLine(40, 92, 714),
