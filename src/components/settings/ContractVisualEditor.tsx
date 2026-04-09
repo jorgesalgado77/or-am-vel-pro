@@ -1851,9 +1851,27 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
               className={`w-full rounded border-2 transition-all cursor-pointer ${idx === currentPageIdx ? "border-primary shadow-sm" : "border-border hover:border-muted-foreground/30"} ${dragOverPageIdx === idx && dragPageIdx !== idx ? "border-primary/50 bg-primary/5" : ""} ${dragPageIdx === idx ? "opacity-40" : ""}`}
               title={`Página ${idx + 1} — arraste para reordenar`}
             >
-              <div className="relative w-full bg-background" style={{ aspectRatio: `${A4_WIDTH}/${A4_HEIGHT}` }}>
+              <div className="relative w-full bg-background group/thumb" style={{ aspectRatio: `${A4_WIDTH}/${A4_HEIGHT}` }}>
                 {page.backgroundImage && (
                   <img src={page.backgroundImage} alt="" className="absolute inset-0 w-full h-full object-contain" style={{ opacity: page.backgroundOpacity }} />
+                )}
+                {pages.length > 1 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!confirm(`Excluir página ${idx + 1}?`)) return;
+                      setPages(prev => {
+                        const arr = prev.filter((_, i) => i !== idx);
+                        return arr;
+                      });
+                      setCurrentPageIdx(prev => prev >= pages.length - 1 ? Math.max(0, pages.length - 2) : prev > idx ? prev - 1 : prev);
+                      setSelectedId(null);
+                    }}
+                    className="absolute top-0.5 right-0.5 z-10 opacity-0 group-hover/thumb:opacity-100 transition-opacity bg-destructive/90 hover:bg-destructive text-destructive-foreground rounded p-0.5"
+                    title={`Excluir página ${idx + 1}`}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
                 )}
                 <div className="absolute bottom-0 left-0 right-0 bg-foreground/60 text-background text-[9px] text-center py-0.5 font-medium">
                   {idx + 1}
