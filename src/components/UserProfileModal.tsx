@@ -348,6 +348,7 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
       instagram: form.instagram || null,
       tiktok: form.tiktok || null,
       linkedin: form.linkedin || null,
+      color_theme: selectedTheme || "default",
       updated_at: new Date().toISOString(),
       ...(authUid ? { auth_user_id: authUid } : {}),
     };
