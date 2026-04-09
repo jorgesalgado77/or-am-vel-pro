@@ -271,8 +271,8 @@ export function resetToDefaultTheme() {
 /**
  * Initialize theme on app startup — call once.
  */
-export function initializeTheme() {
-  const storedId = getStoredThemeId();
+export function initializeTheme(themeIdOverride?: string) {
+  const storedId = themeIdOverride || getStoredThemeId();
   if (storedId !== "default") {
     applyTheme(storedId);
   }
