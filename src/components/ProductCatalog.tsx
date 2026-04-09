@@ -149,6 +149,7 @@ export function ProductCatalog() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [promoOpen, setPromoOpen] = useState(false);
   const [promoProduct, setPromoProduct] = useState<Product | null>(null);
+  const [promoFilter, setPromoFilter] = useState(false);
 
   // Promotions map: productId -> { desconto, validade }
   const [promoMap, setPromoMap] = useState<Record<string, { desconto_percentual: number; valor_promocional: number; validade: string }>>({});
