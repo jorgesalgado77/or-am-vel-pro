@@ -1,7 +1,7 @@
 import { memo, useState, useCallback } from "react";
 import { Draggable } from "@hello-pangea/dnd";
 import { format } from "date-fns";
-import { Clock, GripVertical, User, Paperclip, Trash2, CalendarCheck, CalendarX2, Eye } from "lucide-react";
+import { Clock, GripVertical, User, Paperclip, Trash2, CalendarCheck, CalendarX2, Eye, Archive } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -22,9 +22,10 @@ interface TaskCardProps {
   index: number;
   onClick: (task: Task) => void;
   onDelete?: (task: Task) => void;
+  onArchive?: (task: Task) => void;
 }
 
-export const TaskCard = memo(function TaskCard({ task, index, onClick, onDelete }: TaskCardProps) {
+export const TaskCard = memo(function TaskCard({ task, index, onClick, onDelete, onArchive }: TaskCardProps) {
   const col = TASK_COLUMNS.find(c => c.id === task.status);
   const typeLabel = TASK_TYPES.find(t => t.value === task.tipo)?.label || task.tipo;
   const isSynced = !!task.google_event_id;
