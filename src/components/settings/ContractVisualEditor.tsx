@@ -3632,6 +3632,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
               </Button>
             </div>
           </div>
+          </div>
         </div>
 
         {/* Properties panel */}
