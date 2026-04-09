@@ -3795,7 +3795,15 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                                 const nextText = (selEl?.text || "") + content;
                                 setCurrentElements(prev => prev.map(el => el.id === selId ? { ...el, text: nextText } : el));
                                 if (selEl) {
-                                  setTimeout(() => reflowElements(selId, Math.max(selEl.height, selEl.fontSize * 2), { text: nextText }), 50);
+                                  const measuredNextHeight = measureHtmlHeight(nextText, selEl.width, {
+                                    fontFamily: selEl.fontFamily,
+                                    fontSize: selEl.fontSize,
+                                    fontWeight: selEl.fontWeight,
+                                    fontStyle: selEl.fontStyle,
+                                    textAlign: selEl.textAlign,
+                                    lineHeight: 1.4,
+                                  });
+                                  setTimeout(() => reflowElements(selId, Math.max(selEl.height, measuredNextHeight + 4), { text: nextText }), 50);
                                 }
                                 toast.success("Texto colado no elemento selecionado!");
                               } else {
