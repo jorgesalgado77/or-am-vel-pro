@@ -463,6 +463,61 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           const candidateBottom = candidate.y + candidate.height;
           const isTextual = (candidate.type === "text" || candidate.type === "rect") && !!candidate.text;
 
+          if (isConditionsFragment && isTextual) {
+            const availableHeight = GENERAL_CONDITIONS_BOX.height;
+            const [fitHtml, remHtml] = splitHtmlAtHeight(
+              candidate.text,
+              GENERAL_CONDITIONS_BOX.width,
+              {
+                fontFamily: candidate.fontFamily,
+                fontSize: candidate.fontSize,
+                fontWeight: candidate.fontWeight,
+                fontStyle: candidate.fontStyle,
+                textAlign: candidate.textAlign,
+              },
+              availableHeight,
+            );
+
+            const fitHeight = fitHtml
+              ? measureHtmlHeight(fitHtml, GENERAL_CONDITIONS_BOX.width, {
+                  fontFamily: candidate.fontFamily,
+                  fontSize: candidate.fontSize,
+                  fontWeight: candidate.fontWeight,
+                  fontStyle: candidate.fontStyle,
+                  textAlign: candidate.textAlign,
+                })
+              : 0;
+
+            const needsContinuation = !!remHtml && remHtml !== candidate.text;
+            const canPlaceHere = !!fitHtml && fitHeight > 0;
+
+            if (canPlaceHere) {
+              const continuationId = needsContinuation ? genId() : undefined;
+              pageFlow.push({
+                ...candidate,
+                text: fitHtml,
+                height: GENERAL_CONDITIONS_BOX.height,
+                splitContinuationId: continuationId,
+              });
+              pageHasFixedFragment = true;
+              cursorY = GENERAL_CONDITIONS_BOX.y + GENERAL_CONDITIONS_BOX.height + 10;
+
+              if (needsContinuation) {
+                nextPending.push({
+                  ...stripSplitMetadata(candidate),
+                  id: continuationId || genId(),
+                  text: remHtml,
+                  x: GENERAL_CONDITIONS_BOX.x,
+                  y: GENERAL_CONDITIONS_BOX.y,
+                  width: GENERAL_CONDITIONS_BOX.width,
+                  height: GENERAL_CONDITIONS_BOX.height,
+                  splitFrom: candidate.id,
+                });
+              }
+              continue;
+            }
+          }
+
           if (candidateBottom <= pageBottomY) {
             pageFlow.push(candidate);
             cursorY = candidate.y + candidate.height + 10;
@@ -471,7 +526,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           }
 
           if (isTextual) {
-            const availableHeight = isConditionsFragment ? GENERAL_CONDITIONS_BOX.height : pageBottomY - candidate.y;
+            const availableHeight = pageBottomY - candidate.y;
             const minSplitHeight = Math.max(candidate.fontSize * 1.6, 28);
 
             if (availableHeight >= minSplitHeight) {
@@ -502,7 +557,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
               if (didSplit) {
                 const continuationId = genId();
-                const placedHeight = isConditionsFragment ? GENERAL_CONDITIONS_BOX.height : Math.min(availableHeight, fitHeight + 4);
+                const placedHeight = Math.min(availableHeight, fitHeight + 4);
                 pageFlow.push({
                   ...candidate,
                   text: fitHtml,
@@ -513,10 +568,10 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                   ...stripSplitMetadata(candidate),
                   id: continuationId,
                   text: remHtml,
-                  x: isConditionsFragment ? GENERAL_CONDITIONS_BOX.x : candidate.x,
-                  y: isConditionsFragment ? GENERAL_CONDITIONS_BOX.y : pageStartY,
-                  width: isConditionsFragment ? GENERAL_CONDITIONS_BOX.width : Math.max(candidate.width, A4_WIDTH - margins.left - margins.right),
-                  height: isConditionsFragment ? GENERAL_CONDITIONS_BOX.height : Math.max(candidate.fontSize * 2, candidate.height - fitHeight),
+                  x: candidate.x,
+                  y: pageStartY,
+                  width: Math.max(candidate.width, A4_WIDTH - margins.left - margins.right),
+                  height: Math.max(candidate.fontSize * 2, candidate.height - fitHeight),
                   splitFrom: candidate.id,
                 });
                 cursorY = candidate.y + placedHeight + 10;
