@@ -132,14 +132,14 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [showTemplates, setShowTemplates] = useState(true);
   const [pages, setPages] = useState<PageData[]>([{ id: pageId(), elements: [], backgroundOpacity: 0.5 }]);
   const [currentPageIdx, setCurrentPageIdx] = useState(0);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeTool, setActiveTool] = useState<ToolType>("select");
   const [activeShapeType, setActiveShapeType] = useState<ShapeType>("rect");
   const [zoom, setZoom] = useState(0.75);
-  const [dragState, setDragState] = useState<{ id: string; startX: number; startY: number; elX: number; elY: number } | null>(null);
+  const [dragState, setDragState] = useState<{ ids: string[]; startX: number; startY: number; origins: Record<string, { x: number; y: number }> } | null>(null);
   const [resizeState, setResizeState] = useState<{ id: string; startX: number; startY: number; startW: number; startH: number; corner: string; startElX: number; startElY: number } | null>(null);
   const [rotateState, setRotateState] = useState<{ id: string; startAngle: number; elRotation: number; centerX: number; centerY: number } | null>(null);
-  const [clipboard, setClipboard] = useState<CanvasElement | null>(null);
+  const [clipboard, setClipboard] = useState<CanvasElement[]>([]);
 
   // Undo/Redo history
   const historyRef = useRef<PageData[][]>([]);
@@ -227,6 +227,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
   const currentPage = pages[currentPageIdx];
   const elements = currentPage?.elements || [];
+  // Derive selectedId as first in set for properties panel backward compat
+  const selectedId = selectedIds.size > 0 ? [...selectedIds][0] : null;
   const selected = elements.find(e => e.id === selectedId) || null;
 
   // Derived text formatting
@@ -248,7 +250,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     const newPage: PageData = { id: pageId(), elements: [], backgroundOpacity: 0.5 };
     setPages(prev => [...prev.slice(0, currentPageIdx + 1), newPage, ...prev.slice(currentPageIdx + 1)]);
     setCurrentPageIdx(currentPageIdx + 1);
-    setSelectedId(null);
+    setSelectedIds(new Set());
   };
 
   const duplicatePage = () => {
@@ -260,24 +262,24 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     };
     setPages(prev => [...prev.slice(0, currentPageIdx + 1), dup, ...prev.slice(currentPageIdx + 1)]);
     setCurrentPageIdx(currentPageIdx + 1);
-    setSelectedId(null);
+    setSelectedIds(new Set());
   };
 
   const deletePage = () => {
     if (pages.length <= 1) { toast.error("O contrato deve ter pelo menos uma página"); return; }
     setPages(prev => prev.filter((_, i) => i !== currentPageIdx));
     setCurrentPageIdx(Math.max(0, currentPageIdx - 1));
-    setSelectedId(null);
+    setSelectedIds(new Set());
   };
 
-  const goToPrevPage = () => { if (currentPageIdx > 0) { setCurrentPageIdx(currentPageIdx - 1); setSelectedId(null); } };
-  const goToNextPage = () => { if (currentPageIdx < pages.length - 1) { setCurrentPageIdx(currentPageIdx + 1); setSelectedId(null); } };
+  const goToPrevPage = () => { if (currentPageIdx > 0) { setCurrentPageIdx(currentPageIdx - 1); setSelectedIds(new Set()); } };
+  const goToNextPage = () => { if (currentPageIdx < pages.length - 1) { setCurrentPageIdx(currentPageIdx + 1); setSelectedIds(new Set()); } };
 
   // --- Element operations ---
   const updateSelected = useCallback((updates: Partial<CanvasElement>) => {
-    if (!selectedId) return;
-    setCurrentElements(prev => prev.map(el => el.id === selectedId ? { ...el, ...updates } : el));
-  }, [selectedId, setCurrentElements]);
+    if (selectedIds.size === 0) return;
+    setCurrentElements(prev => prev.map(el => selectedIds.has(el.id) ? { ...el, ...updates } : el));
+  }, [selectedIds, setCurrentElements]);
 
   const handleCanvasClick = (e: React.MouseEvent) => {
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -288,16 +290,16 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     if (activeTool === "shape") {
       const el = createDefaultElement(activeShapeType, x, y);
       setCurrentElements(prev => [...prev, el]);
-      setSelectedId(el.id);
+      setSelectedIds(new Set([el.id]));
       setActiveTool("select");
     } else if (activeTool === "text") {
       const el = createDefaultElement("text", x, y);
       setCurrentElements(prev => [...prev, el]);
-      setSelectedId(el.id);
+      setSelectedIds(new Set([el.id]));
       setEditingTextId(el.id);
       setActiveTool("select");
     } else if (activeTool === "select") {
-      setSelectedId(null);
+      setSelectedIds(new Set());
       setEditingTextId(null);
     }
   };
@@ -305,7 +307,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const handleTableInsert = () => {
     const el = createDefaultElement("table", 100, 200);
     setCurrentElements(prev => [...prev, el]);
-    setSelectedId(el.id);
+    setSelectedIds(new Set([el.id]));
     setActiveTool("select");
   };
 
@@ -361,15 +363,15 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       el.text = varText;
       el.width = Math.max(200, varText.length * 10);
       setCurrentElements(prev => [...prev, el]);
-      setSelectedId(el.id);
+      setSelectedIds(new Set([el.id]));
     }
     setContextMenu(null);
   };
 
   const deleteSelected = () => {
-    if (!selectedId) return;
-    setCurrentElements(prev => prev.filter(e => e.id !== selectedId));
-    setSelectedId(null);
+    if (selectedIds.size === 0) return;
+    setCurrentElements(prev => prev.filter(e => !selectedIds.has(e.id)));
+    setSelectedIds(new Set());
     setContextMenu(null);
   };
 
@@ -377,17 +379,47 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     if (!selected) return;
     const dup = { ...selected, id: genId(), x: selected.x + 20, y: selected.y + 20, zIndex: elements.length + 1 };
     setCurrentElements(prev => [...prev, dup]);
-    setSelectedId(dup.id);
+    setSelectedIds(new Set([dup.id]));
     setContextMenu(null);
   };
 
   // --- Alignment functions ---
   const alignElements = useCallback((alignment: "left" | "center-h" | "right" | "top" | "center-v" | "bottom" | "distribute-h" | "distribute-v") => {
-    if (!selectedId) return;
-    // Align selected element to canvas
+    if (selectedIds.size === 0) return;
     setCurrentElements(prev => {
-      const sel = prev.find(e => e.id === selectedId);
-      if (!sel) return prev;
+      const selEls = prev.filter(e => selectedIds.has(e.id));
+      if (selEls.length === 0) return prev;
+
+      // If multiple selected, align them relative to each other
+      if (selEls.length > 1) {
+        switch (alignment) {
+          case "left": { const minX = Math.min(...selEls.map(e => e.x)); return prev.map(e => selectedIds.has(e.id) ? { ...e, x: minX } : e); }
+          case "right": { const maxR = Math.max(...selEls.map(e => e.x + e.width)); return prev.map(e => selectedIds.has(e.id) ? { ...e, x: maxR - e.width } : e); }
+          case "center-h": { const minX = Math.min(...selEls.map(e => e.x)); const maxR = Math.max(...selEls.map(e => e.x + e.width)); const centerX = (minX + maxR) / 2; return prev.map(e => selectedIds.has(e.id) ? { ...e, x: centerX - e.width / 2 } : e); }
+          case "top": { const minY = Math.min(...selEls.map(e => e.y)); return prev.map(e => selectedIds.has(e.id) ? { ...e, y: minY } : e); }
+          case "bottom": { const maxB = Math.max(...selEls.map(e => e.y + e.height)); return prev.map(e => selectedIds.has(e.id) ? { ...e, y: maxB - e.height } : e); }
+          case "center-v": { const minY = Math.min(...selEls.map(e => e.y)); const maxB = Math.max(...selEls.map(e => e.y + e.height)); const centerY = (minY + maxB) / 2; return prev.map(e => selectedIds.has(e.id) ? { ...e, y: centerY - e.height / 2 } : e); }
+          case "distribute-h": {
+            if (selEls.length < 3) return prev;
+            const sorted = [...selEls].sort((a, b) => a.x - b.x);
+            const minX = sorted[0].x; const maxX = sorted[sorted.length - 1].x;
+            const step = (maxX - minX) / (sorted.length - 1);
+            const posMap = new Map(sorted.map((el, i) => [el.id, minX + step * i]));
+            return prev.map(el => posMap.has(el.id) ? { ...el, x: posMap.get(el.id)! } : el);
+          }
+          case "distribute-v": {
+            if (selEls.length < 3) return prev;
+            const sorted = [...selEls].sort((a, b) => a.y - b.y);
+            const minY = sorted[0].y; const maxY = sorted[sorted.length - 1].y;
+            const step = (maxY - minY) / (sorted.length - 1);
+            const posMap = new Map(sorted.map((el, i) => [el.id, minY + step * i]));
+            return prev.map(el => posMap.has(el.id) ? { ...el, y: posMap.get(el.id)! } : el);
+          }
+        }
+      }
+
+      // Single selected: align to canvas
+      const sel = selEls[0];
       let updates: Partial<CanvasElement> = {};
       switch (alignment) {
         case "left": updates = { x: 0 }; break;
@@ -396,33 +428,13 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         case "top": updates = { y: 0 }; break;
         case "center-v": updates = { y: (A4_HEIGHT - sel.height) / 2 }; break;
         case "bottom": updates = { y: A4_HEIGHT - sel.height }; break;
-        case "distribute-h": {
-          // Distribute all elements evenly horizontally
-          const sorted = [...prev].sort((a, b) => a.x - b.x);
-          if (sorted.length < 3) return prev;
-          const minX = sorted[0].x;
-          const maxX = sorted[sorted.length - 1].x;
-          const step = (maxX - minX) / (sorted.length - 1);
-          return prev.map(el => {
-            const idx = sorted.findIndex(s => s.id === el.id);
-            return { ...el, x: minX + step * idx };
-          });
-        }
-        case "distribute-v": {
-          const sorted = [...prev].sort((a, b) => a.y - b.y);
-          if (sorted.length < 3) return prev;
-          const minY = sorted[0].y;
-          const maxY = sorted[sorted.length - 1].y;
-          const step = (maxY - minY) / (sorted.length - 1);
-          return prev.map(el => {
-            const idx = sorted.findIndex(s => s.id === el.id);
-            return { ...el, y: minY + step * idx };
-          });
-        }
+        case "distribute-h":
+        case "distribute-v":
+          return prev;
       }
-      return prev.map(el => el.id === selectedId ? { ...el, ...updates } : el);
+      return prev.map(el => el.id === sel.id ? { ...el, ...updates } : el);
     });
-  }, [selectedId, setCurrentElements]);
+  }, [selectedIds, setCurrentElements]);
 
   // --- Image upload ---
   const handleImageUpload = () => { fileInputRef.current?.click(); };
@@ -436,7 +448,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       const el = createDefaultElement("image", 100, 100);
       el.imageUrl = url;
       setCurrentElements(prev => [...prev, el]);
-      setSelectedId(el.id);
+      setSelectedIds(new Set([el.id]));
       setActiveTool("select");
     };
     reader.readAsDataURL(file);
@@ -547,11 +559,35 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const handleElementMouseDown = (e: React.MouseEvent, el: CanvasElement) => {
     if (activeTool !== "select") return;
     e.stopPropagation();
-    setSelectedId(el.id);
     setEditingTextId(null);
+
+    // Shift+click: toggle multi-select
+    if (e.shiftKey) {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        if (next.has(el.id)) { next.delete(el.id); } else { next.add(el.id); }
+        return next;
+      });
+      return;
+    }
+
+    // Normal click: select single (or keep multi-selection if already in set)
+    if (!selectedIds.has(el.id)) {
+      setSelectedIds(new Set([el.id]));
+    }
+
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
-    setDragState({ id: el.id, startX: e.clientX, startY: e.clientY, elX: el.x, elY: el.y });
+
+    // Build origins for all selected elements (including the clicked one)
+    const idsToMove = selectedIds.has(el.id) ? [...selectedIds] : [el.id];
+    const origins: Record<string, { x: number; y: number }> = {};
+    for (const id of idsToMove) {
+      const found = elements.find(e => e.id === id);
+      if (found) origins[id] = { x: found.x, y: found.y };
+    }
+    if (!origins[el.id]) origins[el.id] = { x: el.x, y: el.y };
+    setDragState({ ids: idsToMove, startX: e.clientX, startY: e.clientY, origins });
   };
 
   const handleResizeMouseDown = (e: React.MouseEvent, el: CanvasElement, corner: string) => {
@@ -576,9 +612,11 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       if (dragState) {
         const dx = (e.clientX - dragState.startX) / zoom;
         const dy = (e.clientY - dragState.startY) / zoom;
-        setCurrentElements(prev => prev.map(el =>
-          el.id === dragState.id ? { ...el, x: dragState.elX + dx, y: dragState.elY + dy } : el
-        ));
+        setCurrentElements(prev => prev.map(el => {
+          const origin = dragState.origins[el.id];
+          if (!origin) return el;
+          return { ...el, x: origin.x + dx, y: origin.y + dy };
+        }));
       }
       if (resizeState) {
         const dx = (e.clientX - resizeState.startX) / zoom;
@@ -630,35 +668,47 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       if (editingTextId) return;
 
       if (e.key === "Delete" || e.key === "Backspace") {
-        if (selectedId) { e.preventDefault(); deleteSelected(); }
+        if (selectedIds.size > 0) { e.preventDefault(); deleteSelected(); }
       }
 
       // Copy
       if ((e.ctrlKey || e.metaKey) && e.key === "c") {
-        if (selected) { e.preventDefault(); setClipboard({ ...selected }); toast.success("Elemento copiado"); }
+        const selEls = elements.filter(el => selectedIds.has(el.id));
+        if (selEls.length > 0) { e.preventDefault(); setClipboard(selEls.map(el => ({ ...el }))); toast.success(`${selEls.length} elemento(s) copiado(s)`); }
       }
 
       // Paste
       if ((e.ctrlKey || e.metaKey) && e.key === "v") {
-        if (clipboard) {
+        if (clipboard.length > 0) {
           e.preventDefault();
-          const dup = { ...clipboard, id: genId(), x: clipboard.x + 20, y: clipboard.y + 20, zIndex: elements.length + 1 };
-          setCurrentElements(prev => [...prev, dup]);
-          setSelectedId(dup.id);
-          toast.success("Elemento colado");
+          const newIds = new Set<string>();
+          const dups = clipboard.map(el => {
+            const dup = { ...el, id: genId(), x: el.x + 20, y: el.y + 20, zIndex: elements.length + 1 };
+            newIds.add(dup.id);
+            return dup;
+          });
+          setCurrentElements(prev => [...prev, ...dups]);
+          setSelectedIds(newIds);
+          toast.success(`${dups.length} elemento(s) colado(s)`);
         }
       }
 
+      // Select all
+      if ((e.ctrlKey || e.metaKey) && e.key === "a") {
+        e.preventDefault();
+        setSelectedIds(new Set(elements.map(el => el.id)));
+      }
+
       // Arrow keys: move (normal) or resize (Shift)
-      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key) && selectedId) {
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key) && selectedIds.size > 0) {
         e.preventDefault();
         const step = e.ctrlKey || e.metaKey ? 10 : 1;
         const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
         const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
         if (e.shiftKey) {
-          setCurrentElements(prev => prev.map(el => el.id === selectedId ? { ...el, width: Math.max(20, el.width + dx), height: Math.max(10, el.height + dy) } : el));
+          setCurrentElements(prev => prev.map(el => selectedIds.has(el.id) ? { ...el, width: Math.max(20, el.width + dx), height: Math.max(10, el.height + dy) } : el));
         } else {
-          setCurrentElements(prev => prev.map(el => el.id === selectedId ? { ...el, x: el.x + dx, y: el.y + dy } : el));
+          setCurrentElements(prev => prev.map(el => selectedIds.has(el.id) ? { ...el, x: el.x + dx, y: el.y + dy } : el));
         }
       }
 
@@ -996,14 +1046,14 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
   // --- Render helpers ---
   const renderElement = (el: CanvasElement) => {
-    const isSelected = el.id === selectedId;
+    const isSelected = selectedIds.has(el.id);
+    const isPrimary = selectedId === el.id; // primary = first in set, shows resize/rotate handles
     const isEditing = el.id === editingTextId;
 
     // Outer wrapper handles positioning, selection outline, and resize handles
     const wrapperStyle: React.CSSProperties = {
       position: "absolute", left: el.x, top: el.y, width: el.width, height: el.height,
-      zIndex: el.zIndex, cursor: activeTool === "select" ? "move" : "default",
-      outline: isSelected ? "2px solid hsl(210 80% 55%)" : "none", outlineOffset: "1px",
+      outline: isSelected ? `2px ${isPrimary ? "solid" : "dashed"} hsl(210 80% 55%)` : "none", outlineOffset: "1px",
       opacity: el.opacity ?? 1,
       transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
       transformOrigin: "center center",
@@ -1049,7 +1099,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       </div>
     );
 
-    const resizeHandles = isSelected ? (
+    const resizeHandles = isPrimary ? (
       <>
         {/* Rotation handle */}
         <div
@@ -1192,9 +1242,13 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           </>
         )}
 
-        {selected ? (
+        {selectedIds.size > 1 && !selected ? (
+          <p className="text-muted-foreground text-center py-4">{selectedIds.size} elementos selecionados</p>
+        ) : selected ? (
           <>
-            <h3 className="font-semibold text-sm text-foreground">Propriedades</h3>
+            <h3 className="font-semibold text-sm text-foreground">
+              Propriedades {selectedIds.size > 1 ? `(${selectedIds.size} selecionados)` : ""}
+            </h3>
             <div className="space-y-1.5">
               <label className="text-muted-foreground">Posição</label>
               <div className="grid grid-cols-2 gap-1">
@@ -1297,7 +1351,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const applyTemplate = (tpl: ContractTemplate) => {
     setPages(tpl.pages.map(p => ({ ...p, id: pageId(), elements: p.elements.map(e => ({ ...e, id: genId() })) })));
     setCurrentPageIdx(0);
-    setSelectedId(null);
+    setSelectedIds(new Set());
     setShowTemplates(false);
     if (tpl.id !== "em-branco") toast.success(`Template "${tpl.name}" aplicado!`);
   };
@@ -1306,7 +1360,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     const pagesData = ct.pages_data as PageData[];
     setPages(pagesData.map(p => ({ ...p, id: pageId(), elements: (p.elements || []).map(e => ({ ...e, id: genId() })) })));
     setCurrentPageIdx(0);
-    setSelectedId(null);
+    setSelectedIds(new Set());
     setShowTemplates(false);
     toast.success(`Template "${ct.name}" carregado!`);
   };
@@ -1419,7 +1473,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       el.width = 180;
       el.height = 80;
       setCurrentElements(prev => [...prev, el]);
-      setSelectedId(el.id);
+      setSelectedIds(new Set([el.id]));
       setActiveTool("select");
       toast.success("Logo da empresa inserido!");
     } catch (err) {
@@ -1593,7 +1647,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={() => setShowSaveDialog(true)} title="Salvar como Template">
           <BookmarkPlus className="h-3.5 w-3.5" /> Salvar Template
         </Button>
-        {selectedId && (
+        {selectedIds.size > 0 && (
           <>
             <div className="h-5 w-px bg-border" />
             <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => alignElements("left")} title="Alinhar à esquerda"><AlignHorizontalJustifyStart className="h-3.5 w-3.5" /></Button>
@@ -1852,7 +1906,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                 setDragOverPageIdx(null);
               }}
               onDragEnd={() => { setDragPageIdx(null); setDragOverPageIdx(null); }}
-              onClick={() => { setCurrentPageIdx(idx); setSelectedId(null); }}
+              onClick={() => { setCurrentPageIdx(idx); setSelectedIds(new Set()); }}
               className={`w-full rounded border-2 transition-all cursor-pointer ${idx === currentPageIdx ? "border-primary shadow-sm" : "border-border hover:border-muted-foreground/30"} ${dragOverPageIdx === idx && dragPageIdx !== idx ? "border-primary/50 bg-primary/5" : ""} ${dragPageIdx === idx ? "opacity-40" : ""}`}
               title={`Página ${idx + 1} — arraste para reordenar`}
             >
@@ -1870,7 +1924,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                         return arr;
                       });
                       setCurrentPageIdx(prev => prev >= pages.length - 1 ? Math.max(0, pages.length - 2) : prev > idx ? prev - 1 : prev);
-                      setSelectedId(null);
+                      setSelectedIds(new Set());
                     }}
                     className="absolute top-0.5 right-0.5 z-10 opacity-0 group-hover/thumb:opacity-100 transition-opacity bg-destructive/90 hover:bg-destructive text-destructive-foreground rounded p-0.5"
                     title={`Excluir página ${idx + 1}`}
@@ -1922,7 +1976,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                 onClick={e => e.stopPropagation()}
                 className="min-w-[200px] rounded-md border border-border bg-popover shadow-lg"
               >
-                {selectedId && (
+                {selectedIds.size > 0 && (
                   <>
                     <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground" onClick={duplicateSelected}>Duplicar</button>
                     <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-destructive/10 text-destructive" onClick={deleteSelected}>Excluir</button>
