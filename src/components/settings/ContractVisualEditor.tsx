@@ -15,7 +15,7 @@ import { Document, Packer, Paragraph, TextRun, ImageRun, PageBreak, AlignmentTyp
 import { saveAs } from "file-saver";
 import { buildContractDocumentHtml } from "@/lib/contractDocument";
 import { evaluateCell, isFormula, SUPPORTED_FORMULAS, indexToCol } from "@/lib/formulaEngine";
-import { replaceVariablesWithSample, isHtmlVariable, getConditionalStyle, matchesConditionalRule, type ConditionalRule, DEFAULT_CONDITIONAL_RULES } from "@/lib/contractPreviewData";
+import { replaceVariablesWithSample, isHtmlVariable, getConditionalStyle, matchesConditionalRule, type ConditionalRule, type ConditionalPreset, DEFAULT_CONDITIONAL_RULES, getAllPresets, loadCustomPresets, saveCustomPresets } from "@/lib/contractPreviewData";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("/pdf.worker.min.mjs", window.location.origin).href;
 
