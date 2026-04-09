@@ -1285,15 +1285,10 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
               if (selectedIds.size > 0) {
                 const selId = [...selectedIds][0];
                 const selEl = elements.find(e => e.id === selId);
-                setCurrentElements(prev => prev.map(el => el.id === selId ? { ...el, text: el.text + content } : el));
-                // Estimate new height and reflow
+                const nextText = (selEl?.text || "") + content;
+                setCurrentElements(prev => prev.map(el => el.id === selId ? { ...el, text: nextText } : el));
                 if (selEl) {
-                  const plainText = (selEl.text + content).replace(/<[^>]*>/g, '');
-                  const lineCount = Math.max(1, Math.ceil(plainText.length / Math.max(1, Math.floor(selEl.width / (selEl.fontSize * 0.6)))));
-                  const estimatedH = lineCount * selEl.fontSize * 1.5 + 10;
-                  if (estimatedH > selEl.height) {
-                    setTimeout(() => reflowElements(selId, estimatedH), 50);
-                  }
+                  setTimeout(() => reflowElements(selId, Math.max(selEl.height, selEl.fontSize * 2), { text: nextText }), 50);
                 }
                 toast.success("Texto colado no elemento selecionado!");
               } else {
@@ -3616,14 +3611,9 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                                 const selId = [...selectedIds][0];
                                 const selEl = elements.find(e => e.id === selId);
                                 const nextText = (selEl?.text || "") + content;
-                                setCurrentElements(prev => prev.map(el => el.id === selId ? { ...el, text: el.text + content } : el));
+                                setCurrentElements(prev => prev.map(el => el.id === selId ? { ...el, text: nextText } : el));
                                 if (selEl) {
-                                  const plainText = nextText.replace(/<[^>]*>/g, '');
-                                  const lineCount = Math.max(1, Math.ceil(plainText.length / Math.max(1, Math.floor(selEl.width / (selEl.fontSize * 0.6)))));
-                                  const estimatedH = lineCount * selEl.fontSize * 1.5 + 10;
-                                  if (estimatedH > selEl.height) {
-                                    setTimeout(() => reflowElements(selId, estimatedH, { text: nextText }), 50);
-                                  }
+                                  setTimeout(() => reflowElements(selId, Math.max(selEl.height, selEl.fontSize * 2), { text: nextText }), 50);
                                 }
                                 toast.success("Texto colado no elemento selecionado!");
                               } else {
