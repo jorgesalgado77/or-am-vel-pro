@@ -144,6 +144,16 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [rotateState, setRotateState] = useState<{ id: string; startAngle: number; elRotation: number; centerX: number; centerY: number } | null>(null);
   const [clipboard, setClipboard] = useState<CanvasElement[]>([]);
 
+  // Eyedropper state
+  const [eyedropperColor, setEyedropperColor] = useState<string | null>(null);
+  const [eyedropperMode, setEyedropperMode] = useState<"fill" | "stroke" | "text" | null>(null);
+  const [eyedropperApplyMode, setEyedropperApplyMode] = useState<"fill" | "stroke" | "text" | null>(null);
+
+  // Formula bar state
+  const [formulaBarValue, setFormulaBarValue] = useState("");
+  const [editingCellRef, setEditingCellRef] = useState<{ elId: string; row: number; col: number } | null>(null);
+  const [showFormulaSuggestions, setShowFormulaSuggestions] = useState(false);
+
   // Undo/Redo history
   const historyRef = useRef<PageData[][]>([]);
   const historyIdxRef = useRef(-1);
