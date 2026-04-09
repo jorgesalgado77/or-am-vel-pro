@@ -24,6 +24,7 @@ import {
 import { useEditorHistory } from "./contract-editor/useEditorHistory";
 import { usePasteHelpers } from "./contract-editor/usePasteHelpers";
 import { useTextSplitter } from "./contract-editor/useTextSplitter";
+import { buildRepeatedElementFingerprints, createContinuationPageFromTemplate, getPageFlowBounds, isLikelyPageChrome, stripSplitMetadata } from "./contract-editor/pagination";
 import { EditorPropertiesPanel } from "./contract-editor/EditorPropertiesPanel";
 import { exportToPdf, exportToDocx, exportToXlsx } from "./contract-editor/exportHelpers";
 
@@ -244,6 +245,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   }, []);
 
   const { splitHtmlAtHeight } = useTextSplitter();
+  const repeatedPageChrome = buildRepeatedElementFingerprints(pages);
 
   // Derived text formatting
   const fontFamily = selected?.fontFamily || "Arial";
