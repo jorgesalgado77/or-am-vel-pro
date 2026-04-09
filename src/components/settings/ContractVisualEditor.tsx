@@ -4,6 +4,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { ContractEditorToolbar, type ToolType, type ShapeType } from "./ContractEditorToolbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText, BookmarkPlus, Pencil, Trash, Upload, Image as ImageIcon, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, Eye, FileSpreadsheet } from "lucide-react";
 import { getContractTemplates, type ContractTemplate } from "./contractTemplates";
 import { useCustomTemplates, type CustomTemplate } from "@/hooks/useCustomTemplates";
@@ -1760,57 +1761,52 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         onUndo={handleUndo} onRedo={handleRedo} canUndo={canUndo} canRedo={canRedo}
         onImageUpload={handleImageUpload}
         onTableInsert={handleTableInsert}
+        onBack={() => setShowTemplates(true)}
       />
 
       {/* Action bar */}
-      <div className="flex items-center flex-wrap gap-1 border-x border-border bg-muted/20 px-2 py-1">
-        {/* Voltar */}
-        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={() => setShowTemplates(true)} title="Voltar para seleção de templates">
-          <ChevronLeft className="h-3.5 w-3.5" /> Voltar
-        </Button>
-        <div className="h-5 w-px bg-border" />
-
+      <div className="flex items-center flex-wrap gap-1.5 border-x border-border bg-muted/20 px-3 py-1.5">
         {/* Zoom */}
-        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setZoom(z => Math.max(0.25, z - 0.1))} title="Diminuir zoom"><ZoomOut className="h-3.5 w-3.5" /></Button>
-        <span className="text-xs text-muted-foreground w-10 text-center shrink-0">{Math.round(zoom * 100)}%</span>
-        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setZoom(z => Math.min(2, z + 0.1))} title="Aumentar zoom"><ZoomIn className="h-3.5 w-3.5" /></Button>
-        <div className="h-5 w-px bg-border" />
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setZoom(z => Math.max(0.25, z - 0.1))} title="Diminuir zoom"><ZoomOut className="h-4 w-4" /></Button>
+        <span className="text-xs text-muted-foreground w-12 text-center shrink-0 font-medium">{Math.round(zoom * 100)}%</span>
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setZoom(z => Math.min(2, z + 0.1))} title="Aumentar zoom"><ZoomIn className="h-4 w-4" /></Button>
+        <Separator orientation="vertical" className="mx-1 h-6" />
 
         {/* Páginas */}
-        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={goToPrevPage} disabled={currentPageIdx === 0} title="Página anterior"><ChevronLeft className="h-3.5 w-3.5" /></Button>
-        <span className="text-xs text-foreground font-medium shrink-0" title={`Página ${currentPageIdx + 1} de ${pages.length}`}>Pág. {currentPageIdx + 1}/{pages.length}</span>
-        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={goToNextPage} disabled={currentPageIdx >= pages.length - 1} title="Próxima página"><ChevronRight className="h-3.5 w-3.5" /></Button>
-        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={addPage} title="Adicionar página"><Plus className="h-3.5 w-3.5" /></Button>
-        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={duplicatePage} title="Duplicar página"><Copy className="h-3.5 w-3.5" /></Button>
-        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={deletePage} disabled={pages.length <= 1} title="Excluir página"><Trash2 className="h-3.5 w-3.5" /></Button>
-        <div className="h-5 w-px bg-border" />
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={goToPrevPage} disabled={currentPageIdx === 0} title="Página anterior"><ChevronLeft className="h-4 w-4" /></Button>
+        <span className="text-xs text-foreground font-semibold shrink-0 min-w-[60px] text-center" title={`Página ${currentPageIdx + 1} de ${pages.length}`}>Pág. {currentPageIdx + 1}/{pages.length}</span>
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={goToNextPage} disabled={currentPageIdx >= pages.length - 1} title="Próxima página"><ChevronRight className="h-4 w-4" /></Button>
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={addPage} title="Adicionar página"><Plus className="h-4 w-4" /></Button>
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={duplicatePage} title="Duplicar página"><Copy className="h-4 w-4" /></Button>
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-destructive" onClick={deletePage} disabled={pages.length <= 1} title="Excluir página"><Trash2 className="h-4 w-4" /></Button>
+        <Separator orientation="vertical" className="mx-1 h-6" />
 
         {/* Importar / Logo / Template */}
-        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handlePdfImport} disabled={importingPdf} title="Importar PDF, DOCX ou Excel">
-          <FileUp className="h-3.5 w-3.5" /> {importingPdf ? "Importando..." : "Importar"}
+        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs shrink-0" onClick={handlePdfImport} disabled={importingPdf} title="Importar PDF, DOCX ou Excel">
+          <FileUp className="h-4 w-4" /> {importingPdf ? "Importando..." : "Importar"}
         </Button>
-        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleInsertCompanyLogo} title="Inserir logo da empresa">
-          <ImageIcon className="h-3.5 w-3.5" /> Logo
+        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs shrink-0" onClick={handleInsertCompanyLogo} title="Inserir logo da empresa">
+          <ImageIcon className="h-4 w-4" /> Logo
         </Button>
-        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={() => setShowSaveDialog(true)} title="Salvar como Template">
-          <BookmarkPlus className="h-3.5 w-3.5" /> Salvar Template
+        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs shrink-0" onClick={() => setShowSaveDialog(true)} title="Salvar como Template">
+          <BookmarkPlus className="h-4 w-4" /> Salvar Template
         </Button>
 
         {/* Alinhamento (condicional) */}
         {selectedIds.size > 0 && (
           <>
-            <div className="h-5 w-px bg-border" />
-            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => alignElements("left")} title="Alinhar à esquerda"><AlignHorizontalJustifyStart className="h-3.5 w-3.5" /></Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => alignElements("center-h")} title="Centralizar horizontalmente"><AlignHorizontalJustifyCenter className="h-3.5 w-3.5" /></Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => alignElements("right")} title="Alinhar à direita"><AlignHorizontalJustifyEnd className="h-3.5 w-3.5" /></Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => alignElements("top")} title="Alinhar ao topo"><AlignVerticalJustifyStart className="h-3.5 w-3.5" /></Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => alignElements("center-v")} title="Centralizar verticalmente"><AlignVerticalJustifyCenter className="h-3.5 w-3.5" /></Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => alignElements("bottom")} title="Alinhar abaixo"><AlignVerticalJustifyEnd className="h-3.5 w-3.5" /></Button>
+            <Separator orientation="vertical" className="mx-1 h-6" />
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => alignElements("left")} title="Alinhar à esquerda"><AlignHorizontalJustifyStart className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => alignElements("center-h")} title="Centralizar horizontalmente"><AlignHorizontalJustifyCenter className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => alignElements("right")} title="Alinhar à direita"><AlignHorizontalJustifyEnd className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => alignElements("top")} title="Alinhar ao topo"><AlignVerticalJustifyStart className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => alignElements("center-v")} title="Centralizar verticalmente"><AlignVerticalJustifyCenter className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => alignElements("bottom")} title="Alinhar abaixo"><AlignVerticalJustifyEnd className="h-4 w-4" /></Button>
             {elements.length >= 3 && (
               <>
-                <div className="h-5 w-px bg-border" />
-                <Button variant="ghost" size="sm" className="h-7 text-[10px] shrink-0" onClick={() => alignElements("distribute-h")} title="Distribuir horizontalmente">Dist. H</Button>
-                <Button variant="ghost" size="sm" className="h-7 text-[10px] shrink-0" onClick={() => alignElements("distribute-v")} title="Distribuir verticalmente">Dist. V</Button>
+                <Separator orientation="vertical" className="mx-1 h-6" />
+                <Button variant="ghost" size="sm" className="h-8 text-[11px] shrink-0" onClick={() => alignElements("distribute-h")} title="Distribuir horizontalmente">Dist. H</Button>
+                <Button variant="ghost" size="sm" className="h-8 text-[11px] shrink-0" onClick={() => alignElements("distribute-v")} title="Distribuir verticalmente">Dist. V</Button>
               </>
             )}
           </>
@@ -1819,20 +1815,20 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         <div className="flex-1" />
 
         {/* Ações finais */}
-        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={() => setShowPreview(true)} title="Visualizar preview do contrato">
-          <Eye className="h-3 w-3" /> Preview
+        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs shrink-0" onClick={() => setShowPreview(true)} title="Visualizar preview do contrato">
+          <Eye className="h-4 w-4" /> Preview
         </Button>
-        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleExportPdf} disabled={exporting} title="Exportar como PDF">
-          <Download className="h-3 w-3" /> PDF
+        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs shrink-0" onClick={handleExportPdf} disabled={exporting} title="Exportar como PDF">
+          <Download className="h-4 w-4" /> PDF
         </Button>
-        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleExportDocx} disabled={exportingDocx} title="Exportar como DOCX (Word)">
-          <FileText className="h-3 w-3" /> DOCX
+        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs shrink-0" onClick={handleExportDocx} disabled={exportingDocx} title="Exportar como DOCX (Word)">
+          <FileText className="h-4 w-4" /> DOCX
         </Button>
-        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleExportXlsx} disabled={exportingXlsx} title="Exportar como Excel (.xlsx)">
-          <FileSpreadsheet className="h-3 w-3" /> Excel
+        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs shrink-0" onClick={handleExportXlsx} disabled={exportingXlsx} title="Exportar como Excel (.xlsx)">
+          <FileSpreadsheet className="h-4 w-4" /> Excel
         </Button>
-        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0 text-destructive border-destructive/30" onClick={onCancel} title="Cancelar edição"><X className="h-3 w-3" /> Cancelar</Button>
-        <Button size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleSave} title="Salvar contrato"><Save className="h-3 w-3" /> Salvar</Button>
+        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs shrink-0 text-destructive border-destructive/30" onClick={onCancel} title="Cancelar edição"><X className="h-4 w-4" /> Cancelar</Button>
+        <Button size="sm" className="h-8 gap-1.5 text-xs shrink-0" onClick={handleSave} title="Salvar contrato"><Save className="h-4 w-4" /> Salvar</Button>
       </div>
 
       {/* Save as Template Dialog */}
