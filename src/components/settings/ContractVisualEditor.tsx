@@ -352,15 +352,17 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             );
 
             if (remainderHtml) {
-              // Cap current element to fitting content
-              fits.push({ ...el, text: fittingHtml, height: availableHeight });
+              const contId = genId();
+              // Cap current element to fitting content, mark as having continuation
+              fits.push({ ...el, text: fittingHtml, height: availableHeight, splitContinuationId: contId });
               // Create continuation element for next page
               splitContinuation = {
                 ...el,
-                id: genId(),
+                id: contId,
                 text: remainderHtml,
                 y: margins.top,
                 height: Math.max(40, newHeight - availableHeight),
+                splitFrom: el.id,
               };
             } else {
               fits.push(el);
@@ -425,13 +427,15 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
               availH
             );
             if (remHtml) {
-              placed.push({ ...moved, text: fitHtml, height: availH });
+              const contId2 = genId();
+              placed.push({ ...moved, text: fitHtml, height: availH, splitContinuationId: contId2 });
               still.push({
                 ...moved,
-                id: genId(),
+                id: contId2,
                 text: remHtml,
                 y: margins.top,
                 height: Math.max(40, moved.height - availH),
+                splitFrom: moved.id,
               });
               nextY += availH + 10;
               continue;

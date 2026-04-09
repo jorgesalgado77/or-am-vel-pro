@@ -30,6 +30,10 @@ export interface CanvasElement {
   opacity?: number;
   groupId?: string;
   locked?: boolean;
+  /** ID of the original element this was split from (continuation marker) */
+  splitFrom?: string;
+  /** ID of the continuation element on the next page */
+  splitContinuationId?: string;
 }
 
 export interface PageData {
