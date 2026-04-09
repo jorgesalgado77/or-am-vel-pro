@@ -2128,7 +2128,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                 />
               )}
               {/* Scaled inner */}
-              <div style={{ transform: `scale(${zoom})`, transformOrigin: "0 0", width: A4_WIDTH, height: A4_HEIGHT, position: "relative" }}>
+              <div data-canvas-bg style={{ transform: `scale(${zoom})`, transformOrigin: "0 0", width: A4_WIDTH, height: A4_HEIGHT, position: "relative" }}>
                 {elements.map(renderElement)}
               </div>
 
