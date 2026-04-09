@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, forwardRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, Lock, Unlock, GripVertical, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 
@@ -38,14 +38,14 @@ function getElementLabel(el: CanvasElement): string {
   return prefix;
 }
 
-export function ContractLayersPanel({
+export const ContractLayersPanel = forwardRef<HTMLDivElement, ContractLayersPanelProps>(({
   elements,
   selectedIds,
   onSelect,
   onUpdate,
   hiddenIds,
   onToggleHidden,
-}: ContractLayersPanelProps) {
+}, ref) => {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [customNames, setCustomNames] = useState<Record<string, string>>({});
@@ -201,4 +201,5 @@ export function ContractLayersPanel({
       })}
     </div>
   );
-}
+});
+ContractLayersPanel.displayName = "ContractLayersPanel";
