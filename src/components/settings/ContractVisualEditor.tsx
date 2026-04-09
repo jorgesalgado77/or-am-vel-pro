@@ -2913,6 +2913,63 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                   onClick={e => e.stopPropagation()}
                   className="min-w-[200px] rounded-md border border-border bg-popover shadow-lg"
                 >
+                  {/* Copy / Paste */}
+                  <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground flex items-center gap-2" onClick={async () => {
+                    const sel = selectedIds.size > 0 ? elements.find(e => e.id === [...selectedIds][0]) : null;
+                    if (sel?.text) {
+                      try { await navigator.clipboard.writeText(sel.text.replace(/<[^>]*>/g, '')); toast.success("Texto copiado!"); } catch { toast.error("Erro ao copiar"); }
+                    } else { toast.info("Selecione um elemento com texto para copiar"); }
+                    setContextMenu(null);
+                  }}>
+                    📋 Copiar texto
+                  </button>
+                  <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground flex items-center gap-2" onClick={async () => {
+                    try {
+                      const items = await navigator.clipboard.read();
+                      let content = "";
+                      for (const item of items) {
+                        if (item.types.includes("text/html")) {
+                          const blob = await item.getType("text/html");
+                          const html = await blob.text();
+                          const temp = document.createElement("div");
+                          temp.innerHTML = html;
+                          temp.querySelectorAll("script, style, meta, link").forEach(n => n.remove());
+                          content = temp.innerHTML;
+                          break;
+                        }
+                        if (item.types.includes("text/plain")) {
+                          const blob = await item.getType("text/plain");
+                          content = await blob.text();
+                          break;
+                        }
+                      }
+                      if (!content) { toast.info("Área de transferência vazia"); setContextMenu(null); return; }
+                      
+                      if (selectedIds.size > 0) {
+                        // Paste into selected element
+                        const selId = [...selectedIds][0];
+                        setCurrentElements(prev => prev.map(el => el.id === selId ? { ...el, text: el.text + content } : el));
+                        toast.success("Texto colado no elemento selecionado!");
+                      } else {
+                        // Create new text element at context menu position
+                        const x = contextMenu!.x / zoom;
+                        const y = contextMenu!.y / zoom;
+                        const el = createDefaultElement("text", x, y);
+                        el.text = content;
+                        el.width = Math.min(500, Math.max(200, content.length * 4));
+                        el.height = Math.max(40, Math.ceil(content.length / 60) * 20);
+                        setCurrentElements(prev => [...prev, el]);
+                        setSelectedIds(new Set([el.id]));
+                        toast.success("Texto colado como novo elemento!");
+                      }
+                    } catch {
+                      toast.error("Não foi possível acessar a área de transferência. Verifique as permissões do navegador.");
+                    }
+                    setContextMenu(null);
+                  }}>
+                    📥 Colar da área de transferência
+                  </button>
+                  <div className="h-px bg-border my-1" />
                   {selectedIds.size > 0 && (
                     <>
                       <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground" onClick={duplicateSelected}>Duplicar</button>
