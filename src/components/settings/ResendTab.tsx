@@ -36,6 +36,21 @@ export function ResendTab() {
 
   const tenantId = getTenantId();
 
+  const getFunctionErrorMessage = async (error: unknown) => {
+    const fallback = error instanceof Error ? error.message : "Erro desconhecido";
+    const response = (error as { context?: { clone?: () => { json: () => Promise<any> }; json?: () => Promise<any> } })?.context;
+
+    if (!response) return fallback;
+
+    try {
+      const readableResponse = typeof response.clone === "function" ? response.clone() : response;
+      const payload = await readableResponse.json?.();
+      return payload?.error || payload?.message || fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
   const fetchSettings = async () => {
     if (!tenantId) { setLoading(false); return; }
     const { data } = await supabase
@@ -84,9 +99,60 @@ export function ResendTab() {
 
   const handleSendTest = async () => {
     if (!testEmail.trim()) { toast.error("Informe um email de destino"); return; }
+    if (!apiKey.trim()) { toast.error("Configure a API Key do Resend antes de enviar o teste"); return; }
+    if (!ativo) { toast.error("Ative a integração do Resend antes de enviar o teste"); return; }
+
     setSendingTest(true);
-    toast.info("O envio de teste será habilitado após a configuração da Edge Function.");
-    setSendingTest(false);
+    try {
+      const effectiveFromEmail = fromEmail.trim() || settings?.from_email || "noreply@resend.dev";
+      const effectiveFromName = fromName.trim() || settings?.from_name || "OrçaMóvel PRO";
+
+      const { data: verifyData, error: verifyError } = await supabase.functions.invoke("resend-email", {
+        body: { action: "verify", tenant_id: tenantId, _temp_key: apiKey.trim() },
+      });
+
+      if (verifyError) {
+        const message = await getFunctionErrorMessage(verifyError);
+        toast.error("Erro ao validar API Key: " + message);
+        return;
+      }
+
+      if (!verifyData?.success) {
+        toast.error("API Key inválida ou sem acesso aos domínios do Resend.");
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke("resend-email", {
+        body: {
+          action: "send_test",
+          tenant_id: tenantId,
+          _temp_key: apiKey.trim(),
+          to: testEmail.trim(),
+          subject: "Email de Teste — OrçaMóvel PRO",
+          html: `<div style="font-family:Arial,sans-serif;padding:24px;max-width:480px;margin:auto;">
+            <h2 style="color:#0f766e;">✅ Email de Teste</h2>
+            <p>Este é um email de teste enviado pela configuração da loja.</p>
+            <p style="color:#6b7280;font-size:13px;">Se você recebeu este email, a integração com o Resend está funcionando corretamente.</p>
+            <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;" />
+            <p style="color:#9ca3af;font-size:12px;">${effectiveFromName}</p>
+          </div>`,
+          from: `${effectiveFromName} <${effectiveFromEmail}>`,
+        },
+      });
+
+      if (error) {
+        const message = await getFunctionErrorMessage(error);
+        toast.error("Erro ao enviar email de teste: " + message);
+      } else if (data?.success) {
+        toast.success("Email de teste enviado com sucesso para " + testEmail.trim());
+      } else {
+        toast.error("Falha ao enviar: " + (data?.error || "Erro desconhecido"));
+      }
+    } catch (err: any) {
+      toast.error("Erro ao enviar email de teste: " + (err.message || "Erro desconhecido"));
+    } finally {
+      setSendingTest(false);
+    }
   };
 
   if (loading) return <p className="text-sm text-muted-foreground text-center py-8">Carregando...</p>;
