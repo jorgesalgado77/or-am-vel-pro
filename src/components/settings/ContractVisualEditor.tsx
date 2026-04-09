@@ -156,6 +156,12 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [editingCellRef, setEditingCellRef] = useState<{ elId: string; row: number; col: number } | null>(null);
   const [showFormulaSuggestions, setShowFormulaSuggestions] = useState(false);
 
+  // Variable preview mode
+  const [previewVarsMode, setPreviewVarsMode] = useState(false);
+
+  // Conditional formatting
+  const [conditionalRules, setConditionalRules] = useState<ConditionalRule[]>(DEFAULT_CONDITIONAL_RULES);
+  const [showConditionalPanel, setShowConditionalPanel] = useState(false);
   // Undo/Redo history
   const historyRef = useRef<PageData[][]>([]);
   const historyIdxRef = useRef(-1);
