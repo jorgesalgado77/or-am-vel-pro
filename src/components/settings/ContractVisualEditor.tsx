@@ -406,12 +406,15 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                 height: availableHeight,
                 splitContinuationId: continuationId,
               });
+              // Continuation: use full available width and let it fill next page's flow area
               nextPending.push({
                 ...stripSplitMetadata(candidate),
                 id: continuationId,
                 text: remHtml,
                 y: pageStartY,
-                height: Math.max(40, candidate.height - availableHeight),
+                // Don't pre-set height - will be recalculated on next page
+                width: Math.max(candidate.width, A4_WIDTH - margins.left - margins.right),
+                height: candidate.height,
                 splitFrom: candidate.id,
               });
               cursorY = candidate.y + availableHeight + 10;
@@ -1015,12 +1018,18 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         const dx = (e.clientX - dragState.startX) / zoom;
         const dy = (e.clientY - dragState.startY) / zoom;
         const GUIDE_SNAP = 6;
+
+        // Detect which page the mouse is over for cross-page drag
+        const scrollContainer = document.querySelector('[data-pages-scroll]');
+        const pageGap = 40;
+
         setCurrentElements(prev => {
           const updated = prev.map(el => {
             const origin = dragState.origins[el.id];
             if (!origin) return el;
-            const cp = clampToMargins(el, origin.x + dx, origin.y + dy);
-            let sx = cp.x, sy = cp.y;
+            // Free positioning - only snap to grid, no margin clamping
+            let sx = snapToGrid(origin.x + dx);
+            let sy = snapToGrid(origin.y + dy);
             // Snap to user guides
             for (const g of userGuides) {
               if (g.axis === "x") {
@@ -3100,314 +3109,397 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             )}
           </div>
         </div>
-        {/* Canvas area with Word-like feel */}
-        <div className="flex-1 min-w-0 min-h-0 overflow-auto" style={{ background: "hsl(var(--muted) / 0.6)" }}>
-          <div className="min-h-full flex justify-center py-6 px-4" style={{ minWidth: A4_WIDTH * zoom + RULER_SIZE + 48 }}>
-            <div style={{ position: "relative", width: A4_WIDTH * zoom + RULER_SIZE, height: A4_HEIGHT * zoom + RULER_SIZE, flexShrink: 0 }}>
-              {/* Horizontal ruler - click to add vertical guide */}
-              <div
-                style={{
-                  position: "absolute", left: RULER_SIZE, top: 0, width: A4_WIDTH * zoom, height: RULER_SIZE,
-                  background: "hsl(var(--background))", borderBottom: "1px solid hsl(var(--border))", boxSizing: "border-box", overflow: "hidden",
-                  cursor: "col-resize",
-                }}
-                onClick={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const pos = (e.clientX - rect.left) / zoom;
-                  const id = `guide_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-                  setUserGuides(prev => [...prev, { id, axis: "x", pos }]);
-                }}
-              >
-                {Array.from({ length: Math.ceil(A4_WIDTH / 50) + 1 }).map((_, i) => {
-                  const v = i * 50;
-                  const major = v % 100 === 0;
-                  return (
-                    <div key={`rh${v}`} style={{ position: "absolute", left: v * zoom, top: 0, bottom: 0, width: 1 }}>
-                      <div style={{ position: "absolute", bottom: 0, width: 1, height: major ? 14 : 8, background: "hsl(var(--border))" }} />
-                      {major && <span style={{ position: "absolute", top: 2, left: 3, fontSize: 8, color: "hsl(var(--muted-foreground))", userSelect: "none" }}>{v}</span>}
-                    </div>
-                  );
-                })}
-                {/* Guide indicators on horizontal ruler */}
-                {userGuides.filter(g => g.axis === "x").map(g => (
-                  <div key={g.id} style={{
-                    position: "absolute", left: g.pos * zoom - 3, top: 0, bottom: 0, width: 7,
-                    display: "flex", alignItems: "flex-end", justifyContent: "center",
-                  }}>
-                    <div style={{ width: 0, height: 0, borderLeft: "4px solid transparent", borderRight: "4px solid transparent", borderTop: "5px solid hsl(var(--chart-4))" }} />
-                  </div>
-                ))}
-              </div>
-              {/* Vertical ruler - click to add horizontal guide */}
-              <div
-                style={{
-                  position: "absolute", left: 0, top: RULER_SIZE, width: RULER_SIZE, height: A4_HEIGHT * zoom,
-                  background: "hsl(var(--background))", borderRight: "1px solid hsl(var(--border))", boxSizing: "border-box", overflow: "hidden",
-                  cursor: "row-resize",
-                }}
-                onClick={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const pos = (e.clientY - rect.top) / zoom;
-                  const id = `guide_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-                  setUserGuides(prev => [...prev, { id, axis: "y", pos }]);
-                }}
-              >
-                {Array.from({ length: Math.ceil(A4_HEIGHT / 50) + 1 }).map((_, i) => {
-                  const v = i * 50;
-                  const major = v % 100 === 0;
-                  return (
-                    <div key={`rv${v}`} style={{ position: "absolute", top: v * zoom, left: 0, right: 0, height: 1 }}>
-                      <div style={{ position: "absolute", right: 0, height: 1, width: major ? 14 : 8, background: "hsl(var(--border))" }} />
-                      {major && <span style={{ position: "absolute", top: 2, left: 2, fontSize: 8, color: "hsl(var(--muted-foreground))", userSelect: "none" }}>{v}</span>}
-                    </div>
-                  );
-                })}
-                {/* Guide indicators on vertical ruler */}
-                {userGuides.filter(g => g.axis === "y").map(g => (
-                  <div key={g.id} style={{
-                    position: "absolute", top: g.pos * zoom - 3, left: 0, right: 0, height: 7,
-                    display: "flex", alignItems: "center", justifyContent: "flex-end",
-                  }}>
-                    <div style={{ width: 0, height: 0, borderTop: "4px solid transparent", borderBottom: "4px solid transparent", borderLeft: "5px solid hsl(var(--chart-4))" }} />
-                  </div>
-                ))}
-              </div>
-              {/* Corner box */}
-              <div style={{ position: "absolute", left: 0, top: 0, width: RULER_SIZE, height: RULER_SIZE, background: "hsl(var(--muted))", borderRight: "1px solid hsl(var(--border))", borderBottom: "1px solid hsl(var(--border))", boxSizing: "border-box" }} />
-              <div
-                ref={canvasRef}
-                style={{
-                  position: "absolute", left: RULER_SIZE, top: RULER_SIZE,
-                  width: A4_WIDTH * zoom, height: A4_HEIGHT * zoom,
-                  background: "#fff",
-                  boxShadow: "0 4px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08)",
-                  overflow: "hidden",
-                }}
-                onMouseDown={handleCanvasMouseDown}
-                onContextMenu={handleContextMenu}
-              >
-                {/* Background image */}
-                {currentPage?.backgroundImage && (
-                  <img
-                    src={currentPage.backgroundImage}
-                    alt=""
+        {/* Canvas area with Word-like feel — all pages stacked vertically */}
+        <div className="flex-1 min-w-0 min-h-0 overflow-auto" data-pages-scroll style={{ background: "hsl(var(--muted) / 0.6)" }}>
+          <div className="flex flex-col items-center py-6 px-4" style={{ minWidth: A4_WIDTH * zoom + RULER_SIZE + 48 }}>
+            {pages.map((page, pageIdx) => {
+              const isActivePage = pageIdx === currentPageIdx;
+              const pageElements = page.elements || [];
+              return (
+                <div key={page.id} style={{ marginBottom: 40, flexShrink: 0 }}>
+                  <div
                     style={{
-                      position: "absolute", top: 0, left: 0,
-                      width: A4_WIDTH * zoom, height: A4_HEIGHT * zoom,
-                      objectFit: "contain", pointerEvents: "none",
-                      opacity: currentPage.backgroundOpacity,
+                      position: "relative",
+                      width: A4_WIDTH * zoom + RULER_SIZE,
+                      height: A4_HEIGHT * zoom + RULER_SIZE,
+                      flexShrink: 0,
                     }}
-                  />
-                )}
-                {/* Scaled inner */}
-                <div data-canvas-bg style={{ transform: `scale(${zoom})`, transformOrigin: "0 0", width: A4_WIDTH, height: A4_HEIGHT, position: "relative" }}>
-                  {/* Margin guides */}
-                  <div style={{ position: "absolute", top: margins.top, left: margins.left, right: margins.right, bottom: margins.bottom, border: "1px dashed hsl(var(--primary) / 0.35)", pointerEvents: "none", zIndex: 1 }} />
-                  {/* Page bottom limit indicator */}
-                  <div style={{
-                    position: "absolute", left: 0, right: 0, top: A4_HEIGHT - margins.bottom,
-                    borderTop: "2px dashed hsl(var(--destructive) / 0.55)", pointerEvents: "none", zIndex: 2,
-                  }}>
-                    <span style={{
-                      position: "absolute", right: 4, top: -16,
-                      fontSize: 9, color: "hsl(var(--destructive) / 0.9)", fontWeight: 600,
-                      background: "hsl(var(--background) / 0.92)", padding: "1px 5px", borderRadius: 3,
-                    }}>
-                      Limite da página
-                    </span>
-                  </div>
-                  {elements.filter(el => !hiddenIds.has(el.id)).map(renderElement)}
-                  {/* Smart alignment guides */}
-                  {smartGuides.x.map((gx, i) => (
-                    <div key={`sgx-${i}`} style={{
-                      position: "absolute", left: gx, top: 0, width: 1, height: A4_HEIGHT,
-                      background: "hsl(var(--primary) / 0.5)", pointerEvents: "none", zIndex: 9990,
-                    }} />
-                  ))}
-                  {smartGuides.y.map((gy, i) => (
-                    <div key={`sgy-${i}`} style={{
-                      position: "absolute", top: gy, left: 0, height: 1, width: A4_WIDTH,
-                      background: "hsl(var(--primary) / 0.5)", pointerEvents: "none", zIndex: 9990,
-                    }} />
-                  ))}
-                  {/* User-placed draggable guide lines */}
-                  {userGuides.map(g => (
-                    <div
-                      key={g.id}
-                      style={{
-                        position: "absolute",
-                        ...(g.axis === "x"
-                          ? { left: g.pos, top: 0, width: 1, height: A4_HEIGHT, cursor: "col-resize" }
-                          : { top: g.pos, left: 0, height: 1, width: A4_WIDTH, cursor: "row-resize" }),
-                        background: "hsl(var(--chart-4))",
-                        zIndex: 9995,
-                      }}
-                      onMouseDown={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        setDraggingGuide({
-                          id: g.id,
-                          axis: g.axis,
-                          startMouse: g.axis === "x" ? e.clientX : e.clientY,
-                          startPos: g.pos,
-                        });
-                      }}
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        setUserGuides(prev => prev.filter(ug => ug.id !== g.id));
-                        toast.info("Guia removida");
-                      }}
-                      title={`${g.axis === "x" ? "Vertical" : "Horizontal"}: ${Math.round(g.pos)}px — arraste para mover, duplo-clique para remover`}
-                    >
-                      {/* Wider hit area */}
-                      <div style={{
-                        position: "absolute",
-                        ...(g.axis === "x"
-                          ? { left: -3, top: 0, width: 7, height: "100%" }
-                          : { top: -3, left: 0, height: 7, width: "100%" }),
-                      }} />
-                      {/* Position label */}
-                      <div style={{
-                        position: "absolute",
-                        ...(g.axis === "x"
-                          ? { top: 4, left: 4 }
-                          : { left: 4, top: -14 }),
-                        fontSize: 9, color: "hsl(var(--chart-4))", fontWeight: 600,
-                        background: "hsl(var(--background) / 0.9)", padding: "0 3px", borderRadius: 2,
-                        pointerEvents: "none", whiteSpace: "nowrap",
-                      }}>
-                        {Math.round(g.pos)}px
+                    onMouseDown={() => {
+                      if (currentPageIdx !== pageIdx) {
+                        setCurrentPageIdx(pageIdx);
+                        setSelectedIds(new Set());
+                        setEditingTextId(null);
+                      }
+                    }}
+                  >
+                    {/* Horizontal ruler */}
+                    {isActivePage && (
+                      <div
+                        style={{
+                          position: "absolute", left: RULER_SIZE, top: 0, width: A4_WIDTH * zoom, height: RULER_SIZE,
+                          background: "hsl(var(--background))", borderBottom: "1px solid hsl(var(--border))", boxSizing: "border-box", overflow: "hidden",
+                          cursor: "col-resize",
+                        }}
+                        onClick={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const pos = (e.clientX - rect.left) / zoom;
+                          const id = `guide_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+                          setUserGuides(prev => [...prev, { id, axis: "x", pos }]);
+                        }}
+                      >
+                        {Array.from({ length: Math.ceil(A4_WIDTH / 50) + 1 }).map((_, i) => {
+                          const v = i * 50;
+                          const major = v % 100 === 0;
+                          return (
+                            <div key={`rh${v}`} style={{ position: "absolute", left: v * zoom, top: 0, bottom: 0, width: 1 }}>
+                              <div style={{ position: "absolute", bottom: 0, width: 1, height: major ? 14 : 8, background: "hsl(var(--border))" }} />
+                              {major && <span style={{ position: "absolute", top: 2, left: 3, fontSize: 8, color: "hsl(var(--muted-foreground))", userSelect: "none" }}>{v}</span>}
+                            </div>
+                          );
+                        })}
+                        {userGuides.filter(g => g.axis === "x").map(g => (
+                          <div key={g.id} style={{
+                            position: "absolute", left: g.pos * zoom - 3, top: 0, bottom: 0, width: 7,
+                            display: "flex", alignItems: "flex-end", justifyContent: "center",
+                          }}>
+                            <div style={{ width: 0, height: 0, borderLeft: "4px solid transparent", borderRight: "4px solid transparent", borderTop: "5px solid hsl(var(--chart-4))" }} />
+                          </div>
+                        ))}
                       </div>
+                    )}
+                    {/* Vertical ruler */}
+                    {isActivePage && (
+                      <div
+                        style={{
+                          position: "absolute", left: 0, top: RULER_SIZE, width: RULER_SIZE, height: A4_HEIGHT * zoom,
+                          background: "hsl(var(--background))", borderRight: "1px solid hsl(var(--border))", boxSizing: "border-box", overflow: "hidden",
+                          cursor: "row-resize",
+                        }}
+                        onClick={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const pos = (e.clientY - rect.top) / zoom;
+                          const id = `guide_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+                          setUserGuides(prev => [...prev, { id, axis: "y", pos }]);
+                        }}
+                      >
+                        {Array.from({ length: Math.ceil(A4_HEIGHT / 50) + 1 }).map((_, i) => {
+                          const v = i * 50;
+                          const major = v % 100 === 0;
+                          return (
+                            <div key={`rv${v}`} style={{ position: "absolute", top: v * zoom, left: 0, right: 0, height: 1 }}>
+                              <div style={{ position: "absolute", right: 0, height: 1, width: major ? 14 : 8, background: "hsl(var(--border))" }} />
+                              {major && <span style={{ position: "absolute", top: 2, left: 2, fontSize: 8, color: "hsl(var(--muted-foreground))", userSelect: "none" }}>{v}</span>}
+                            </div>
+                          );
+                        })}
+                        {isActivePage && userGuides.filter(g => g.axis === "y").map(g => (
+                          <div key={g.id} style={{
+                            position: "absolute", top: g.pos * zoom - 3, left: 0, right: 0, height: 7,
+                            display: "flex", alignItems: "center", justifyContent: "flex-end",
+                          }}>
+                            <div style={{ width: 0, height: 0, borderTop: "4px solid transparent", borderBottom: "4px solid transparent", borderLeft: "5px solid hsl(var(--chart-4))" }} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {/* Corner box */}
+                    {isActivePage && (
+                      <div style={{ position: "absolute", left: 0, top: 0, width: RULER_SIZE, height: RULER_SIZE, background: "hsl(var(--muted))", borderRight: "1px solid hsl(var(--border))", borderBottom: "1px solid hsl(var(--border))", boxSizing: "border-box" }} />
+                    )}
+                    <div
+                      ref={isActivePage ? canvasRef : undefined}
+                      style={{
+                        position: "absolute", left: isActivePage ? RULER_SIZE : 0, top: isActivePage ? RULER_SIZE : 0,
+                        width: A4_WIDTH * zoom, height: A4_HEIGHT * zoom,
+                        background: "#fff",
+                        boxShadow: isActivePage
+                          ? "0 4px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08)"
+                          : "0 2px 12px rgba(0,0,0,0.08)",
+                        overflow: "hidden",
+                        outline: isActivePage ? "2px solid hsl(var(--primary) / 0.4)" : "none",
+                        outlineOffset: 2,
+                      }}
+                      onMouseDown={isActivePage ? handleCanvasMouseDown : undefined}
+                      onContextMenu={isActivePage ? handleContextMenu : undefined}
+                    >
+                      {/* Background image */}
+                      {page.backgroundImage && (
+                        <img
+                          src={page.backgroundImage}
+                          alt=""
+                          style={{
+                            position: "absolute", top: 0, left: 0,
+                            width: A4_WIDTH * zoom, height: A4_HEIGHT * zoom,
+                            objectFit: "contain", pointerEvents: "none",
+                            opacity: page.backgroundOpacity,
+                          }}
+                        />
+                      )}
+                      {/* Scaled inner */}
+                      <div data-canvas-bg style={{ transform: `scale(${zoom})`, transformOrigin: "0 0", width: A4_WIDTH, height: A4_HEIGHT, position: "relative" }}>
+                        {/* Margin guides */}
+                        {isActivePage && (
+                          <div style={{ position: "absolute", top: margins.top, left: margins.left, right: margins.right, bottom: margins.bottom, border: "1px dashed hsl(var(--primary) / 0.35)", pointerEvents: "none", zIndex: 1 }} />
+                        )}
+                        {/* Page bottom limit indicator */}
+                        {isActivePage && (
+                          <div style={{
+                            position: "absolute", left: 0, right: 0, top: A4_HEIGHT - margins.bottom,
+                            borderTop: "2px dashed hsl(var(--destructive) / 0.55)", pointerEvents: "none", zIndex: 2,
+                          }}>
+                            <span style={{
+                              position: "absolute", right: 4, top: -16,
+                              fontSize: 9, color: "hsl(var(--destructive) / 0.9)", fontWeight: 600,
+                              background: "hsl(var(--background) / 0.92)", padding: "1px 5px", borderRadius: 3,
+                            }}>
+                              Limite da página
+                            </span>
+                          </div>
+                        )}
+                        {isActivePage
+                          ? pageElements.filter(el => !hiddenIds.has(el.id)).map(renderElement)
+                          : pageElements.map(el => {
+                              // Simplified read-only rendering for non-active pages
+                              const wStyle: React.CSSProperties = {
+                                position: "absolute", left: el.x, top: el.y, width: el.width, height: el.height,
+                                opacity: el.opacity ?? 1,
+                                transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
+                                transformOrigin: "center center",
+                                overflow: "hidden",
+                              };
+                              let content: React.ReactNode = null;
+                              switch (el.type) {
+                                case "rect":
+                                  content = (
+                                    <div style={{ width: "100%", height: "100%", background: el.fill, border: `${el.strokeWidth}px solid ${el.stroke}`, borderRadius: el.borderRadius, boxSizing: "border-box" }}>
+                                      {el.text && <div style={{ padding: 8, fontFamily: el.fontFamily, fontSize: el.fontSize, fontWeight: el.fontWeight, fontStyle: el.fontStyle, color: el.color, textAlign: el.textAlign as any, whiteSpace: "pre-wrap", wordWrap: "break-word", overflow: "hidden" }} dangerouslySetInnerHTML={{ __html: el.text }} />}
+                                    </div>
+                                  );
+                                  break;
+                                case "circle":
+                                  content = <div style={{ width: "100%", height: "100%", background: el.fill, border: `${el.strokeWidth}px solid ${el.stroke}`, borderRadius: "50%", boxSizing: "border-box", overflow: "hidden" }} />;
+                                  break;
+                                case "line":
+                                  content = <div style={{ width: "100%", height: "100%", borderTop: `${el.strokeWidth}px solid ${el.stroke}` }} />;
+                                  break;
+                                case "text":
+                                  content = (
+                                    <div style={{ width: "100%", height: "100%", fontFamily: el.fontFamily, fontSize: el.fontSize, fontWeight: el.fontWeight, fontStyle: el.fontStyle, color: el.color, textAlign: el.textAlign as any, whiteSpace: "pre-wrap", wordWrap: "break-word", overflow: "hidden" }} dangerouslySetInnerHTML={{ __html: el.text || "" }} />
+                                  );
+                                  break;
+                                case "image":
+                                  content = el.imageUrl ? <img src={el.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} draggable={false} /> : null;
+                                  break;
+                                case "table":
+                                  if (el.tableData) {
+                                    content = (
+                                      <table style={{ width: "100%", height: "100%", borderCollapse: "collapse", fontFamily: el.fontFamily, fontSize: el.fontSize, color: el.color, tableLayout: "fixed" }}>
+                                        <tbody>
+                                          {el.tableData.map((row, ri) => (
+                                            <tr key={ri}>
+                                              {row.map((cell, ci) => (
+                                                <td key={ci} style={{ border: `1px solid ${el.stroke}`, padding: "2px 6px", background: ri === 0 ? el.stroke : el.fill, color: ri === 0 ? "#ffffff" : el.color, fontWeight: ri === 0 ? "bold" : "normal" }}>{cell}</td>
+                                              ))}
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    );
+                                  }
+                                  break;
+                              }
+                              return <div key={el.id} style={wStyle}>{content}</div>;
+                            })
+                        }
+                        {/* Smart alignment guides - only on active page */}
+                        {isActivePage && smartGuides.x.map((gx, i) => (
+                          <div key={`sgx-${i}`} style={{
+                            position: "absolute", left: gx, top: 0, width: 1, height: A4_HEIGHT,
+                            background: "hsl(var(--primary) / 0.5)", pointerEvents: "none", zIndex: 9990,
+                          }} />
+                        ))}
+                        {isActivePage && smartGuides.y.map((gy, i) => (
+                          <div key={`sgy-${i}`} style={{
+                            position: "absolute", top: gy, left: 0, height: 1, width: A4_WIDTH,
+                            background: "hsl(var(--primary) / 0.5)", pointerEvents: "none", zIndex: 9990,
+                          }} />
+                        ))}
+                        {/* User-placed draggable guide lines - only on active page */}
+                        {isActivePage && userGuides.map(g => (
+                          <div
+                            key={g.id}
+                            style={{
+                              position: "absolute",
+                              ...(g.axis === "x"
+                                ? { left: g.pos, top: 0, width: 1, height: A4_HEIGHT, cursor: "col-resize" }
+                                : { top: g.pos, left: 0, height: 1, width: A4_WIDTH, cursor: "row-resize" }),
+                              background: "hsl(var(--chart-4))",
+                              zIndex: 9995,
+                            }}
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              setDraggingGuide({
+                                id: g.id,
+                                axis: g.axis,
+                                startMouse: g.axis === "x" ? e.clientX : e.clientY,
+                                startPos: g.pos,
+                              });
+                            }}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              setUserGuides(prev => prev.filter(ug => ug.id !== g.id));
+                              toast.info("Guia removida");
+                            }}
+                            title={`${g.axis === "x" ? "Vertical" : "Horizontal"}: ${Math.round(g.pos)}px — arraste para mover, duplo-clique para remover`}
+                          >
+                            <div style={{
+                              position: "absolute",
+                              ...(g.axis === "x"
+                                ? { left: -3, top: 0, width: 7, height: "100%" }
+                                : { top: -3, left: 0, height: 7, width: "100%" }),
+                            }} />
+                            <div style={{
+                              position: "absolute",
+                              ...(g.axis === "x"
+                                ? { top: 4, left: 4 }
+                                : { left: 4, top: -14 }),
+                              fontSize: 9, color: "hsl(var(--chart-4))", fontWeight: 600,
+                              background: "hsl(var(--background) / 0.9)", padding: "0 3px", borderRadius: 2,
+                              pointerEvents: "none", whiteSpace: "nowrap",
+                            }}>
+                              {Math.round(g.pos)}px
+                            </div>
+                          </div>
+                        ))}
+                        {/* Page number indicator */}
+                        <div style={{
+                          position: "absolute", bottom: Math.max(8, margins.bottom - 20), right: Math.max(12, margins.right),
+                          fontSize: 10, color: "hsl(var(--muted-foreground))", fontFamily: "Arial, sans-serif",
+                          pointerEvents: "none", zIndex: 3, userSelect: "none",
+                          background: "hsl(var(--background) / 0.8)", padding: "1px 6px", borderRadius: 3,
+                        }}>
+                          Página {pageIdx + 1}/{pages.length}
+                        </div>
+                      </div>
+
+                      {/* Context menu - only on active page */}
+                      {isActivePage && contextMenu && (
+                        <div
+                          style={{ position: "absolute", left: contextMenu.x, top: contextMenu.y, zIndex: 99999 }}
+                          onClick={e => e.stopPropagation()}
+                          className="min-w-[200px] rounded-md border border-border bg-popover shadow-lg"
+                        >
+                          <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-popover-foreground flex items-center gap-2" onClick={async () => {
+                            const sel = selectedIds.size > 0 ? elements.find(e => e.id === [...selectedIds][0]) : null;
+                            if (sel?.text) {
+                              try { await navigator.clipboard.writeText(sel.text.replace(/<[^>]*>/g, '')); toast.success("Texto copiado!"); } catch { toast.error("Erro ao copiar"); }
+                            } else { toast.info("Selecione um elemento com texto para copiar"); }
+                            setContextMenu(null);
+                          }}>
+                            📋 Copiar texto
+                          </button>
+                          <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-popover-foreground flex items-center gap-2" onClick={async () => {
+                            try {
+                              const items = await navigator.clipboard.read();
+                              let content = "";
+                              for (const item of items) {
+                                let html = "", plain = "";
+                                if (item.types.includes("text/plain")) { const b = await item.getType("text/plain"); plain = await b.text(); }
+                                if (item.types.includes("text/html")) { const b = await item.getType("text/html"); html = await b.text(); }
+                                content = sanitizeClipboard(html, plain);
+                                if (content) break;
+                              }
+                              if (!content) { toast.info("Área de transferência vazia"); setContextMenu(null); return; }
+                              
+                              if (selectedIds.size > 0) {
+                                const selId = [...selectedIds][0];
+                                const selEl = elements.find(e => e.id === selId);
+                                const nextText = (selEl?.text || "") + content;
+                                setCurrentElements(prev => prev.map(el => el.id === selId ? { ...el, text: el.text + content } : el));
+                                if (selEl) {
+                                  const plainText = nextText.replace(/<[^>]*>/g, '');
+                                  const lineCount = Math.max(1, Math.ceil(plainText.length / Math.max(1, Math.floor(selEl.width / (selEl.fontSize * 0.6)))));
+                                  const estimatedH = lineCount * selEl.fontSize * 1.5 + 10;
+                                  if (estimatedH > selEl.height) {
+                                    setTimeout(() => reflowElements(selId, estimatedH, { text: nextText }), 50);
+                                  }
+                                }
+                                toast.success("Texto colado no elemento selecionado!");
+                              } else {
+                                const x = contextMenu!.x / zoom;
+                                const y = contextMenu!.y / zoom;
+                                const el = createDefaultElement("text", x, y);
+                                el.text = content;
+                                el.width = Math.min(500, Math.max(200, content.length * 4));
+                                el.height = Math.max(40, Math.ceil(content.length / 60) * 20);
+                                const cp = clampToMargins(el, x, y); el.x = cp.x; el.y = cp.y;
+                                setCurrentElements(prev => [...prev, el]);
+                                setSelectedIds(new Set([el.id]));
+                                toast.success("Texto colado como novo elemento!");
+                              }
+                            } catch {
+                              toast.error("Não foi possível acessar a área de transferência. Verifique as permissões do navegador.");
+                            }
+                            setContextMenu(null);
+                          }}>
+                            📥 Colar da área de transferência
+                          </button>
+                          <div className="h-px bg-border my-1" />
+                          {selectedIds.size > 0 && (
+                            <>
+                              <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-popover-foreground" onClick={duplicateSelected}>Duplicar</button>
+                              <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-destructive/10 text-destructive/80" onClick={deleteSelected}>Excluir</button>
+                              {selectedIds.size >= 2 && (
+                                <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-popover-foreground" onClick={groupSelected}>
+                                  🔗 Agrupar ({selectedIds.size} itens)
+                                </button>
+                              )}
+                              <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-popover-foreground" onClick={() => {
+                                const sel = elements.find(e => e.id === [...selectedIds][0]);
+                                if (sel) {
+                                  updateSelected({ locked: !sel.locked });
+                                  toast.success(sel.locked ? "Elemento desbloqueado!" : "Elemento bloqueado!");
+                                }
+                                setContextMenu(null);
+                              }}>
+                                {elements.find(e => e.id === [...selectedIds][0])?.locked ? "🔓 Desbloquear" : "🔒 Bloquear"}
+                              </button>
+                              {hasGroupInSelection && (
+                                <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-popover-foreground" onClick={ungroupSelected}>
+                                  ✂️ Desagrupar
+                                </button>
+                              )}
+                              <div className="h-px bg-border my-1" />
+                            </>
+                          )}
+                          <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-popover-foreground flex items-center gap-2" onClick={() => { setContextMenu(null); handleInsertCompanyLogo(); }}>
+                            <ImageIcon className="h-3.5 w-3.5" /> Inserir Logo da Empresa
+                          </button>
+                          <div className="h-px bg-border my-1" />
+                          <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">Inserir Variável</div>
+                          <div className="px-2 pb-1">
+                            <input type="text" placeholder="Buscar..." value={varSearch}
+                              onChange={e => setVarSearch(e.target.value)}
+                              className="w-full rounded border border-border bg-muted/30 px-2 py-1 text-xs outline-none"
+                              autoFocus onClick={e => e.stopPropagation()} />
+                          </div>
+                          <div className="max-h-[200px] overflow-y-auto">
+                            {filteredVars.map(v => (
+                              <button key={v.var} className="w-full px-3 py-1 text-left hover:bg-accent" onClick={() => insertVariable(v.var)}>
+                                <div className="text-xs font-mono text-primary">{v.var}</div>
+                                <div className="text-[10px] text-muted-foreground">{v.desc}</div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  ))}
-                  {/* Page number indicator */}
-                  <div style={{
-                    position: "absolute", bottom: Math.max(8, margins.bottom - 20), right: Math.max(12, margins.right),
-                    fontSize: 10, color: "hsl(var(--muted-foreground))", fontFamily: "Arial, sans-serif",
-                    pointerEvents: "none", zIndex: 3, userSelect: "none",
-                    background: "hsl(var(--background) / 0.8)", padding: "1px 6px", borderRadius: 3,
-                  }}>
-                    Página {currentPageIdx + 1}/{pages.length}
                   </div>
                 </div>
-
-
-              {/* Context menu */}
-              {contextMenu && (
-                <div
-                  style={{ position: "absolute", left: contextMenu.x, top: contextMenu.y, zIndex: 99999 }}
-                  onClick={e => e.stopPropagation()}
-                  className="min-w-[200px] rounded-md border border-border bg-popover shadow-lg"
-                >
-                  {/* Copy / Paste */}
-                  <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-popover-foreground flex items-center gap-2" onClick={async () => {
-                    const sel = selectedIds.size > 0 ? elements.find(e => e.id === [...selectedIds][0]) : null;
-                    if (sel?.text) {
-                      try { await navigator.clipboard.writeText(sel.text.replace(/<[^>]*>/g, '')); toast.success("Texto copiado!"); } catch { toast.error("Erro ao copiar"); }
-                    } else { toast.info("Selecione um elemento com texto para copiar"); }
-                    setContextMenu(null);
-                  }}>
-                    📋 Copiar texto
-                  </button>
-                  <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-popover-foreground flex items-center gap-2" onClick={async () => {
-                    try {
-                      const items = await navigator.clipboard.read();
-                      let content = "";
-                      for (const item of items) {
-                        let html = "", plain = "";
-                        if (item.types.includes("text/plain")) { const b = await item.getType("text/plain"); plain = await b.text(); }
-                        if (item.types.includes("text/html")) { const b = await item.getType("text/html"); html = await b.text(); }
-                        content = sanitizeClipboard(html, plain);
-                        if (content) break;
-                      }
-                      if (!content) { toast.info("Área de transferência vazia"); setContextMenu(null); return; }
-                      
-                      if (selectedIds.size > 0) {
-                        const selId = [...selectedIds][0];
-                        const selEl = elements.find(e => e.id === selId);
-                        const nextText = (selEl?.text || "") + content;
-                        setCurrentElements(prev => prev.map(el => el.id === selId ? { ...el, text: el.text + content } : el));
-                        if (selEl) {
-                          const plainText = nextText.replace(/<[^>]*>/g, '');
-                          const lineCount = Math.max(1, Math.ceil(plainText.length / Math.max(1, Math.floor(selEl.width / (selEl.fontSize * 0.6)))));
-                          const estimatedH = lineCount * selEl.fontSize * 1.5 + 10;
-                          if (estimatedH > selEl.height) {
-                            setTimeout(() => reflowElements(selId, estimatedH, { text: nextText }), 50);
-                          }
-                        }
-                        toast.success("Texto colado no elemento selecionado!");
-                      } else {
-                        // Create new text element at context menu position
-                        const x = contextMenu!.x / zoom;
-                        const y = contextMenu!.y / zoom;
-                        const el = createDefaultElement("text", x, y);
-                        el.text = content;
-                        el.width = Math.min(500, Math.max(200, content.length * 4));
-                        el.height = Math.max(40, Math.ceil(content.length / 60) * 20);
-                        const cp = clampToMargins(el, x, y); el.x = cp.x; el.y = cp.y;
-                        setCurrentElements(prev => [...prev, el]);
-                        setSelectedIds(new Set([el.id]));
-                        toast.success("Texto colado como novo elemento!");
-                      }
-                    } catch {
-                      toast.error("Não foi possível acessar a área de transferência. Verifique as permissões do navegador.");
-                    }
-                    setContextMenu(null);
-                  }}>
-                    📥 Colar da área de transferência
-                  </button>
-                  <div className="h-px bg-border my-1" />
-                  {selectedIds.size > 0 && (
-                    <>
-                      <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-popover-foreground" onClick={duplicateSelected}>Duplicar</button>
-                      <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-destructive/10 text-destructive/80" onClick={deleteSelected}>Excluir</button>
-                      {selectedIds.size >= 2 && (
-                        <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-popover-foreground" onClick={groupSelected}>
-                          🔗 Agrupar ({selectedIds.size} itens)
-                        </button>
-                      )}
-                      <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-popover-foreground" onClick={() => {
-                        const sel = elements.find(e => e.id === [...selectedIds][0]);
-                        if (sel) {
-                          updateSelected({ locked: !sel.locked });
-                          toast.success(sel.locked ? "Elemento desbloqueado!" : "Elemento bloqueado!");
-                        }
-                        setContextMenu(null);
-                      }}>
-                        {elements.find(e => e.id === [...selectedIds][0])?.locked ? "🔓 Desbloquear" : "🔒 Bloquear"}
-                      </button>
-                      {hasGroupInSelection && (
-                        <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-popover-foreground" onClick={ungroupSelected}>
-                          ✂️ Desagrupar
-                        </button>
-                      )}
-                      <div className="h-px bg-border my-1" />
-                    </>
-                  )}
-                  <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-popover-foreground flex items-center gap-2" onClick={() => { setContextMenu(null); handleInsertCompanyLogo(); }}>
-                    <ImageIcon className="h-3.5 w-3.5" /> Inserir Logo da Empresa
-                  </button>
-                  <div className="h-px bg-border my-1" />
-                  <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">Inserir Variável</div>
-                  <div className="px-2 pb-1">
-                    <input type="text" placeholder="Buscar..." value={varSearch}
-                      onChange={e => setVarSearch(e.target.value)}
-                      className="w-full rounded border border-border bg-muted/30 px-2 py-1 text-xs outline-none"
-                      autoFocus onClick={e => e.stopPropagation()} />
-                  </div>
-                  <div className="max-h-[200px] overflow-y-auto">
-                    {filteredVars.map(v => (
-                      <button key={v.var} className="w-full px-3 py-1 text-left hover:bg-accent" onClick={() => insertVariable(v.var)}>
-                        <div className="text-xs font-mono text-primary">{v.var}</div>
-                        <div className="text-[10px] text-muted-foreground">{v.desc}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-            {/* Add page button below canvas */}
+              );
+            })}
+            {/* Add page button below all pages */}
             <div className="flex justify-center py-4">
               <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={addPage} title="Adicionar nova página">
                 <Plus className="h-4 w-4" /> Nova Página
