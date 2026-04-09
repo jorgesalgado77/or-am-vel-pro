@@ -619,8 +619,9 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         }
       }
 
-      if ((e.ctrlKey || e.metaKey) && e.key === "z") { e.preventDefault(); }
-      if ((e.ctrlKey || e.metaKey) && e.key === "y") { e.preventDefault(); }
+      // Undo / Redo
+      if ((e.ctrlKey || e.metaKey) && e.key === "z") { e.preventDefault(); handleUndo(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === "y") { e.preventDefault(); handleRedo(); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
