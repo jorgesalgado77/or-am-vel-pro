@@ -3002,6 +3002,21 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
               )}
               {/* Scaled inner */}
               <div data-canvas-bg style={{ transform: `scale(${zoom})`, transformOrigin: "0 0", width: A4_WIDTH, height: A4_HEIGHT, position: "relative" }}>
+                {/* Margin guides */}
+                <div style={{ position: "absolute", top: margins.top, left: margins.left, right: margins.right, bottom: margins.bottom, border: "1px dashed hsl(210 60% 70% / 0.4)", pointerEvents: "none", zIndex: 1 }} />
+                {/* Page bottom limit indicator */}
+                <div style={{
+                  position: "absolute", left: 0, right: 0, top: A4_HEIGHT - margins.bottom,
+                  borderTop: "2px dashed hsl(0 70% 55% / 0.5)", pointerEvents: "none", zIndex: 2,
+                }}>
+                  <span style={{
+                    position: "absolute", right: 4, top: -16,
+                    fontSize: 9, color: "hsl(0 70% 55% / 0.7)", fontWeight: 600,
+                    background: "hsl(0 0% 100% / 0.85)", padding: "1px 5px", borderRadius: 3,
+                  }}>
+                    Limite da página
+                  </span>
+                </div>
                 {elements.map(renderElement)}
               </div>
 
