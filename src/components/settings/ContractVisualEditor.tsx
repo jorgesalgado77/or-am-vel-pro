@@ -2218,6 +2218,12 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                 </div>
               )}
             </div>
+            {/* Add page button below canvas */}
+            <div className="flex justify-center py-4">
+              <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={addPage} title="Adicionar nova página">
+                <Plus className="h-4 w-4" /> Nova Página
+              </Button>
+            </div>
           </div>
         </div>
 
