@@ -6,8 +6,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import {
   Undo2, Redo2, Bold, Italic, Underline, Strikethrough, Type, Paintbrush,
   AlignLeft, AlignCenter, AlignRight, AlignJustify, List, ListOrdered,
-  RemoveFormatting, Square, Circle, Minus, Image, MousePointer, Table2
+  RemoveFormatting, Square, Circle, Minus, Image, MousePointer, Table2,
+  ArrowLeft
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export type ShapeType = "rect" | "circle" | "line";
 export type ToolType = "select" | "shape" | "text" | "image" | "table";
@@ -17,7 +19,6 @@ interface ContractEditorToolbarProps {
   onToolChange: (tool: ToolType) => void;
   activeShapeType: ShapeType;
   onShapeTypeChange: (shape: ShapeType) => void;
-  // Text formatting
   fontFamily: string;
   onFontFamilyChange: (font: string) => void;
   fontSize: number;
@@ -34,13 +35,13 @@ interface ContractEditorToolbarProps {
   onTextColorChange: (color: string) => void;
   textAlign: string;
   onTextAlignChange: (align: string) => void;
-  // Actions
   onUndo: () => void;
   onRedo: () => void;
   canUndo: boolean;
   canRedo: boolean;
   onImageUpload: () => void;
   onTableInsert: () => void;
+  onBack?: () => void;
 }
 
 const SYSTEM_FONTS = [
@@ -66,6 +67,30 @@ const COLORS = [
   "#990000", "#993300", "#666600", "#006600", "#003366", "#330066",
 ];
 
+interface TipButtonProps {
+  tip: string;
+  children: React.ReactNode;
+  variant?: "ghost" | "secondary" | "outline";
+  className?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+}
+
+function TipButton({ tip, children, variant = "ghost", className = "", onClick, disabled }: TipButtonProps) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button variant={variant} size="icon" className={`h-9 w-9 ${className}`} onClick={onClick} disabled={disabled}>
+          {children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="text-xs">
+        {tip}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 export function ContractEditorToolbar(props: ContractEditorToolbarProps) {
   const {
     activeTool, onToolChange, activeShapeType, onShapeTypeChange,
@@ -73,10 +98,9 @@ export function ContractEditorToolbar(props: ContractEditorToolbarProps) {
     isBold, onBoldToggle, isItalic, onItalicToggle,
     isUnderline, onUnderlineToggle, isStrikethrough, onStrikethroughToggle,
     textColor, onTextColorChange, textAlign, onTextAlignChange,
-    onUndo, onRedo, canUndo, canRedo, onImageUpload, onTableInsert,
+    onUndo, onRedo, canUndo, canRedo, onImageUpload, onTableInsert, onBack,
   } = props;
 
-  // Load Google Fonts dynamically
   useEffect(() => {
     const families = GOOGLE_FONTS.map(f => f.replace(/ /g, "+")).join("&family=");
     const linkId = "google-fonts-editor";
@@ -90,169 +114,160 @@ export function ContractEditorToolbar(props: ContractEditorToolbarProps) {
   }, []);
 
   return (
-    <div className="flex flex-wrap items-center gap-1 rounded-t-lg border border-border bg-muted/30 px-2 py-1.5">
-      {/* Undo / Redo */}
-      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onUndo} disabled={!canUndo} title="Desfazer">
-        <Undo2 className="h-4 w-4" />
-      </Button>
-      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onRedo} disabled={!canRedo} title="Refazer">
-        <Redo2 className="h-4 w-4" />
-      </Button>
+    <TooltipProvider delayDuration={300}>
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-border bg-muted/40 px-3 py-2">
 
-      <Separator orientation="vertical" className="mx-1 h-6" />
+        {/* Voltar */}
+        {onBack && (
+          <>
+            <TipButton tip="Voltar" onClick={onBack}>
+              <ArrowLeft className="h-[18px] w-[18px]" />
+            </TipButton>
+            <Separator orientation="vertical" className="mx-1 h-7" />
+          </>
+        )}
 
-      {/* Tools */}
-      <Button
-        variant={activeTool === "select" ? "secondary" : "ghost"}
-        size="icon" className="h-8 w-8"
-        onClick={() => onToolChange("select")} title="Selecionar"
-      >
-        <MousePointer className="h-4 w-4" />
-      </Button>
-      <Button
-        variant={activeTool === "text" ? "secondary" : "ghost"}
-        size="icon" className="h-8 w-8"
-        onClick={() => onToolChange("text")} title="Inserir Texto"
-      >
-        <Type className="h-4 w-4" />
-      </Button>
+        {/* Undo / Redo */}
+        <TipButton tip="Desfazer (Ctrl+Z)" onClick={onUndo} disabled={!canUndo}>
+          <Undo2 className="h-[18px] w-[18px]" />
+        </TipButton>
+        <TipButton tip="Refazer (Ctrl+Y)" onClick={onRedo} disabled={!canRedo}>
+          <Redo2 className="h-[18px] w-[18px]" />
+        </TipButton>
 
-      {/* Shape buttons */}
-      <Button
-        variant={activeTool === "shape" && activeShapeType === "rect" ? "secondary" : "ghost"}
-        size="icon" className="h-8 w-8"
-        onClick={() => { onToolChange("shape"); onShapeTypeChange("rect"); }} title="Retângulo"
-      >
-        <Square className="h-4 w-4" />
-      </Button>
-      <Button
-        variant={activeTool === "shape" && activeShapeType === "circle" ? "secondary" : "ghost"}
-        size="icon" className="h-8 w-8"
-        onClick={() => { onToolChange("shape"); onShapeTypeChange("circle"); }} title="Círculo"
-      >
-        <Circle className="h-4 w-4" />
-      </Button>
-      <Button
-        variant={activeTool === "shape" && activeShapeType === "line" ? "secondary" : "ghost"}
-        size="icon" className="h-8 w-8"
-        onClick={() => { onToolChange("shape"); onShapeTypeChange("line"); }} title="Linha"
-      >
-        <Minus className="h-4 w-4" />
-      </Button>
-      <Button
-        variant={activeTool === "image" ? "secondary" : "ghost"}
-        size="icon" className="h-8 w-8"
-        onClick={() => { onToolChange("image"); onImageUpload(); }} title="Inserir Imagem"
-      >
-        <Image className="h-4 w-4" />
-      </Button>
-      <Button
-        variant={activeTool === "table" ? "secondary" : "ghost"}
-        size="icon" className="h-8 w-8"
-        onClick={() => { onToolChange("table"); onTableInsert(); }} title="Inserir Tabela"
-      >
-        <Table2 className="h-4 w-4" />
-      </Button>
+        <Separator orientation="vertical" className="mx-1.5 h-7" />
 
-      <Separator orientation="vertical" className="mx-1 h-6" />
+        {/* Tools */}
+        <TipButton tip="Selecionar" variant={activeTool === "select" ? "secondary" : "ghost"} onClick={() => onToolChange("select")}>
+          <MousePointer className="h-[18px] w-[18px]" />
+        </TipButton>
+        <TipButton tip="Inserir Texto" variant={activeTool === "text" ? "secondary" : "ghost"} onClick={() => onToolChange("text")}>
+          <Type className="h-[18px] w-[18px]" />
+        </TipButton>
 
-      {/* Font family */}
-      <Select value={fontFamily} onValueChange={onFontFamilyChange}>
-        <SelectTrigger className="h-8 w-[150px] text-xs">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent className="max-h-[300px]">
-          <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Sistema</div>
-          {SYSTEM_FONTS.map(f => (
-            <SelectItem key={f} value={f} className="text-xs" style={{ fontFamily: f }}>{f}</SelectItem>
-          ))}
-          <div className="h-px bg-border my-1" />
-          <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Google Fonts</div>
-          {GOOGLE_FONTS.sort().map(f => (
-            <SelectItem key={f} value={f} className="text-xs" style={{ fontFamily: f }}>{f}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        <Separator orientation="vertical" className="mx-1.5 h-7" />
 
-      {/* Font size */}
-      <Select value={String(fontSize)} onValueChange={(v) => onFontSizeChange(Number(v))}>
-        <SelectTrigger className="h-8 w-[65px] text-xs">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {FONT_SIZES.map(s => (
-            <SelectItem key={s} value={String(s)} className="text-xs">{s}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        {/* Shapes */}
+        <TipButton tip="Retângulo" variant={activeTool === "shape" && activeShapeType === "rect" ? "secondary" : "ghost"} onClick={() => { onToolChange("shape"); onShapeTypeChange("rect"); }}>
+          <Square className="h-[18px] w-[18px]" />
+        </TipButton>
+        <TipButton tip="Círculo" variant={activeTool === "shape" && activeShapeType === "circle" ? "secondary" : "ghost"} onClick={() => { onToolChange("shape"); onShapeTypeChange("circle"); }}>
+          <Circle className="h-[18px] w-[18px]" />
+        </TipButton>
+        <TipButton tip="Linha" variant={activeTool === "shape" && activeShapeType === "line" ? "secondary" : "ghost"} onClick={() => { onToolChange("shape"); onShapeTypeChange("line"); }}>
+          <Minus className="h-[18px] w-[18px]" />
+        </TipButton>
 
-      <Separator orientation="vertical" className="mx-1 h-6" />
+        <Separator orientation="vertical" className="mx-1.5 h-7" />
 
-      {/* Text formatting */}
-      <Button variant={isBold ? "secondary" : "ghost"} size="icon" className="h-8 w-8" onClick={onBoldToggle} title="Negrito">
-        <Bold className="h-4 w-4" />
-      </Button>
-      <Button variant={isItalic ? "secondary" : "ghost"} size="icon" className="h-8 w-8" onClick={onItalicToggle} title="Itálico">
-        <Italic className="h-4 w-4" />
-      </Button>
-      <Button variant={isUnderline ? "secondary" : "ghost"} size="icon" className="h-8 w-8" onClick={onUnderlineToggle} title="Sublinhado">
-        <Underline className="h-4 w-4" />
-      </Button>
-      <Button variant={isStrikethrough ? "secondary" : "ghost"} size="icon" className="h-8 w-8" onClick={onStrikethroughToggle} title="Tachado">
-        <Strikethrough className="h-4 w-4" />
-      </Button>
+        {/* Insert */}
+        <TipButton tip="Inserir Imagem" variant={activeTool === "image" ? "secondary" : "ghost"} onClick={() => { onToolChange("image"); onImageUpload(); }}>
+          <Image className="h-[18px] w-[18px]" />
+        </TipButton>
+        <TipButton tip="Inserir Tabela" variant={activeTool === "table" ? "secondary" : "ghost"} onClick={() => { onToolChange("table"); onTableInsert(); }}>
+          <Table2 className="h-[18px] w-[18px]" />
+        </TipButton>
 
-      {/* Text color */}
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8 relative" title="Cor do texto">
-            <Paintbrush className="h-4 w-4" />
-            <span className="absolute bottom-1 left-1/2 -translate-x-1/2 h-0.5 w-4 rounded" style={{ backgroundColor: textColor }} />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-2">
-          <div className="grid grid-cols-6 gap-1">
-            {COLORS.map(c => (
-              <button
-                key={c}
-                className="h-6 w-6 rounded border border-border hover:scale-110 transition-transform"
-                style={{ backgroundColor: c }}
-                onClick={() => onTextColorChange(c)}
-                title={c}
-              />
+        <Separator orientation="vertical" className="mx-1.5 h-7" />
+
+        {/* Font family */}
+        <Select value={fontFamily} onValueChange={onFontFamilyChange}>
+          <SelectTrigger className="h-9 w-[160px] text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="max-h-[300px]">
+            <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Sistema</div>
+            {SYSTEM_FONTS.map(f => (
+              <SelectItem key={f} value={f} className="text-xs" style={{ fontFamily: f }}>{f}</SelectItem>
             ))}
-          </div>
-        </PopoverContent>
-      </Popover>
+            <div className="h-px bg-border my-1" />
+            <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Google Fonts</div>
+            {GOOGLE_FONTS.sort().map(f => (
+              <SelectItem key={f} value={f} className="text-xs" style={{ fontFamily: f }}>{f}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-      <Separator orientation="vertical" className="mx-1 h-6" />
+        {/* Font size */}
+        <Select value={String(fontSize)} onValueChange={(v) => onFontSizeChange(Number(v))}>
+          <SelectTrigger className="h-9 w-[70px] text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {FONT_SIZES.map(s => (
+              <SelectItem key={s} value={String(s)} className="text-xs">{s}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-      {/* Alignment */}
-      <Button variant={textAlign === "left" ? "secondary" : "ghost"} size="icon" className="h-8 w-8" onClick={() => onTextAlignChange("left")} title="Alinhar à esquerda">
-        <AlignLeft className="h-4 w-4" />
-      </Button>
-      <Button variant={textAlign === "center" ? "secondary" : "ghost"} size="icon" className="h-8 w-8" onClick={() => onTextAlignChange("center")} title="Centralizar">
-        <AlignCenter className="h-4 w-4" />
-      </Button>
-      <Button variant={textAlign === "right" ? "secondary" : "ghost"} size="icon" className="h-8 w-8" onClick={() => onTextAlignChange("right")} title="Alinhar à direita">
-        <AlignRight className="h-4 w-4" />
-      </Button>
-      <Button variant={textAlign === "justify" ? "secondary" : "ghost"} size="icon" className="h-8 w-8" onClick={() => onTextAlignChange("justify")} title="Justificar">
-        <AlignJustify className="h-4 w-4" />
-      </Button>
+        <Separator orientation="vertical" className="mx-1.5 h-7" />
 
-      <Separator orientation="vertical" className="mx-1 h-6" />
+        {/* Text formatting */}
+        <TipButton tip="Negrito (Ctrl+B)" variant={isBold ? "secondary" : "ghost"} onClick={onBoldToggle}>
+          <Bold className="h-[18px] w-[18px]" />
+        </TipButton>
+        <TipButton tip="Itálico (Ctrl+I)" variant={isItalic ? "secondary" : "ghost"} onClick={onItalicToggle}>
+          <Italic className="h-[18px] w-[18px]" />
+        </TipButton>
+        <TipButton tip="Sublinhado (Ctrl+U)" variant={isUnderline ? "secondary" : "ghost"} onClick={onUnderlineToggle}>
+          <Underline className="h-[18px] w-[18px]" />
+        </TipButton>
+        <TipButton tip="Tachado" variant={isStrikethrough ? "secondary" : "ghost"} onClick={onStrikethroughToggle}>
+          <Strikethrough className="h-[18px] w-[18px]" />
+        </TipButton>
 
-      {/* Lists */}
-      <Button variant="ghost" size="icon" className="h-8 w-8" title="Lista não ordenada">
-        <List className="h-4 w-4" />
-      </Button>
-      <Button variant="ghost" size="icon" className="h-8 w-8" title="Lista ordenada">
-        <ListOrdered className="h-4 w-4" />
-      </Button>
-      <Button variant="ghost" size="icon" className="h-8 w-8" title="Limpar formatação">
-        <RemoveFormatting className="h-4 w-4" />
-      </Button>
-    </div>
+        {/* Text color */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-9 w-9 relative" title="Cor do texto">
+              <Paintbrush className="h-[18px] w-[18px]" />
+              <span className="absolute bottom-1 left-1/2 -translate-x-1/2 h-1 w-5 rounded-full" style={{ backgroundColor: textColor }} />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-2">
+            <div className="grid grid-cols-6 gap-1">
+              {COLORS.map(c => (
+                <button
+                  key={c}
+                  className="h-6 w-6 rounded border border-border hover:scale-110 transition-transform"
+                  style={{ backgroundColor: c }}
+                  onClick={() => onTextColorChange(c)}
+                  title={c}
+                />
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        <Separator orientation="vertical" className="mx-1.5 h-7" />
+
+        {/* Alignment */}
+        <TipButton tip="Alinhar à esquerda" variant={textAlign === "left" ? "secondary" : "ghost"} onClick={() => onTextAlignChange("left")}>
+          <AlignLeft className="h-[18px] w-[18px]" />
+        </TipButton>
+        <TipButton tip="Centralizar" variant={textAlign === "center" ? "secondary" : "ghost"} onClick={() => onTextAlignChange("center")}>
+          <AlignCenter className="h-[18px] w-[18px]" />
+        </TipButton>
+        <TipButton tip="Alinhar à direita" variant={textAlign === "right" ? "secondary" : "ghost"} onClick={() => onTextAlignChange("right")}>
+          <AlignRight className="h-[18px] w-[18px]" />
+        </TipButton>
+        <TipButton tip="Justificar" variant={textAlign === "justify" ? "secondary" : "ghost"} onClick={() => onTextAlignChange("justify")}>
+          <AlignJustify className="h-[18px] w-[18px]" />
+        </TipButton>
+
+        <Separator orientation="vertical" className="mx-1.5 h-7" />
+
+        {/* Lists / Clear */}
+        <TipButton tip="Lista com marcadores">
+          <List className="h-[18px] w-[18px]" />
+        </TipButton>
+        <TipButton tip="Lista numerada">
+          <ListOrdered className="h-[18px] w-[18px]" />
+        </TipButton>
+        <TipButton tip="Limpar formatação">
+          <RemoveFormatting className="h-[18px] w-[18px]" />
+        </TipButton>
+      </div>
+    </TooltipProvider>
   );
 }
