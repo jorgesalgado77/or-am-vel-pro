@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp, Eye, EyeOff } from "lucide-react";
 
@@ -50,7 +50,7 @@ interface Props {
   onChange: (s: HeaderFooterSettings) => void;
 }
 
-export function HeaderFooterConfig({ label, settings, onChange }: Props) {
+export const HeaderFooterConfig = forwardRef<HTMLDivElement, Props>(function HeaderFooterConfig({ label, settings, onChange }, ref) {
   const [expanded, setExpanded] = useState(false);
 
   const update = (partial: Partial<HeaderFooterSettings>) =>
