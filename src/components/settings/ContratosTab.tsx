@@ -294,7 +294,10 @@ export function ContratosTab() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Excluir este modelo de contrato?")) return;
-    const { error } = await supabase.from("contract_templates").delete().eq("id", id);
+    const tenantId = getTenantId();
+    let query = supabase.from("contract_templates").delete().eq("id", id);
+    if (tenantId) query = query.eq("tenant_id", tenantId);
+    const { error } = await query;
     if (error) {
       console.error("Erro ao excluir:", error);
       toast.error("Erro ao excluir modelo");
