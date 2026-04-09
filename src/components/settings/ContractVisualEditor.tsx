@@ -146,6 +146,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   // User-placed draggable guide lines
   const [userGuides, setUserGuides] = useState<{ id: string; axis: "x" | "y"; pos: number }[]>([]);
   const [draggingGuide, setDraggingGuide] = useState<{ id: string; axis: "x" | "y"; startMouse: number; startPos: number } | null>(null);
+  const [visiblePageIdx, setVisiblePageIdx] = useState(0);
+  const pageRefsMap = useRef<Map<number, HTMLDivElement>>(new Map());
 
   // Custom templates state
   const { templates: customTemplates, loading: loadingCustom, saveTemplate, updateTemplate, deleteTemplate } = useCustomTemplates();
@@ -1090,7 +1092,52 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       }
     };
     const handleMouseUp = () => {
-      if (dragState) { setDragState(null); setSmartGuides({ x: [], y: [] }); }
+      // Cross-page drag: detect elements that moved beyond page bounds
+      if (dragState) {
+        setPages(prev => {
+          const srcPage = prev[currentPageIdx];
+          if (!srcPage) return prev;
+          const movedUp: CanvasElement[] = [];
+          const movedDown: CanvasElement[] = [];
+          const staying: CanvasElement[] = [];
+
+          for (const el of srcPage.elements) {
+            if (!dragState.ids.includes(el.id)) { staying.push(el); continue; }
+            if (el.y + el.height < -10) { movedUp.push(el); }
+            else if (el.y > A4_HEIGHT + 10) { movedDown.push(el); }
+            else { staying.push(el); }
+          }
+
+          if (movedUp.length === 0 && movedDown.length === 0) return prev;
+
+          const np = [...prev];
+          np[currentPageIdx] = { ...srcPage, elements: staying };
+
+          if (movedUp.length > 0 && currentPageIdx > 0) {
+            const tgtPage = np[currentPageIdx - 1];
+            const relocated = movedUp.map(el => ({ ...el, y: A4_HEIGHT + el.y }));
+            np[currentPageIdx - 1] = { ...tgtPage, elements: [...tgtPage.elements, ...relocated] };
+          }
+
+          if (movedDown.length > 0) {
+            const nextIdx = currentPageIdx + 1;
+            if (nextIdx >= np.length) np.push({ id: pageId(), elements: [], backgroundOpacity: 0.5 });
+            const tgtPage = np[nextIdx];
+            const relocated = movedDown.map(el => ({ ...el, y: el.y - A4_HEIGHT }));
+            np[nextIdx] = { ...tgtPage, elements: [...tgtPage.elements, ...relocated] };
+          }
+
+          if (movedUp.length > 0) {
+            setTimeout(() => { setCurrentPageIdx(currentPageIdx - 1); setSelectedIds(new Set(movedUp.map(e => e.id))); }, 0);
+          } else if (movedDown.length > 0) {
+            setTimeout(() => { setCurrentPageIdx(currentPageIdx + 1); setSelectedIds(new Set(movedDown.map(e => e.id))); }, 0);
+          }
+
+          return np;
+        });
+        setDragState(null);
+        setSmartGuides({ x: [], y: [] });
+      }
       if (resizeState) setResizeState(null);
       if (rotateState) setRotateState(null);
       if (draggingGuide) {
@@ -1110,6 +1157,29 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     window.addEventListener("mouseup", handleMouseUp);
     return () => { window.removeEventListener("mousemove", handleMouseMove); window.removeEventListener("mouseup", handleMouseUp); };
   }, [dragState, resizeState, rotateState, draggingGuide, userGuides, zoom, clampToMargins, computeSmartGuides, setCurrentElements]);
+
+  // IntersectionObserver to track visible page during scroll
+  useEffect(() => {
+    const scrollContainer = document.querySelector('[data-pages-scroll]');
+    if (!scrollContainer) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        let maxRatio = 0;
+        let maxIdx = visiblePageIdx;
+        entries.forEach(entry => {
+          const idx = Number(entry.target.getAttribute('data-page-idx'));
+          if (!isNaN(idx) && entry.intersectionRatio > maxRatio) {
+            maxRatio = entry.intersectionRatio;
+            maxIdx = idx;
+          }
+        });
+        if (maxRatio > 0) setVisiblePageIdx(maxIdx);
+      },
+      { root: scrollContainer, threshold: [0, 0.25, 0.5, 0.75, 1] }
+    );
+    pageRefsMap.current.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [pages.length, visiblePageIdx]);
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -3110,13 +3180,59 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           </div>
         </div>
         {/* Canvas area with Word-like feel — all pages stacked vertically */}
-        <div className="flex-1 min-w-0 min-h-0 overflow-auto" data-pages-scroll style={{ background: "hsl(var(--muted) / 0.6)" }}>
+        <div className="flex-1 min-w-0 min-h-0 relative">
+          <div className="absolute inset-0 overflow-auto" data-pages-scroll style={{ background: "hsl(var(--muted) / 0.6)" }}>
+          {/* Floating page indicator */}
+          {pages.length > 1 && (
+            <div style={{
+              position: "sticky", top: 8, zIndex: 100, display: "flex", justifyContent: "center",
+              pointerEvents: "none", marginBottom: -32,
+            }}>
+              <div style={{
+                pointerEvents: "auto",
+                background: "hsl(var(--background) / 0.95)", border: "1px solid hsl(var(--border))",
+                borderRadius: 20, padding: "4px 12px",
+                fontSize: 11, fontWeight: 600, color: "hsl(var(--foreground))",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+                display: "flex", alignItems: "center", gap: 8,
+              }}>
+                {pages.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      const el = pageRefsMap.current.get(idx);
+                      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                      setCurrentPageIdx(idx);
+                      setSelectedIds(new Set());
+                    }}
+                    style={{
+                      width: idx === visiblePageIdx ? 24 : 8,
+                      height: 8,
+                      borderRadius: 4,
+                      border: "none",
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                      background: idx === visiblePageIdx
+                        ? "hsl(var(--primary))"
+                        : idx === currentPageIdx
+                          ? "hsl(var(--primary) / 0.4)"
+                          : "hsl(var(--muted-foreground) / 0.3)",
+                    }}
+                    title={`Página ${idx + 1}`}
+                  />
+                ))}
+                <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginLeft: 4 }}>
+                  {visiblePageIdx + 1}/{pages.length}
+                </span>
+              </div>
+            </div>
+          )}
           <div className="flex flex-col items-center py-6 px-4" style={{ minWidth: A4_WIDTH * zoom + RULER_SIZE + 48 }}>
             {pages.map((page, pageIdx) => {
               const isActivePage = pageIdx === currentPageIdx;
               const pageElements = page.elements || [];
               return (
-                <div key={page.id} style={{ marginBottom: 40, flexShrink: 0 }}>
+                <div key={page.id} data-page-idx={pageIdx} ref={el => { if (el) pageRefsMap.current.set(pageIdx, el); else pageRefsMap.current.delete(pageIdx); }} style={{ marginBottom: 40, flexShrink: 0 }}>
                   <div
                     style={{
                       position: "relative",
@@ -3267,12 +3383,17 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                                 transformOrigin: "center center",
                                 overflow: "hidden",
                               };
+                              // Apply variable preview on all pages
+                              const resolveText = (txt: string | undefined) => {
+                                if (!txt) return "";
+                                return previewVarsMode ? replaceVariablesWithSample(txt) : txt;
+                              };
                               let content: React.ReactNode = null;
                               switch (el.type) {
                                 case "rect":
                                   content = (
                                     <div style={{ width: "100%", height: "100%", background: el.fill, border: `${el.strokeWidth}px solid ${el.stroke}`, borderRadius: el.borderRadius, boxSizing: "border-box" }}>
-                                      {el.text && <div style={{ padding: 8, fontFamily: el.fontFamily, fontSize: el.fontSize, fontWeight: el.fontWeight, fontStyle: el.fontStyle, color: el.color, textAlign: el.textAlign as any, whiteSpace: "pre-wrap", wordWrap: "break-word", overflow: "hidden" }} dangerouslySetInnerHTML={{ __html: el.text }} />}
+                                      {el.text && <div style={{ padding: 8, fontFamily: el.fontFamily, fontSize: el.fontSize, fontWeight: el.fontWeight, fontStyle: el.fontStyle, color: el.color, textAlign: el.textAlign as any, whiteSpace: "pre-wrap", wordWrap: "break-word", overflow: "hidden" }} dangerouslySetInnerHTML={{ __html: resolveText(el.text) }} />}
                                     </div>
                                   );
                                   break;
@@ -3284,7 +3405,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                                   break;
                                 case "text":
                                   content = (
-                                    <div style={{ width: "100%", height: "100%", fontFamily: el.fontFamily, fontSize: el.fontSize, fontWeight: el.fontWeight, fontStyle: el.fontStyle, color: el.color, textAlign: el.textAlign as any, whiteSpace: "pre-wrap", wordWrap: "break-word", overflow: "hidden" }} dangerouslySetInnerHTML={{ __html: el.text || "" }} />
+                                    <div style={{ width: "100%", height: "100%", fontFamily: el.fontFamily, fontSize: el.fontSize, fontWeight: el.fontWeight, fontStyle: el.fontStyle, color: el.color, textAlign: el.textAlign as any, whiteSpace: "pre-wrap", wordWrap: "break-word", overflow: "hidden" }} dangerouslySetInnerHTML={{ __html: resolveText(el.text) }} />
                                   );
                                   break;
                                 case "image":
@@ -3298,7 +3419,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                                           {el.tableData.map((row, ri) => (
                                             <tr key={ri}>
                                               {row.map((cell, ci) => (
-                                                <td key={ci} style={{ border: `1px solid ${el.stroke}`, padding: "2px 6px", background: ri === 0 ? el.stroke : el.fill, color: ri === 0 ? "#ffffff" : el.color, fontWeight: ri === 0 ? "bold" : "normal" }}>{cell}</td>
+                                                <td key={ci} style={{ border: `1px solid ${el.stroke}`, padding: "2px 6px", background: ri === 0 ? el.stroke : el.fill, color: ri === 0 ? "#ffffff" : el.color, fontWeight: ri === 0 ? "bold" : "normal" }}>{resolveText(cell)}</td>
                                               ))}
                                             </tr>
                                           ))}
@@ -3372,14 +3493,19 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                             </div>
                           </div>
                         ))}
-                        {/* Page number indicator */}
+                        {/* Page footer: client name + page number */}
                         <div style={{
-                          position: "absolute", bottom: Math.max(8, margins.bottom - 20), right: Math.max(12, margins.right),
+                          position: "absolute", bottom: Math.max(8, margins.bottom - 20), left: Math.max(12, margins.left), right: Math.max(12, margins.right),
+                          display: "flex", justifyContent: "space-between", alignItems: "center",
                           fontSize: 10, color: "hsl(var(--muted-foreground))", fontFamily: "Arial, sans-serif",
                           pointerEvents: "none", zIndex: 3, userSelect: "none",
-                          background: "hsl(var(--background) / 0.8)", padding: "1px 6px", borderRadius: 3,
                         }}>
-                          Página {pageIdx + 1}/{pages.length}
+                          <span style={{ background: "hsl(var(--background) / 0.8)", padding: "1px 6px", borderRadius: 3 }}>
+                            {previewVarsMode ? "Maria Fernanda da Silva" : "{{nome_cliente}}"}
+                          </span>
+                          <span style={{ background: "hsl(var(--background) / 0.8)", padding: "1px 6px", borderRadius: 3 }}>
+                            Página {pageIdx + 1}/{pages.length}
+                          </span>
                         </div>
                       </div>
 
@@ -3505,6 +3631,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                 <Plus className="h-4 w-4" /> Nova Página
               </Button>
             </div>
+          </div>
           </div>
         </div>
 
