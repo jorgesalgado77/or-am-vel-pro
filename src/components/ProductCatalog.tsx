@@ -1,7 +1,7 @@
 /**
  * ProductCatalog — Full product catalog management UI
  */
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, lazy, Suspense } from "react";
 import { PrazoEntregaSelect } from "@/components/shared/PrazoEntregaSelect";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
@@ -26,7 +26,10 @@ import { useProductCatalog, calculateSalePrice, type Product, type Supplier, typ
 import { ProductDetailModal } from "@/components/catalog/ProductDetailModal";
 import { ProductPromotionModal } from "@/components/catalog/ProductPromotionModal";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { usePromoExpirationAlerts } from "@/hooks/usePromoExpirationAlerts";
 import { maskCpfCnpj, maskPhone, maskCep } from "@/lib/masks";
+
+const PromotionsPanel = lazy(() => import("@/components/catalog/PromotionsPanel").then(m => ({ default: m.PromotionsPanel })));
 import { toast } from "sonner";
 
 const STOCK_STATUS_LABELS: Record<string, { label: string; color: string }> = {
