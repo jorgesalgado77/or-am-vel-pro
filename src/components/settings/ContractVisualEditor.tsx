@@ -1492,22 +1492,27 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     // Paste handler: supports rich text from clipboard
     const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
       e.stopPropagation();
+      e.preventDefault();
       const clipboardData = e.clipboardData;
       const htmlData = clipboardData.getData("text/html");
       const textData = clipboardData.getData("text/plain");
+      const target = e.currentTarget;
       
       if (htmlData) {
-        e.preventDefault();
-        // Sanitize: keep only inline formatting tags
         const temp = document.createElement("div");
         temp.innerHTML = htmlData;
-        // Remove scripts and styles
         temp.querySelectorAll("script, style, meta, link").forEach(n => n.remove());
-        // Insert cleaned HTML
         document.execCommand("insertHTML", false, temp.innerHTML);
       } else if (textData) {
-        // Let default paste handle plain text
+        document.execCommand("insertText", false, textData);
       }
+
+      // After paste, update state and auto-resize
+      requestAnimationFrame(() => {
+        const newText = target.innerHTML;
+        setCurrentElements(prev => prev.map(p => p.id === el.id ? { ...p, text: newText } : p));
+        autoResizeElement(el.id, target);
+      });
     };
 
     const textContent = isEditing ? (
