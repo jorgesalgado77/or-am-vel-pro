@@ -5,7 +5,8 @@ import { ContractEditorToolbar, type ToolType, type ShapeType } from "./Contract
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText, BookmarkPlus, Pencil, Trash, Upload, Image as ImageIcon, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, Eye, FileSpreadsheet, ToggleLeft, ToggleRight, Palette } from "lucide-react";
+import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText, BookmarkPlus, Pencil, Trash, Upload, Image as ImageIcon, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, Eye, FileSpreadsheet, ToggleLeft, ToggleRight, Palette, Layers } from "lucide-react";
+import { ContractLayersPanel } from "./ContractLayersPanel";
 import { getContractTemplates, type ContractTemplate } from "./contractTemplates";
 import { useCustomTemplates, type CustomTemplate } from "@/hooks/useCustomTemplates";
 import { toast } from "sonner";
@@ -242,6 +243,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [dragPageIdx, setDragPageIdx] = useState<number | null>(null);
   const [dragOverPageIdx, setDragOverPageIdx] = useState<number | null>(null);
   const [smartGuides, setSmartGuides] = useState<{ x: number[]; y: number[] }>({ x: [], y: [] });
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const [showLayersPanel, setShowLayersPanel] = useState(true);
 
   // Custom templates state
   const { templates: customTemplates, loading: loadingCustom, saveTemplate, updateTemplate, deleteTemplate } = useCustomTemplates();
@@ -1168,6 +1171,33 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             const cp = clampToMargins(el, el.x + dx, el.y + dy);
             return { ...el, x: cp.x, y: cp.y };
           }));
+        }
+      }
+
+      // Lock/Unlock selected (Ctrl+L)
+      if ((e.ctrlKey || e.metaKey) && e.key === "l" && !e.shiftKey) {
+        if (selectedIds.size > 0) {
+          e.preventDefault();
+          const selEls = elements.filter(el => selectedIds.has(el.id));
+          const allLocked = selEls.every(el => el.locked);
+          setCurrentElements(prev => prev.map(el => selectedIds.has(el.id) ? { ...el, locked: !allLocked } : el));
+          toast.success(allLocked ? "Elemento(s) desbloqueado(s)" : "Elemento(s) bloqueado(s)");
+        }
+      }
+
+      // Center on page (Ctrl+Shift+C)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "C") {
+        if (selectedIds.size > 0) {
+          e.preventDefault();
+          setCurrentElements(prev => prev.map(el => {
+            if (!selectedIds.has(el.id)) return el;
+            return {
+              ...el,
+              x: (A4_WIDTH - el.width) / 2,
+              y: (A4_HEIGHT - el.height) / 2,
+            };
+          }));
+          toast.success("Elemento(s) centralizado(s) na página");
         }
       }
 
@@ -2209,8 +2239,27 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     );
   };
 
+  // Helper: insert {{nome_cliente}} on all pages below header area
+  const insertNomeClienteOnPages = (pagesData: PageData[]): PageData[] => {
+    return pagesData.map(p => {
+      const hasClienteVar = p.elements.some(el => el.text?.includes("{{nome_cliente}}"));
+      if (hasClienteVar) return p;
+      const clienteEl = createDefaultElement("text", margins.left, margins.top + 90);
+      clienteEl.text = "{{nome_cliente}}";
+      clienteEl.fontSize = 13;
+      clienteEl.fontWeight = "bold";
+      clienteEl.color = "#333333";
+      clienteEl.width = A4_WIDTH - margins.left - margins.right;
+      clienteEl.height = 24;
+      clienteEl.stroke = "transparent";
+      clienteEl.strokeWidth = 0;
+      return { ...p, elements: [...p.elements, clienteEl] };
+    });
+  };
+
   const applyTemplate = (tpl: ContractTemplate) => {
-    setPages(tpl.pages.map(p => ({ ...p, id: pageId(), elements: p.elements.map(e => ({ ...e, id: genId() })) })));
+    const pagesData = tpl.pages.map(p => ({ ...p, id: pageId(), elements: p.elements.map(e => ({ ...e, id: genId() })) }));
+    setPages(insertNomeClienteOnPages(pagesData));
     setCurrentPageIdx(0);
     setSelectedIds(new Set());
     setShowTemplates(false);
@@ -2218,8 +2267,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   };
 
   const applyCustomTemplate = (ct: CustomTemplate) => {
-    const pagesData = ct.pages_data as PageData[];
-    setPages(pagesData.map(p => ({ ...p, id: pageId(), elements: (p.elements || []).map(e => ({ ...e, id: genId() })) })));
+    const pagesData = (ct.pages_data as PageData[]).map(p => ({ ...p, id: pageId(), elements: (p.elements || []).map(e => ({ ...e, id: genId() })) }));
+    setPages(insertNomeClienteOnPages(pagesData));
     setCurrentPageIdx(0);
     setSelectedIds(new Set());
     setShowTemplates(false);
