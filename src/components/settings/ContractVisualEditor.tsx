@@ -1557,7 +1557,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         onStrikethroughToggle={() => { const c = selected?.textDecoration || "none"; const h = c.includes("line-through"); updateSelected({ textDecoration: h ? c.replace("line-through", "").trim() || "none" : (c === "none" ? "line-through" : c + " line-through") }); }}
         textColor={textColor} onTextColorChange={v => updateSelected({ color: v })}
         textAlign={textAlign} onTextAlignChange={v => updateSelected({ textAlign: v })}
-        onUndo={() => {}} onRedo={() => {}} canUndo={false} canRedo={false}
+        onUndo={handleUndo} onRedo={handleRedo} canUndo={canUndo} canRedo={canRedo}
         onImageUpload={handleImageUpload}
         onTableInsert={handleTableInsert}
       />
