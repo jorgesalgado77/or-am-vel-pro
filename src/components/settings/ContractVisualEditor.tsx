@@ -1130,6 +1130,47 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     }
   };
 
+  const [exportingXlsx, setExportingXlsx] = useState(false);
+
+  const handleExportXlsx = async () => {
+    setExportingXlsx(true);
+    try {
+      const XLSX = await import("xlsx");
+      const wb = XLSX.utils.book_new();
+
+      for (let pageIdx = 0; pageIdx < pages.length; pageIdx++) {
+        const page = pages[pageIdx];
+        const sortedEls = [...page.elements].sort((a, b) => a.y - b.y || a.x - b.x);
+        const rows: string[][] = [];
+
+        for (const el of sortedEls) {
+          if (el.type === "table" && el.tableData) {
+            for (const row of el.tableData) {
+              rows.push([...row]);
+            }
+            rows.push([]); // blank separator
+          } else if (el.type === "text" && el.text?.trim()) {
+            rows.push([el.text]);
+          } else if ((el.type === "rect" || el.type === "circle") && el.text?.trim()) {
+            rows.push([el.text]);
+          }
+        }
+
+        if (rows.length === 0) rows.push(["(Página vazia)"]);
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        XLSX.utils.book_append_sheet(wb, ws, `Página ${pageIdx + 1}`);
+      }
+
+      XLSX.writeFile(wb, "contrato.xlsx");
+      toast.success("Excel exportado com sucesso!");
+    } catch (err) {
+      console.error("Export XLSX error:", err);
+      toast.error("Erro ao exportar Excel");
+    } finally {
+      setExportingXlsx(false);
+    }
+  };
+
   const filteredVars = variables
     .filter(v => !varSearch || v.var.toLowerCase().includes(varSearch.toLowerCase()) || v.desc.toLowerCase().includes(varSearch.toLowerCase()))
     .sort((a, b) => a.var.localeCompare(b.var));
