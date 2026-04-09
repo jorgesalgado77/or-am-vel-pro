@@ -146,16 +146,22 @@ export function getContractTemplates(): ContractTemplate[] {
             makeLine(40, 522, 714),
             makeText(40, 530, 714, 20, "{{produtos_catalogo_completo}}", { fontSize: 11 }),
 
-            // ── Resumo Financeiro ──
-            makeText(40, 570, 714, 25, "RESUMO FINANCEIRO", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
+            // ── Observações (campo livre) ──
+            makeText(40, 570, 714, 25, "OBSERVAÇÕES", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
             makeLine(40, 592, 714),
-            makeText(40, 600, 350, 20, "Valor Total: {{valor_tela}}"),
-            makeText(400, 600, 350, 20, "Desconto: {{valor_desconto}} ({{percentual_desconto}})"),
-            makeText(40, 625, 350, 20, "Forma de Pagamento: {{forma_pagamento}}"),
-            makeText(400, 625, 350, 20, "Parcelas: {{parcelas}}x {{valor_parcela}}"),
-            makeText(40, 650, 350, 20, "Entrada: {{valor_entrada}}"),
-            makeText(400, 650, 350, 20, "Restante: {{valor_restante}}"),
-            makeRect(40, 680, 714, 50, { fill: "#f0fdfa", stroke: "#0891b2", borderRadius: 6, text: "VALOR FINAL: {{valor_final}}\n{{valor_por_extenso}}", fontSize: 16, fontWeight: "bold", color: "#0891b2", textAlign: "center" }),
+            makeRect(40, 598, 714, 100, { fill: "#f8fafc", stroke: "#e2e8f0", borderRadius: 4, strokeWidth: 1 }),
+            makeText(46, 604, 702, 88, "{{observacoes}}", { fontSize: 11, color: "#374151" }),
+
+            // ── Resumo Financeiro ──
+            makeText(40, 720, 714, 25, "RESUMO FINANCEIRO", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
+            makeLine(40, 742, 714),
+            makeText(40, 750, 350, 20, "Valor Total: {{valor_tela}}"),
+            makeText(400, 750, 350, 20, "Desconto: {{valor_desconto}} ({{percentual_desconto}})"),
+            makeText(40, 775, 350, 20, "Forma de Pagamento: {{forma_pagamento}}"),
+            makeText(400, 775, 350, 20, "Parcelas: {{parcelas}}x {{valor_parcela}}"),
+            makeText(40, 800, 350, 20, "Entrada: {{valor_entrada}}"),
+            makeText(400, 800, 350, 20, "Restante: {{valor_restante}}"),
+            makeRect(40, 830, 714, 50, { fill: "#f0fdfa", stroke: "#0891b2", borderRadius: 6, text: "VALOR FINAL: {{valor_final}}\n{{valor_por_extenso}}", fontSize: 16, fontWeight: "bold", color: "#0891b2", textAlign: "center" }),
           ],
         },
         {
