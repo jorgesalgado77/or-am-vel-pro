@@ -1242,9 +1242,13 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           </>
         )}
 
-        {selected ? (
+        {selectedIds.size > 1 && !selected ? (
+          <p className="text-muted-foreground text-center py-4">{selectedIds.size} elementos selecionados</p>
+        ) : selected ? (
           <>
-            <h3 className="font-semibold text-sm text-foreground">Propriedades</h3>
+            <h3 className="font-semibold text-sm text-foreground">
+              Propriedades {selectedIds.size > 1 ? `(${selectedIds.size} selecionados)` : ""}
+            </h3>
             <div className="space-y-1.5">
               <label className="text-muted-foreground">Posição</label>
               <div className="grid grid-cols-2 gap-1">
@@ -1643,7 +1647,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={() => setShowSaveDialog(true)} title="Salvar como Template">
           <BookmarkPlus className="h-3.5 w-3.5" /> Salvar Template
         </Button>
-        {selectedId && (
+        {selectedIds.size > 0 && (
           <>
             <div className="h-5 w-px bg-border" />
             <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => alignElements("left")} title="Alinhar à esquerda"><AlignHorizontalJustifyStart className="h-3.5 w-3.5" /></Button>
