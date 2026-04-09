@@ -24,6 +24,7 @@ import {
 import { useEditorHistory } from "./contract-editor/useEditorHistory";
 import { usePasteHelpers } from "./contract-editor/usePasteHelpers";
 import { useTextSplitter } from "./contract-editor/useTextSplitter";
+import { buildRepeatedElementFingerprints, createContinuationPageFromTemplate, getPageFlowBounds, isLikelyPageChrome, stripSplitMetadata } from "./contract-editor/pagination";
 import { EditorPropertiesPanel } from "./contract-editor/EditorPropertiesPanel";
 import { exportToPdf, exportToDocx, exportToXlsx } from "./contract-editor/exportHelpers";
 
@@ -244,6 +245,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   }, []);
 
   const { splitHtmlAtHeight } = useTextSplitter();
+  const repeatedPageChrome = buildRepeatedElementFingerprints(pages);
 
   // Derived text formatting
   const fontFamily = selected?.fontFamily || "Arial";
@@ -298,170 +300,160 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const goToPrevPage = () => { if (currentPageIdx > 0) { setCurrentPageIdx(currentPageIdx - 1); setSelectedIds(new Set()); } };
   const goToNextPage = () => { if (currentPageIdx < pages.length - 1) { setCurrentPageIdx(currentPageIdx + 1); setSelectedIds(new Set()); } };
 
-  // --- Reflow: push elements down, auto-split text, and cascade across pages ---
+  // --- Reflow robusto: preserva cabeçalho/rodapé, margens e continuações entre páginas ---
   const reflowElements = useCallback((changedElId: string, newHeight: number, changedElUpdates?: Partial<CanvasElement>) => {
     setPages(prev => {
-      const page = prev[currentPageIdx];
-      if (!page) return prev;
+      const sourcePage = prev[currentPageIdx];
+      if (!sourcePage) return prev;
 
-      const els = page.elements;
-      const changedEl = els.find(e => e.id === changedElId);
+      const sourceElements = sourcePage.elements;
+      const changedEl = sourceElements.find(e => e.id === changedElId);
       if (!changedEl) return prev;
 
       const oldBottom = changedEl.y + changedEl.height;
       const heightDelta = newHeight - changedEl.height;
+      const repeatedChrome = buildRepeatedElementFingerprints(prev);
 
       if (heightDelta <= 0) {
         if (!changedElUpdates || Object.keys(changedElUpdates).length === 0) return prev;
-        const nextElements = els.map(el => el.id === changedElId ? { ...el, ...changedElUpdates } : el);
+        const nextElements = sourceElements.map(el => el.id === changedElId ? { ...el, ...changedElUpdates, splitFrom: undefined, splitContinuationId: undefined } : el);
         const nextPages = [...prev];
-        nextPages[currentPageIdx] = { ...page, elements: nextElements };
+        nextPages[currentPageIdx] = { ...sourcePage, elements: nextElements };
         return nextPages;
       }
 
-      // Apply change and push elements below downward
-      const updated = els.map(el => {
-        if (el.id === changedElId) return { ...el, ...changedElUpdates, height: newHeight };
+      const workingPages = [...prev];
+      const firstFlowBounds = getPageFlowBounds(sourcePage, repeatedChrome, margins);
+      const currentFlowTop = firstFlowBounds.startY;
+      const currentFlowBottom = firstFlowBounds.endY;
+
+      const staticElements = sourceElements
+        .filter(el => isLikelyPageChrome(el, repeatedChrome, margins) || el.y < changedEl.y)
+        .map(stripSplitMetadata);
+
+      const flowCandidates = sourceElements
+        .filter(el => !staticElements.some(se => se.id === el.id))
+        .map(el => el.id === changedElId ? { ...el, ...changedElUpdates, height: newHeight } : el)
+        .sort((a, b) => a.y - b.y || a.zIndex - b.zIndex);
+
+      const adjustedFlow = flowCandidates.map(el => {
+        if (el.id === changedElId) return { ...el, y: changedEl.y };
         if (el.y >= oldBottom - 5) return { ...el, y: el.y + heightDelta };
         return el;
       });
 
-      const pageBottom = A4_HEIGHT - margins.bottom;
-
-      // Separate: keep changed element, split if text overflows, cascade others
-      const fits: CanvasElement[] = [];
-      const overflows: CanvasElement[] = [];
-      let splitContinuation: CanvasElement | null = null;
-
-      for (const el of updated) {
-        if (el.id === changedElId) {
-          // Check if the changed text element itself overflows the page
-          if ((el.type === "text" || el.type === "rect") && el.text && el.y + el.height > pageBottom) {
-            const availableHeight = Math.max(40, pageBottom - el.y);
-            const [fittingHtml, remainderHtml] = splitHtmlAtHeight(
-              el.text,
-              el.width,
-              {
-                fontFamily: el.fontFamily,
-                fontSize: el.fontSize,
-                fontWeight: el.fontWeight,
-                fontStyle: el.fontStyle,
-                textAlign: el.textAlign,
-              },
-              availableHeight
-            );
-
-            if (remainderHtml) {
-              const contId = genId();
-              // Cap current element to fitting content, mark as having continuation
-              fits.push({ ...el, text: fittingHtml, height: availableHeight, splitContinuationId: contId });
-              // Create continuation element for next page
-              splitContinuation = {
-                ...el,
-                id: contId,
-                text: remainderHtml,
-                y: margins.top,
-                height: Math.max(40, newHeight - availableHeight),
-                splitFrom: el.id,
-              };
-            } else {
-              fits.push(el);
-            }
-          } else {
-            fits.push(el);
-          }
-        } else if (el.y + el.height > pageBottom) {
-          overflows.push(el);
-        } else {
-          fits.push(el);
-        }
-      }
-
-      const nextPages = [...prev];
-
-      if (overflows.length === 0 && !splitContinuation) {
-        nextPages[currentPageIdx] = { ...page, elements: updated };
-        return nextPages;
-      }
-
-      nextPages[currentPageIdx] = { ...page, elements: fits };
-
-      // Build list of elements to place on subsequent pages
-      const pendingElements: CanvasElement[] = [];
-      if (splitContinuation) pendingElements.push(splitContinuation);
-      pendingElements.push(...overflows);
-
-      // Recursive cascade across unlimited pages
-      let pending = pendingElements;
-      let targetIdx = currentPageIdx + 1;
+      let pending: CanvasElement[] = adjustedFlow.map(stripSplitMetadata);
+      let pageIdx = currentPageIdx;
+      let activeTemplatePage = sourcePage;
+      const rewrittenPages = [...workingPages];
 
       while (pending.length > 0) {
-        if (targetIdx >= nextPages.length) {
-          nextPages.push({ id: pageId(), elements: [], backgroundOpacity: 0.5 });
+        const page = pageIdx === currentPageIdx
+          ? sourcePage
+          : (rewrittenPages[pageIdx] ?? createContinuationPageFromTemplate(activeTemplatePage, repeatedChrome, margins));
+
+        if (pageIdx >= rewrittenPages.length) {
+          rewrittenPages.push(page);
+        } else {
+          rewrittenPages[pageIdx] = page;
         }
 
-        const existingEls = nextPages[targetIdx].elements;
-        let nextY = existingEls.length > 0
-          ? Math.max(margins.top, Math.max(...existingEls.map(e => e.y + e.height)) + 10)
-          : margins.top;
+        const flowBounds = getPageFlowBounds(page, repeatedChrome, margins);
+        const pageStartY = flowBounds.startY;
+        const pageBottomY = flowBounds.endY;
+        const pageStatic = pageIdx === currentPageIdx
+          ? staticElements
+          : page.elements.filter(el => isLikelyPageChrome(el, repeatedChrome, margins)).map(stripSplitMetadata);
 
-        const placed: CanvasElement[] = [];
-        const still: CanvasElement[] = [];
+        const pageFlow: CanvasElement[] = [];
+        const nextPending: CanvasElement[] = [];
+        let cursorY = pageStartY;
 
-        for (const el of pending) {
-          const moved = { ...el, y: nextY };
+        for (const original of pending) {
+          const normalized = stripSplitMetadata(original);
+          const placedY = Math.max(cursorY, pageFlow.length === 0 ? Math.max(pageStartY, normalized.y) : cursorY);
+          const candidate = { ...normalized, y: placedY };
 
-          // If this is a text continuation that still overflows, split again
-          if ((moved.type === "text" || moved.type === "rect") && moved.text && moved.y + moved.height > pageBottom) {
-            const availH = Math.max(40, pageBottom - moved.y);
+          const candidateBottom = candidate.y + candidate.height;
+          const isTextual = (candidate.type === "text" || candidate.type === "rect") && !!candidate.text;
+
+          if (candidateBottom <= pageBottomY) {
+            pageFlow.push(candidate);
+            cursorY = candidate.y + candidate.height + 10;
+            continue;
+          }
+
+          if (isTextual) {
+            const availableHeight = Math.max(40, pageBottomY - candidate.y);
             const [fitHtml, remHtml] = splitHtmlAtHeight(
-              moved.text,
-              moved.width,
+              candidate.text,
+              candidate.width,
               {
-                fontFamily: moved.fontFamily,
-                fontSize: moved.fontSize,
-                fontWeight: moved.fontWeight,
-                fontStyle: moved.fontStyle,
-                textAlign: moved.textAlign,
+                fontFamily: candidate.fontFamily,
+                fontSize: candidate.fontSize,
+                fontWeight: candidate.fontWeight,
+                fontStyle: candidate.fontStyle,
+                textAlign: candidate.textAlign,
               },
-              availH
+              availableHeight,
             );
-            if (remHtml) {
-              const contId2 = genId();
-              placed.push({ ...moved, text: fitHtml, height: availH, splitContinuationId: contId2 });
-              still.push({
-                ...moved,
-                id: contId2,
-                text: remHtml,
-                y: margins.top,
-                height: Math.max(40, moved.height - availH),
-                splitFrom: moved.id,
+
+            if (fitHtml && remHtml) {
+              const continuationId = genId();
+              pageFlow.push({
+                ...candidate,
+                text: fitHtml,
+                height: availableHeight,
+                splitContinuationId: continuationId,
               });
-              nextY += availH + 10;
+              nextPending.push({
+                ...stripSplitMetadata(candidate),
+                id: continuationId,
+                text: remHtml,
+                y: pageStartY,
+                height: Math.max(40, candidate.height - availableHeight),
+                splitFrom: candidate.id,
+              });
+              cursorY = candidate.y + availableHeight + 10;
               continue;
             }
           }
 
-          nextY += moved.height + 10;
-          if (moved.y + moved.height <= pageBottom) {
-            placed.push(moved);
-          } else {
-            still.push(moved);
-          }
+          nextPending.push({ ...candidate, y: pageStartY });
         }
 
-        nextPages[targetIdx] = { ...nextPages[targetIdx], elements: [...existingEls, ...placed] };
-        pending = still;
-        targetIdx++;
+        rewrittenPages[pageIdx] = {
+          ...page,
+          backgroundImage: activeTemplatePage.backgroundImage,
+          backgroundOpacity: activeTemplatePage.backgroundOpacity,
+          elements: [...pageStatic, ...pageFlow].sort((a, b) => a.zIndex - b.zIndex),
+        };
 
-        // Safety: prevent infinite loops
-        if (targetIdx > currentPageIdx + 50) break;
+        pending = nextPending;
+        pageIdx += 1;
+
+        if (pageIdx >= rewrittenPages.length && pending.length > 0) {
+          rewrittenPages.push(createContinuationPageFromTemplate(activeTemplatePage, repeatedChrome, margins));
+        }
+
+        if (pageIdx < rewrittenPages.length) {
+          activeTemplatePage = rewrittenPages[Math.min(pageIdx, rewrittenPages.length - 1)] ?? activeTemplatePage;
+        }
+
+        if (pageIdx > currentPageIdx + 80) break;
       }
 
-      toast.info("Conteúdo dividido automaticamente entre páginas.", { id: "auto-reflow" });
-      return nextPages;
+      const lastUsedPage = Math.max(currentPageIdx, pageIdx - 1);
+      const trimmedPages = rewrittenPages.filter((page, idx) => {
+        if (idx <= lastUsedPage) return true;
+        const hasOnlyChrome = page.elements.every(el => isLikelyPageChrome(el, repeatedChrome, margins));
+        return !hasOnlyChrome;
+      });
+
+      toast.info("Contrato reorganizado mantendo margens e continuidade.", { id: "auto-reflow" });
+      return trimmedPages;
     });
-  }, [currentPageIdx, margins.bottom, margins.top, setPages, splitHtmlAtHeight]);
+  }, [currentPageIdx, margins, splitHtmlAtHeight]);
 
   // --- Element operations ---
   const updateSelected = useCallback((updates: Partial<CanvasElement>) => {

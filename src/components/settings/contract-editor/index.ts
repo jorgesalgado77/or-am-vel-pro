@@ -6,5 +6,6 @@ export { A4_WIDTH, A4_HEIGHT, GRID_SIZE, RULER_SIZE, genId, pageId, createDefaul
 export { useEditorHistory } from "./useEditorHistory";
 export { usePasteHelpers } from "./usePasteHelpers";
 export { useTextSplitter } from "./useTextSplitter";
+export { buildRepeatedElementFingerprints, createContinuationPageFromTemplate, getPageFlowBounds, isLikelyPageChrome, stripSplitMetadata } from "./pagination";
 export { EditorPropertiesPanel } from "./EditorPropertiesPanel";
 export { exportToPdf, exportToDocx, exportToXlsx } from "./exportHelpers";
