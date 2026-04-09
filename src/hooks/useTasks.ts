@@ -95,11 +95,12 @@ export function useTasks(tenantId: string | null, userId: string | undefined, ca
   };
 
   const updateTaskStatus = async (taskId: string, status: TaskStatus) => {
+    const updatedAt = new Date().toISOString();
     // Optimistic update
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status } : t));
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status, updated_at: updatedAt } : t));
     const { error } = await supabase
       .from("tasks" as any)
-      .update({ status })
+      .update({ status, updated_at: updatedAt })
       .eq("id", taskId);
     if (error) {
       fetchTasks(); // rollback
