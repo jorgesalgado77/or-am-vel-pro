@@ -218,6 +218,151 @@ function evalExpr(expr: string, data: string[][]): string {
         const b = parseFloat(evalExpr(args[1], data).replace(",", "."));
         return isNaN(a) || isNaN(b) || b === 0 ? "#ERRO" : String(a % b);
       }
+      case "SUMIF":
+      case "SOMASE": {
+        // SUMIF(range; criteria; [sum_range])
+        if (args.length < 2) return "#ERRO";
+        const criteriaCells = parseRange(args[0]);
+        const criteria = evalExpr(args[1], data);
+        const sumCells = args[2] ? parseRange(args[2]) : criteriaCells;
+        let total = 0;
+        for (let i = 0; i < criteriaCells.length; i++) {
+          const cellVal = data[criteriaCells[i].row]?.[criteriaCells[i].col] ?? "";
+          if (matchesCriteria(cellVal, criteria, data)) {
+            const sv = sumCells[i] ? (data[sumCells[i].row]?.[sumCells[i].col] ?? "") : "";
+            const n = parseFloat(String(sv).replace(/[R$\s.]/g, "").replace(",", "."));
+            if (!isNaN(n)) total += n;
+          }
+        }
+        return String(total);
+      }
+      case "COUNTIF":
+      case "CONT.SE": {
+        // COUNTIF(range; criteria)
+        if (args.length < 2) return "#ERRO";
+        const cells = parseRange(args[0]);
+        const crit = evalExpr(args[1], data);
+        let count = 0;
+        for (const c of cells) {
+          const cellVal = data[c.row]?.[c.col] ?? "";
+          if (matchesCriteria(cellVal, crit, data)) count++;
+        }
+        return String(count);
+      }
+      case "SUMIFS":
+      case "SOMASES": {
+        // SUMIFS(sum_range; criteria_range1; criteria1; ...)
+        if (args.length < 3 || args.length % 2 === 0) return "#ERRO";
+        const sumRange = parseRange(args[0]);
+        const pairs: { range: { col: number; row: number }[]; criteria: string }[] = [];
+        for (let i = 1; i < args.length; i += 2) {
+          pairs.push({ range: parseRange(args[i]), criteria: evalExpr(args[i + 1], data) });
+        }
+        let sum = 0;
+        for (let i = 0; i < sumRange.length; i++) {
+          const allMatch = pairs.every(p => {
+            const cv = data[p.range[i]?.row]?.[p.range[i]?.col] ?? "";
+            return matchesCriteria(cv, p.criteria, data);
+          });
+          if (allMatch) {
+            const sv = data[sumRange[i].row]?.[sumRange[i].col] ?? "";
+            const n = parseFloat(String(sv).replace(/[R$\s.]/g, "").replace(",", "."));
+            if (!isNaN(n)) sum += n;
+          }
+        }
+        return String(sum);
+      }
+      case "COUNTIFS":
+      case "CONT.SES": {
+        // COUNTIFS(range1; criteria1; range2; criteria2; ...)
+        if (args.length < 2 || args.length % 2 !== 0) return "#ERRO";
+        const pairs2: { range: { col: number; row: number }[]; criteria: string }[] = [];
+        for (let i = 0; i < args.length; i += 2) {
+          pairs2.push({ range: parseRange(args[i]), criteria: evalExpr(args[i + 1], data) });
+        }
+        const len = pairs2[0].range.length;
+        let cnt = 0;
+        for (let i = 0; i < len; i++) {
+          const allMatch = pairs2.every(p => {
+            const cv = data[p.range[i]?.row]?.[p.range[i]?.col] ?? "";
+            return matchesCriteria(cv, p.criteria, data);
+          });
+          if (allMatch) cnt++;
+        }
+        return String(cnt);
+      }
+      case "AVERAGEIF":
+      case "MÉDIASE": {
+        if (args.length < 2) return "#ERRO";
+        const aCells = parseRange(args[0]);
+        const aCrit = evalExpr(args[1], data);
+        const aSum = args[2] ? parseRange(args[2]) : aCells;
+        let aTotal = 0, aCount = 0;
+        for (let i = 0; i < aCells.length; i++) {
+          const cv = data[aCells[i].row]?.[aCells[i].col] ?? "";
+          if (matchesCriteria(cv, aCrit, data)) {
+            const sv = aSum[i] ? (data[aSum[i].row]?.[aSum[i].col] ?? "") : "";
+            const n = parseFloat(String(sv).replace(/[R$\s.]/g, "").replace(",", "."));
+            if (!isNaN(n)) { aTotal += n; aCount++; }
+          }
+        }
+        return aCount ? String(aTotal / aCount) : "0";
+      }
+      case "VLOOKUP":
+      case "PROCV": {
+        // VLOOKUP(lookup_value; table_range; col_index; [approx_match])
+        if (args.length < 3) return "#ERRO";
+        const lookupVal = evalExpr(args[0], data);
+        const tableRange = args[1];
+        const colIdx = parseInt(evalExpr(args[2], data));
+        const approx = args[3] ? evalExpr(args[3], data).toUpperCase() !== "0" && evalExpr(args[3], data).toUpperCase() !== "FALSO" && evalExpr(args[3], data).toUpperCase() !== "FALSE" : true;
+        
+        const [tStart, tEnd] = tableRange.split(":");
+        const ts = parseRef(tStart);
+        const te = tEnd ? parseRef(tEnd) : ts;
+        if (!ts || !te) return "#ERRO";
+        if (colIdx < 1 || colIdx > (te.col - ts.col + 1)) return "#REF!";
+        
+        const lookupNum = parseFloat(lookupVal.replace(/[R$\s.]/g, "").replace(",", "."));
+        let bestRow = -1;
+        
+        for (let r = ts.row; r <= te.row; r++) {
+          const cv = data[r]?.[ts.col] ?? "";
+          if (!approx) {
+            if (cv.toUpperCase() === lookupVal.toUpperCase()) { bestRow = r; break; }
+          } else {
+            const cn = parseFloat(cv.replace(/[R$\s.]/g, "").replace(",", "."));
+            if (!isNaN(cn) && !isNaN(lookupNum) && cn <= lookupNum) bestRow = r;
+            else if (cv.toUpperCase() <= lookupVal.toUpperCase()) bestRow = r;
+          }
+        }
+        if (bestRow === -1) return "#N/D";
+        return data[bestRow]?.[ts.col + colIdx - 1] ?? "";
+      }
+      case "HLOOKUP":
+      case "PROCH": {
+        if (args.length < 3) return "#ERRO";
+        const hVal = evalExpr(args[0], data);
+        const [hStart, hEnd] = args[1].split(":");
+        const hs = parseRef(hStart);
+        const he = hEnd ? parseRef(hEnd) : hs;
+        if (!hs || !he) return "#ERRO";
+        const rowIdx = parseInt(evalExpr(args[2], data));
+        if (rowIdx < 1 || rowIdx > (he.row - hs.row + 1)) return "#REF!";
+        
+        for (let c = hs.col; c <= he.col; c++) {
+          const cv = data[hs.row]?.[c] ?? "";
+          if (cv.toUpperCase() === hVal.toUpperCase()) {
+            return data[hs.row + rowIdx - 1]?.[c] ?? "";
+          }
+        }
+        return "#N/D";
+      }
+      case "IFERROR":
+      case "SEERRO": {
+        const result = evalExpr(args[0], data);
+        return result.startsWith("#") ? evalExpr(args[1], data) : result;
+      }
       default:
         return `#FUNC?(${fn})`;
     }
@@ -294,6 +439,14 @@ export const SUPPORTED_FORMULAS = [
   { name: "MIN", syntax: "MIN(A1:A10)", desc: "Retorna o menor valor" },
   { name: "MAX", syntax: "MAX(A1:A10)", desc: "Retorna o maior valor" },
   { name: "IF", syntax: "IF(A1>10;\"Sim\";\"Não\")", desc: "Condicional SE" },
+  { name: "IFERROR", syntax: "IFERROR(A1/B1;0)", desc: "Retorna valor alternativo se erro" },
+  { name: "SUMIF", syntax: "SUMIF(A1:A10;\">5\";B1:B10)", desc: "Soma condicional" },
+  { name: "COUNTIF", syntax: "COUNTIF(A1:A10;\">5\")", desc: "Contagem condicional" },
+  { name: "SUMIFS", syntax: "SUMIFS(C1:C10;A1:A10;\">5\";B1:B10;\"<10\")", desc: "Soma com múltiplas condições" },
+  { name: "COUNTIFS", syntax: "COUNTIFS(A1:A10;\">5\";B1:B10;\"<10\")", desc: "Contagem com múltiplas condições" },
+  { name: "AVERAGEIF", syntax: "AVERAGEIF(A1:A10;\">5\";B1:B10)", desc: "Média condicional" },
+  { name: "VLOOKUP", syntax: "VLOOKUP(A1;B1:D10;3;0)", desc: "Busca vertical (PROCV)" },
+  { name: "HLOOKUP", syntax: "HLOOKUP(A1;A1:D4;3;0)", desc: "Busca horizontal (PROCH)" },
   { name: "ROUND", syntax: "ROUND(A1;2)", desc: "Arredonda valor" },
   { name: "ABS", syntax: "ABS(A1)", desc: "Valor absoluto" },
   { name: "CONCATENATE", syntax: "CONCATENATE(A1;B1)", desc: "Junta textos" },
