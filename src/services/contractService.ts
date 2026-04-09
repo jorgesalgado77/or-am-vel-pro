@@ -74,10 +74,11 @@ interface ContractData {
   items: any[];
   itemDetails: any[];
   catalogProducts?: Array<{ name: string; internal_code: string; quantity: number; sale_price: number }>;
+  companyPhones?: Array<{ setor: string; responsavel: string; telefone: string }>;
 }
 
 export function buildContractHtml(templateHtml: string, data: ContractData): string {
-  const { formData, client, valorTela, result, formaPagamento, parcelas, valorEntrada, settings, selectedIndicador, comissaoPercentual, items, itemDetails, catalogProducts } = data;
+  const { formData, client, valorTela, result, formaPagamento, parcelas, valorEntrada, settings, selectedIndicador, comissaoPercentual, items, itemDetails, catalogProducts, companyPhones } = data;
 
   const dataAtual = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
 
@@ -278,6 +279,23 @@ export function buildContractHtml(templateHtml: string, data: ContractData): str
     replacements[`{{complemento_ambiente_${n}}}`] = d.complemento || "";
     replacements[`{{modelo_ambiente_${n}}}`] = d.modelo || "";
   });
+
+  // Dynamic company phone variables
+  const phones = companyPhones || [];
+  if (phones.length > 0) {
+    replacements["{{telefones_uteis}}"] = `<table border="1" cellpadding="4" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:10px;">
+      <tr style="background:#0891b2;color:#fff;"><th>Setor</th><th>Responsável</th><th>Telefone</th></tr>
+      ${phones.map(p => `<tr><td>${p.setor || "—"}</td><td>${p.responsavel || "—"}</td><td>${p.telefone || "—"}</td></tr>`).join("")}
+    </table>`;
+    phones.forEach((p, i) => {
+      const n = i + 1;
+      replacements[`{{telefone_util_setor_${n}}}`] = p.setor || "";
+      replacements[`{{telefone_util_responsavel_${n}}}`] = p.responsavel || "";
+      replacements[`{{telefone_util_numero_${n}}}`] = p.telefone || "";
+    });
+  } else {
+    replacements["{{telefones_uteis}}"] = "";
+  }
 
   let html = templateHtml;
   Object.entries(replacements).forEach(([key, val]) => {

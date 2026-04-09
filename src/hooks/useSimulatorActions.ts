@@ -534,6 +534,13 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
         });
       }
 
+      // Fetch company phones for contract variables
+      const { data: companyPhones } = await (supabase as any)
+        .from("company_useful_phones")
+        .select("setor, responsavel, telefone")
+        .eq("tenant_id", resolvedTenantId)
+        .order("ordem", { ascending: true });
+
       const html = buildContractHtml(templateHtml, {
         formData,
         client: effectiveClient,
@@ -548,6 +555,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
         items,
         itemDetails,
         catalogProducts: catalogProducts.map(cp => ({ name: cp.product.name, internal_code: cp.product.internal_code, quantity: cp.quantity, sale_price: cp.product.sale_price })),
+        companyPhones: (companyPhones as any[]) || [],
       });
 
       setPendingSimId(simulationId);
