@@ -164,6 +164,16 @@ export function TasksPanel({ tenantId, userId, userName, cargoNome }: Props) {
     }
   };
 
+  const handleArchive = async (task: Task) => {
+    await updateTaskStatus(task.id, "arquivada" as any);
+    toast.success("Tarefa arquivada!");
+  };
+
+  const handleRestore = async (task: Task) => {
+    await updateTaskStatus(task.id, "concluida");
+    toast.success("Tarefa restaurada para Concluída!");
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
