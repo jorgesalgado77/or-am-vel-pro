@@ -1325,7 +1325,14 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         justifyContent: (el.type !== "text") ? (el.textAlign === "center" ? "center" : el.textAlign === "right" ? "flex-end" : "flex-start") : undefined,
         padding: el.type === "text" ? 0 : 8, boxSizing: "border-box",
       }}>
-        {el.text || (el.type === "text" ? <span className="text-muted-foreground/40 italic text-xs">Duplo clique para editar</span> : null)}
+        {(() => {
+          const displayText = previewVarsMode ? replaceVariablesWithSample(el.text) : el.text;
+          // Check if preview replaced a variable with an HTML table
+          if (previewVarsMode && displayText && displayText.includes("<table")) {
+            return <div dangerouslySetInnerHTML={{ __html: displayText }} style={{ width: "100%", overflow: "hidden" }} />;
+          }
+          return displayText || (el.type === "text" ? <span className="text-muted-foreground/40 italic text-xs">Duplo clique para editar</span> : null);
+        })()}
       </div>
     );
 
