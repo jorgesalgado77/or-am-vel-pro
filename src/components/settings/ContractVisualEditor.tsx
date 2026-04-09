@@ -140,6 +140,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeTool, setActiveTool] = useState<ToolType>("select");
   const [activeShapeType, setActiveShapeType] = useState<ShapeType>("rect");
+  const [margins, setMargins] = useState({ top: 40, right: 40, bottom: 40, left: 40 });
   const [zoom, setZoom] = useState(0.75);
   const [dragState, setDragState] = useState<{ ids: string[]; startX: number; startY: number; origins: Record<string, { x: number; y: number }> } | null>(null);
   const [resizeState, setResizeState] = useState<{ id: string; startX: number; startY: number; startW: number; startH: number; corner: string; startElX: number; startElY: number } | null>(null);
@@ -2015,6 +2016,43 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         ) : !currentPage?.backgroundImage ? (
           <p className="text-muted-foreground text-center py-4">Selecione um elemento para ver suas propriedades</p>
         ) : null}
+
+        {/* Page margins - always visible */}
+        <div className="h-px bg-border" />
+        <h3 className="font-semibold text-sm text-foreground">Margens da Página</h3>
+        <div className="space-y-1.5">
+          <div className="grid grid-cols-2 gap-1.5">
+            <div>
+              <label className="text-muted-foreground text-[10px]">Superior</label>
+              <input type="number" min={0} max={200} value={margins.top}
+                onChange={e => setMargins(m => ({ ...m, top: Number(e.target.value) }))}
+                className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" />
+            </div>
+            <div>
+              <label className="text-muted-foreground text-[10px]">Inferior</label>
+              <input type="number" min={0} max={200} value={margins.bottom}
+                onChange={e => setMargins(m => ({ ...m, bottom: Number(e.target.value) }))}
+                className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" />
+            </div>
+            <div>
+              <label className="text-muted-foreground text-[10px]">Esquerda</label>
+              <input type="number" min={0} max={200} value={margins.left}
+                onChange={e => setMargins(m => ({ ...m, left: Number(e.target.value) }))}
+                className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" />
+            </div>
+            <div>
+              <label className="text-muted-foreground text-[10px]">Direita</label>
+              <input type="number" min={0} max={200} value={margins.right}
+                onChange={e => setMargins(m => ({ ...m, right: Number(e.target.value) }))}
+                className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" />
+            </div>
+          </div>
+          <div className="flex gap-1">
+            <Button variant="outline" size="sm" className="h-6 text-[10px] flex-1" onClick={() => setMargins({ top: 40, right: 40, bottom: 40, left: 40 })}>Padrão</Button>
+            <Button variant="outline" size="sm" className="h-6 text-[10px] flex-1" onClick={() => setMargins({ top: 20, right: 20, bottom: 20, left: 20 })}>Estreita</Button>
+            <Button variant="outline" size="sm" className="h-6 text-[10px] flex-1" onClick={() => setMargins({ top: 0, right: 0, bottom: 0, left: 0 })}>Nenhuma</Button>
+          </div>
+        </div>
       </div>
     );
   };
@@ -3001,6 +3039,21 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
               )}
               {/* Scaled inner */}
               <div data-canvas-bg style={{ transform: `scale(${zoom})`, transformOrigin: "0 0", width: A4_WIDTH, height: A4_HEIGHT, position: "relative" }}>
+                {/* Margin guides */}
+                <div style={{ position: "absolute", top: margins.top, left: margins.left, right: margins.right, bottom: margins.bottom, border: "1px dashed hsl(210 60% 70% / 0.4)", pointerEvents: "none", zIndex: 1 }} />
+                {/* Page bottom limit indicator */}
+                <div style={{
+                  position: "absolute", left: 0, right: 0, top: A4_HEIGHT - margins.bottom,
+                  borderTop: "2px dashed hsl(0 70% 55% / 0.5)", pointerEvents: "none", zIndex: 2,
+                }}>
+                  <span style={{
+                    position: "absolute", right: 4, top: -16,
+                    fontSize: 9, color: "hsl(0 70% 55% / 0.7)", fontWeight: 600,
+                    background: "hsl(0 0% 100% / 0.85)", padding: "1px 5px", borderRadius: 3,
+                  }}>
+                    Limite da página
+                  </span>
+                </div>
                 {elements.map(renderElement)}
               </div>
 
