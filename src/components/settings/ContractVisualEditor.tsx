@@ -23,6 +23,7 @@ import {
 } from "./contract-editor/types";
 import { useEditorHistory } from "./contract-editor/useEditorHistory";
 import { usePasteHelpers } from "./contract-editor/usePasteHelpers";
+import { useTextSplitter } from "./contract-editor/useTextSplitter";
 import { EditorPropertiesPanel } from "./contract-editor/EditorPropertiesPanel";
 import { exportToPdf, exportToDocx, exportToXlsx } from "./contract-editor/exportHelpers";
 
@@ -242,6 +243,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       .replace(/<font\b([^>]*)color=(['\"])[^'\"]*\2([^>]*)>/gi, `<font$1$3>`);
   }, []);
 
+  const { splitHtmlAtHeight } = useTextSplitter();
+
   // Derived text formatting
   const fontFamily = selected?.fontFamily || "Arial";
   const fontSize = selected?.fontSize || 14;
@@ -295,7 +298,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const goToPrevPage = () => { if (currentPageIdx > 0) { setCurrentPageIdx(currentPageIdx - 1); setSelectedIds(new Set()); } };
   const goToNextPage = () => { if (currentPageIdx < pages.length - 1) { setCurrentPageIdx(currentPageIdx + 1); setSelectedIds(new Set()); } };
 
-  // --- Reflow: push elements down and auto-paginate (recursive, unlimited pages) ---
+  // --- Reflow: push elements down, auto-split text, and cascade across pages ---
   const reflowElements = useCallback((changedElId: string, newHeight: number, changedElUpdates?: Partial<CanvasElement>) => {
     setPages(prev => {
       const page = prev[currentPageIdx];
@@ -325,15 +328,46 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
       const pageBottom = A4_HEIGHT - margins.bottom;
 
-      // The changed element stays on the current page (never moved entirely)
-      // Other overflowing elements cascade to subsequent pages
-      const fits: typeof updated = [];
-      const overflows: typeof updated = [];
+      // Separate: keep changed element, split if text overflows, cascade others
+      const fits: CanvasElement[] = [];
+      const overflows: CanvasElement[] = [];
+      let splitContinuation: CanvasElement | null = null;
 
       for (const el of updated) {
         if (el.id === changedElId) {
-          // Always keep changed element on current page
-          fits.push(el);
+          // Check if the changed text element itself overflows the page
+          if ((el.type === "text" || el.type === "rect") && el.text && el.y + el.height > pageBottom) {
+            const availableHeight = Math.max(40, pageBottom - el.y);
+            const [fittingHtml, remainderHtml] = splitHtmlAtHeight(
+              el.text,
+              el.width,
+              {
+                fontFamily: el.fontFamily,
+                fontSize: el.fontSize,
+                fontWeight: el.fontWeight,
+                fontStyle: el.fontStyle,
+                textAlign: el.textAlign,
+              },
+              availableHeight
+            );
+
+            if (remainderHtml) {
+              // Cap current element to fitting content
+              fits.push({ ...el, text: fittingHtml, height: availableHeight });
+              // Create continuation element for next page
+              splitContinuation = {
+                ...el,
+                id: genId(),
+                text: remainderHtml,
+                y: margins.top,
+                height: Math.max(40, newHeight - availableHeight),
+              };
+            } else {
+              fits.push(el);
+            }
+          } else {
+            fits.push(el);
+          }
         } else if (el.y + el.height > pageBottom) {
           overflows.push(el);
         } else {
@@ -343,18 +377,23 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
       const nextPages = [...prev];
 
-      if (overflows.length === 0) {
+      if (overflows.length === 0 && !splitContinuation) {
         nextPages[currentPageIdx] = { ...page, elements: updated };
         return nextPages;
       }
 
       nextPages[currentPageIdx] = { ...page, elements: fits };
 
-      // Recursive cascade: distribute overflows across as many pages as needed
-      let pendingOverflows = overflows;
+      // Build list of elements to place on subsequent pages
+      const pendingElements: CanvasElement[] = [];
+      if (splitContinuation) pendingElements.push(splitContinuation);
+      pendingElements.push(...overflows);
+
+      // Recursive cascade across unlimited pages
+      let pending = pendingElements;
       let targetIdx = currentPageIdx + 1;
 
-      while (pendingOverflows.length > 0) {
+      while (pending.length > 0) {
         if (targetIdx >= nextPages.length) {
           nextPages.push({ id: pageId(), elements: [], backgroundOpacity: 0.5 });
         }
@@ -364,28 +403,61 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           ? Math.max(margins.top, Math.max(...existingEls.map(e => e.y + e.height)) + 10)
           : margins.top;
 
-        const placed: typeof pendingOverflows = [];
-        const stillOverflows: typeof pendingOverflows = [];
+        const placed: CanvasElement[] = [];
+        const still: CanvasElement[] = [];
 
-        for (const el of pendingOverflows) {
+        for (const el of pending) {
           const moved = { ...el, y: nextY };
-          nextY += el.height + 10;
+
+          // If this is a text continuation that still overflows, split again
+          if ((moved.type === "text" || moved.type === "rect") && moved.text && moved.y + moved.height > pageBottom) {
+            const availH = Math.max(40, pageBottom - moved.y);
+            const [fitHtml, remHtml] = splitHtmlAtHeight(
+              moved.text,
+              moved.width,
+              {
+                fontFamily: moved.fontFamily,
+                fontSize: moved.fontSize,
+                fontWeight: moved.fontWeight,
+                fontStyle: moved.fontStyle,
+                textAlign: moved.textAlign,
+              },
+              availH
+            );
+            if (remHtml) {
+              placed.push({ ...moved, text: fitHtml, height: availH });
+              still.push({
+                ...moved,
+                id: genId(),
+                text: remHtml,
+                y: margins.top,
+                height: Math.max(40, moved.height - availH),
+              });
+              nextY += availH + 10;
+              continue;
+            }
+          }
+
+          nextY += moved.height + 10;
           if (moved.y + moved.height <= pageBottom) {
             placed.push(moved);
           } else {
-            stillOverflows.push(moved);
+            still.push(moved);
           }
         }
 
         nextPages[targetIdx] = { ...nextPages[targetIdx], elements: [...existingEls, ...placed] };
-        pendingOverflows = stillOverflows;
+        pending = still;
         targetIdx++;
+
+        // Safety: prevent infinite loops
+        if (targetIdx > currentPageIdx + 50) break;
       }
 
-      toast.info("Elementos reorganizados automaticamente entre páginas.", { id: "auto-reflow" });
+      toast.info("Conteúdo dividido automaticamente entre páginas.", { id: "auto-reflow" });
       return nextPages;
     });
-  }, [currentPageIdx, margins.bottom, margins.top, setPages]);
+  }, [currentPageIdx, margins.bottom, margins.top, setPages, splitHtmlAtHeight]);
 
   // --- Element operations ---
   const updateSelected = useCallback((updates: Partial<CanvasElement>) => {
