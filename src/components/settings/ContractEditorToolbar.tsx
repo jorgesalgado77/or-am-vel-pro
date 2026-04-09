@@ -103,6 +103,7 @@ export function ContractEditorToolbar(props: ContractEditorToolbarProps) {
     isUnderline, onUnderlineToggle, isStrikethrough, onStrikethroughToggle,
     textColor, onTextColorChange, textAlign, onTextAlignChange,
     onUndo, onRedo, canUndo, canRedo, onImageUpload, onTableInsert, onBack,
+    eyedropperColor, eyedropperMode, onEyedropperClick,
   } = props;
 
   useEffect(() => {
