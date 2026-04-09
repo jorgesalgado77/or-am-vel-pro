@@ -428,9 +428,22 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         const nextPending: CanvasElement[] = [];
         let cursorY = pageStartY;
 
+        // Track whether this page already has a fixed-section fragment
+        let pageHasFixedFragment = false;
+
         for (const original of pending) {
           const isConditionsFragment = isGeneralConditionsBox && (original.id === changedElId || original.splitFrom === changedElId);
           const normalizedBase = stripSplitMetadata(original);
+
+          // If a fixed-section fragment already occupies this page, push all other elements to next page
+          if (pageHasFixedFragment && !isConditionsFragment) {
+            nextPending.push({
+              ...normalizedBase,
+              y: pageStartY,
+            });
+            continue;
+          }
+
           const normalized = isConditionsFragment
             ? {
                 ...normalizedBase,
@@ -451,6 +464,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           if (candidateBottom <= pageBottomY) {
             pageFlow.push(candidate);
             cursorY = candidate.y + candidate.height + 10;
+            if (isConditionsFragment) pageHasFixedFragment = true;
             continue;
           }
 
