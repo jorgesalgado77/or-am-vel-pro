@@ -888,6 +888,45 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           setCurrentElements(prev => [...prev, ...dups]);
           setSelectedIds(newIds);
           toast.success(`${dups.length} elemento(s) colado(s)`);
+        } else {
+          // No internal clipboard — try system clipboard
+          e.preventDefault();
+          (async () => {
+            try {
+              const items = await navigator.clipboard.read();
+              let content = "";
+              for (const item of items) {
+                if (item.types.includes("text/html")) {
+                  const blob = await item.getType("text/html");
+                  const html = await blob.text();
+                  const temp = document.createElement("div");
+                  temp.innerHTML = html;
+                  temp.querySelectorAll("script, style, meta, link").forEach(n => n.remove());
+                  content = temp.innerHTML;
+                  break;
+                }
+                if (item.types.includes("text/plain")) {
+                  const blob = await item.getType("text/plain");
+                  content = await blob.text();
+                  break;
+                }
+              }
+              if (!content) return;
+              if (selectedIds.size > 0) {
+                const selId = [...selectedIds][0];
+                setCurrentElements(prev => prev.map(el => el.id === selId ? { ...el, text: el.text + content } : el));
+                toast.success("Texto colado no elemento selecionado!");
+              } else {
+                const el = createDefaultElement("text", 100, 100);
+                el.text = content;
+                el.width = Math.min(500, Math.max(200, content.length * 4));
+                el.height = Math.max(40, Math.ceil(content.length / 60) * 20);
+                setCurrentElements(prev => [...prev, el]);
+                setSelectedIds(new Set([el.id]));
+                toast.success("Texto colado como novo elemento!");
+              }
+            } catch { /* clipboard not available, ignore */ }
+          })();
         }
       }
 
@@ -2914,7 +2953,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                   className="min-w-[200px] rounded-md border border-border bg-popover shadow-lg"
                 >
                   {/* Copy / Paste */}
-                  <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground flex items-center gap-2" onClick={async () => {
+                  <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-popover-foreground flex items-center gap-2" onClick={async () => {
                     const sel = selectedIds.size > 0 ? elements.find(e => e.id === [...selectedIds][0]) : null;
                     if (sel?.text) {
                       try { await navigator.clipboard.writeText(sel.text.replace(/<[^>]*>/g, '')); toast.success("Texto copiado!"); } catch { toast.error("Erro ao copiar"); }
@@ -2923,7 +2962,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                   }}>
                     📋 Copiar texto
                   </button>
-                  <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground flex items-center gap-2" onClick={async () => {
+                  <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-popover-foreground flex items-center gap-2" onClick={async () => {
                     try {
                       const items = await navigator.clipboard.read();
                       let content = "";
@@ -2972,22 +3011,22 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                   <div className="h-px bg-border my-1" />
                   {selectedIds.size > 0 && (
                     <>
-                      <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground" onClick={duplicateSelected}>Duplicar</button>
-                      <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-destructive/10 text-destructive" onClick={deleteSelected}>Excluir</button>
+                      <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-popover-foreground" onClick={duplicateSelected}>Duplicar</button>
+                      <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-destructive/10 text-destructive/80" onClick={deleteSelected}>Excluir</button>
                       {selectedIds.size >= 2 && (
-                        <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground" onClick={groupSelected}>
+                        <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-popover-foreground" onClick={groupSelected}>
                           🔗 Agrupar ({selectedIds.size} itens)
                         </button>
                       )}
                       {hasGroupInSelection && (
-                        <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground" onClick={ungroupSelected}>
+                        <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-popover-foreground" onClick={ungroupSelected}>
                           ✂️ Desagrupar
                         </button>
                       )}
                       <div className="h-px bg-border my-1" />
                     </>
                   )}
-                  <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground flex items-center gap-2" onClick={() => { setContextMenu(null); handleInsertCompanyLogo(); }}>
+                  <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-popover-foreground flex items-center gap-2" onClick={() => { setContextMenu(null); handleInsertCompanyLogo(); }}>
                     <ImageIcon className="h-3.5 w-3.5" /> Inserir Logo da Empresa
                   </button>
                   <div className="h-px bg-border my-1" />
