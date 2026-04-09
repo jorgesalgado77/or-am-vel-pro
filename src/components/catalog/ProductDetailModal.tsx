@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/lib/supabaseClient";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
+import { getTenantId } from "@/lib/tenantState";
 import type { Product } from "@/hooks/useProductCatalog";
 import { formatCurrency } from "@/lib/financing";
-import { X, ZoomIn, ZoomOut, Play, Pause, UserPlus, ShoppingCart, Maximize, Volume2, VolumeX, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, ZoomIn, ZoomOut, Play, Pause, UserPlus, ShoppingCart, Maximize, Volume2, VolumeX, ChevronLeft, ChevronRight, Tag, CreditCard, FileText, Clock } from "lucide-react";
 import { toast } from "sonner";
 
 interface ProductImage {
@@ -172,6 +173,10 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
   const [selectedSimId, setSelectedSimId] = useState("");
   const [loadingClients, setLoadingClients] = useState(false);
 
+  // Promotion data
+  const [promoData, setPromoData] = useState<any>(null);
+  const [promoRates, setPromoRates] = useState<any[]>([]);
+
   const cargoNome = (currentUser?.cargo_nome || "").toLowerCase();
   const isAdmin = ["administrador", "admin"].includes(cargoNome);
   const isRestricted = ["vendedor", "projetista"].includes(cargoNome);
@@ -250,13 +255,13 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
       setViewerImage(null);
       setPlayingVideo(false);
       setShowAddFlow(false);
+      setPromoData(null);
 
       supabase.from("product_images" as any)
         .select("id, image_url, is_default")
         .eq("product_id", product.id)
         .then(({ data, error }) => {
           if (error) {
-            // Fallback without is_default
             supabase.from("product_images" as any)
               .select("id, image_url")
               .eq("product_id", product.id)
@@ -272,6 +277,36 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
             setPlayingVideo(false);
           }
         });
+
+      // Load promotion
+      const tenantId = getTenantId();
+      if (tenantId) {
+        supabase
+          .from("product_promotions" as any)
+          .select("*")
+          .eq("product_id", product.id)
+          .eq("tenant_id", tenantId)
+          .eq("ativo", true)
+          .gt("validade", new Date().toISOString())
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .then(({ data }) => {
+            const promo = (data as any[])?.[0];
+            setPromoData(promo || null);
+            if (promo) {
+              // Load financing rates for display
+              supabase
+                .from("financing_rates" as any)
+                .select("*")
+                .eq("tenant_id", tenantId)
+                .order("provider_name")
+                .order("installments")
+                .then(({ data: ratesData }) => {
+                  setPromoRates((ratesData || []) as any[]);
+                });
+            }
+          });
+      }
     }
   }, [product, open]);
 
@@ -463,7 +498,14 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
                   <span className="text-xs text-muted-foreground block">Preço de Venda</span>
-                  <p className="font-bold text-primary text-base sm:text-lg">{formatCurrency(product.sale_price)}</p>
+                  {promoData ? (
+                    <>
+                      <p className="line-through text-muted-foreground text-sm">{formatCurrency(product.sale_price)}</p>
+                      <p className="font-bold text-red-600 dark:text-red-400 text-base sm:text-lg">{formatCurrency(Number(promoData.valor_promocional))}</p>
+                    </>
+                  ) : (
+                    <p className="font-bold text-primary text-base sm:text-lg">{formatCurrency(product.sale_price)}</p>
+                  )}
                 </div>
                 <div>
                   <span className="text-xs text-muted-foreground block">Estoque</span>
@@ -473,6 +515,119 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
                   </Badge>
                 </div>
               </div>
+
+              {/* Promotion Banner */}
+              {promoData && (() => {
+                const COND_LABELS: Record<string, string> = {
+                  pix_avista: "Pix à Vista",
+                  credito_avista: "Crédito à Vista",
+                  boleto_avista: "Boleto à Vista",
+                  boleto_prazo: "Boleto à Prazo",
+                  credito_prazo_juros: "Crédito à Prazo c/ Juros",
+                  credito_prazo_sem_juros: "Crédito à Prazo s/ Juros",
+                };
+                const condicoes: string[] = promoData.condicoes_pagamento || [];
+                const creditoConfig: { providerName: string; selectedInstallments: number[] }[] = promoData.credito_config || [];
+                const boletoConfig: { providerName: string; selectedInstallments: number[] }[] = promoData.boleto_config || [];
+                const valorPromo = Number(promoData.valor_promocional);
+                const diasRestantes = Math.max(0, Math.ceil((new Date(promoData.validade).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+
+                return (
+                  <div className="rounded-lg border-2 border-red-300 dark:border-red-700 bg-red-50/50 dark:bg-red-900/10 p-3 space-y-2.5">
+                    <div className="flex items-center justify-between flex-wrap gap-1.5">
+                      <Badge className="bg-red-600 hover:bg-red-700 text-white text-xs px-2 py-0.5 gap-1">
+                        <Tag className="h-3 w-3" />
+                        🔥 PROMOÇÃO -{promoData.desconto_percentual}%
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px] border-orange-300 text-orange-600 dark:border-orange-700 dark:text-orange-400 gap-1">
+                        <Clock className="h-3 w-3" />
+                        {diasRestantes > 0 ? `${diasRestantes} dia(s) restante(s)` : "Último dia!"}
+                        — {new Date(promoData.validade).toLocaleDateString("pt-BR")}
+                      </Badge>
+                    </div>
+
+                    <p className="text-[10px] text-muted-foreground">
+                      De <span className="line-through">{formatCurrency(Number(promoData.valor_original))}</span> por <span className="font-bold text-red-600 dark:text-red-400">{formatCurrency(valorPromo)}</span>
+                      {" "}— economia de {formatCurrency(Number(promoData.valor_original) - valorPromo)}
+                    </p>
+
+                    {/* Payment Conditions */}
+                    {condicoes.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-semibold text-muted-foreground mb-1.5">Condições de Pagamento:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {condicoes.map(c => (
+                            <Badge key={c} variant="secondary" className="text-[10px] px-1.5 py-0.5">
+                              {COND_LABELS[c] || c}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Credit installments */}
+                    {creditoConfig.length > 0 && (
+                      <div className="space-y-1.5">
+                        {creditoConfig.map(cfg => {
+                          const provRates = promoRates.filter(r => r.provider_name === cfg.providerName && r.provider_type === "credito");
+                          const withInterest = condicoes.includes("credito_prazo_juros");
+                          return (
+                            <div key={cfg.providerName} className="bg-background/60 rounded-md p-2 border">
+                              <p className="text-[10px] font-semibold flex items-center gap-1 mb-1">
+                                <CreditCard className="h-3 w-3 text-primary" />
+                                {cfg.providerName}
+                              </p>
+                              <div className="flex flex-wrap gap-1">
+                                {cfg.selectedInstallments.sort((a, b) => a - b).map(inst => {
+                                  const rate = provRates.find(r => r.installments === inst);
+                                  const parcela = withInterest && rate?.coefficient
+                                    ? valorPromo * rate.coefficient
+                                    : valorPromo / inst;
+                                  return (
+                                    <Badge key={inst} variant="outline" className="text-[10px] px-1.5 py-0.5 font-mono">
+                                      {inst}x {formatCurrency(parcela)}
+                                    </Badge>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Boleto installments */}
+                    {boletoConfig.length > 0 && (
+                      <div className="space-y-1.5">
+                        {boletoConfig.map(cfg => {
+                          const provRates = promoRates.filter(r => r.provider_name === cfg.providerName && r.provider_type === "boleto");
+                          return (
+                            <div key={cfg.providerName} className="bg-background/60 rounded-md p-2 border">
+                              <p className="text-[10px] font-semibold flex items-center gap-1 mb-1">
+                                <FileText className="h-3 w-3 text-primary" />
+                                {cfg.providerName}
+                              </p>
+                              <div className="flex flex-wrap gap-1">
+                                {cfg.selectedInstallments.sort((a, b) => a - b).map(inst => {
+                                  const rate = provRates.find(r => r.installments === inst);
+                                  const parcela = rate?.coefficient
+                                    ? valorPromo * rate.coefficient
+                                    : valorPromo / inst;
+                                  return (
+                                    <Badge key={inst} variant="outline" className="text-[10px] px-1.5 py-0.5 font-mono">
+                                      {inst}x {formatCurrency(parcela)}
+                                    </Badge>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {product.supplier && (
                 <div><span className="text-xs text-muted-foreground block">Fornecedor</span><p className="text-sm font-medium">{product.supplier.name}</p></div>
