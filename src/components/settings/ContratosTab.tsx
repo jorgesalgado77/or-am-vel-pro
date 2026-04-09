@@ -659,7 +659,7 @@ export function ContratosTab() {
               <label className={importing ? "pointer-events-none opacity-60" : "cursor-pointer"}>
                 <input
                   type="file"
-                  accept=".json,.pdf,.docx"
+                  accept=".json,.pdf,.docx,.xlsx,.xls"
                   className="hidden"
                   onChange={handleImportTemplate}
                   disabled={importing}
