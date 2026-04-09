@@ -7,7 +7,7 @@ import {
   Undo2, Redo2, Bold, Italic, Underline, Strikethrough, Type, Paintbrush,
   AlignLeft, AlignCenter, AlignRight, AlignJustify, List, ListOrdered,
   RemoveFormatting, Square, Circle, Minus, Image, MousePointer, Table2,
-  ArrowLeft
+  ArrowLeft, Pipette
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
