@@ -264,6 +264,24 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     return resolved;
   }, [pages.length, previewVarsMode]);
 
+  const GENERAL_CONDITIONS_BOX = { x: 40, y: 100, width: 714, height: 966 };
+  const isGeneralConditionsElement = useCallback((el: CanvasElement, page: PageData) => {
+    const isTextual = (el.type === "text" || el.type === "rect") && !!el.text;
+    const matchesFrame = Math.abs(el.x - GENERAL_CONDITIONS_BOX.x) <= 8
+      && Math.abs(el.y - GENERAL_CONDITIONS_BOX.y) <= 24
+      && Math.abs(el.width - GENERAL_CONDITIONS_BOX.width) <= 16;
+
+    if (!isTextual || !matchesFrame) return false;
+
+    return page.elements.some((other) =>
+      other.id !== el.id
+      && other.type === "text"
+      && /CONDI(?:ÇÕES|COES)\s+GERAIS/i.test(other.text)
+      && other.y < el.y
+      && Math.abs(other.x - GENERAL_CONDITIONS_BOX.x) <= 16,
+    );
+  }, []);
+
   // Derived text formatting
   const fontFamily = selected?.fontFamily || "Arial";
   const fontSize = selected?.fontSize || 14;
@@ -327,22 +345,31 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       const changedEl = sourceElements.find(e => e.id === changedElId);
       if (!changedEl) return prev;
 
+      const isGeneralConditionsBox = isGeneralConditionsElement(changedEl, sourcePage);
+      const targetHeight = isGeneralConditionsBox
+        ? Math.max(newHeight, GENERAL_CONDITIONS_BOX.height)
+        : newHeight;
       const oldBottom = changedEl.y + changedEl.height;
-      const heightDelta = newHeight - changedEl.height;
+      const heightDelta = targetHeight - changedEl.height;
       const repeatedChrome = buildRepeatedElementFingerprints(prev);
 
       if (heightDelta <= 0) {
         if (!changedElUpdates || Object.keys(changedElUpdates).length === 0) return prev;
-        const nextElements = sourceElements.map(el => el.id === changedElId ? { ...el, ...changedElUpdates, splitFrom: undefined, splitContinuationId: undefined } : el);
+        const nextElements = sourceElements.map(el => el.id === changedElId
+          ? {
+              ...el,
+              ...changedElUpdates,
+              height: targetHeight,
+              splitFrom: undefined,
+              splitContinuationId: undefined,
+            }
+          : el);
         const nextPages = [...prev];
         nextPages[currentPageIdx] = { ...sourcePage, elements: nextElements };
         return nextPages;
       }
 
       const workingPages = [...prev];
-      const firstFlowBounds = getPageFlowBounds(sourcePage, repeatedChrome, margins);
-      const currentFlowTop = firstFlowBounds.startY;
-      const currentFlowBottom = firstFlowBounds.endY;
 
       const staticElements = sourceElements
         .filter(el => isLikelyPageChrome(el, repeatedChrome, margins) || el.y < changedEl.y)
@@ -350,7 +377,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
       const flowCandidates = sourceElements
         .filter(el => !staticElements.some(se => se.id === el.id))
-        .map(el => el.id === changedElId ? { ...el, ...changedElUpdates, height: newHeight } : el)
+        .map(el => el.id === changedElId ? { ...el, ...changedElUpdates, height: targetHeight } : el)
         .sort((a, b) => a.y - b.y || a.zIndex - b.zIndex);
 
       const adjustedFlow = flowCandidates.map(el => {
@@ -363,11 +390,12 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       let pageIdx = currentPageIdx;
       let activeTemplatePage = sourcePage;
       const rewrittenPages = [...workingPages];
+      const cloneRepeatedContext = () => staticElements.map((el) => ({ ...stripSplitMetadata(el), id: genId() }));
 
       while (pending.length > 0) {
         const page = pageIdx === currentPageIdx
           ? sourcePage
-          : (rewrittenPages[pageIdx] ?? createContinuationPageFromTemplate(activeTemplatePage, repeatedChrome, margins));
+          : (rewrittenPages[pageIdx] ?? createContinuationPageFromTemplate(isGeneralConditionsBox ? sourcePage : activeTemplatePage, repeatedChrome, margins));
 
         if (pageIdx >= rewrittenPages.length) {
           rewrittenPages.push(page);
@@ -380,15 +408,29 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         const pageBottomY = flowBounds.endY;
         const pageStatic = pageIdx === currentPageIdx
           ? staticElements
-          : page.elements.filter(el => isLikelyPageChrome(el, repeatedChrome, margins)).map(stripSplitMetadata);
+          : (isGeneralConditionsBox
+              ? cloneRepeatedContext()
+              : page.elements.filter(el => isLikelyPageChrome(el, repeatedChrome, margins)).map(stripSplitMetadata));
 
         const pageFlow: CanvasElement[] = [];
         const nextPending: CanvasElement[] = [];
         let cursorY = pageStartY;
 
         for (const original of pending) {
-          const normalized = stripSplitMetadata(original);
-          const placedY = Math.max(cursorY, pageFlow.length === 0 ? Math.max(pageStartY, normalized.y) : cursorY);
+          const isConditionsFragment = isGeneralConditionsBox && (original.id === changedElId || original.splitFrom === changedElId);
+          const normalizedBase = stripSplitMetadata(original);
+          const normalized = isConditionsFragment
+            ? {
+                ...normalizedBase,
+                x: GENERAL_CONDITIONS_BOX.x,
+                y: GENERAL_CONDITIONS_BOX.y,
+                width: GENERAL_CONDITIONS_BOX.width,
+                height: GENERAL_CONDITIONS_BOX.height,
+              }
+            : normalizedBase;
+          const placedY = isConditionsFragment
+            ? GENERAL_CONDITIONS_BOX.y
+            : Math.max(cursorY, pageFlow.length === 0 ? Math.max(pageStartY, normalized.y) : cursorY);
           const candidate = { ...normalized, y: placedY };
 
           const candidateBottom = candidate.y + candidate.height;
@@ -401,7 +443,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           }
 
           if (isTextual) {
-            const availableHeight = pageBottomY - candidate.y;
+            const availableHeight = isConditionsFragment ? GENERAL_CONDITIONS_BOX.height : pageBottomY - candidate.y;
             const minSplitHeight = Math.max(candidate.fontSize * 1.6, 28);
 
             if (availableHeight >= minSplitHeight) {
@@ -432,28 +474,36 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
               if (didSplit) {
                 const continuationId = genId();
+                const placedHeight = isConditionsFragment ? GENERAL_CONDITIONS_BOX.height : Math.min(availableHeight, fitHeight + 4);
                 pageFlow.push({
                   ...candidate,
                   text: fitHtml,
-                  height: Math.min(availableHeight, fitHeight + 4),
+                  height: placedHeight,
                   splitContinuationId: continuationId,
                 });
                 nextPending.push({
                   ...stripSplitMetadata(candidate),
                   id: continuationId,
                   text: remHtml,
-                  y: pageStartY,
-                  width: Math.max(candidate.width, A4_WIDTH - margins.left - margins.right),
-                  height: Math.max(candidate.fontSize * 2, candidate.height - fitHeight),
+                  x: isConditionsFragment ? GENERAL_CONDITIONS_BOX.x : candidate.x,
+                  y: isConditionsFragment ? GENERAL_CONDITIONS_BOX.y : pageStartY,
+                  width: isConditionsFragment ? GENERAL_CONDITIONS_BOX.width : Math.max(candidate.width, A4_WIDTH - margins.left - margins.right),
+                  height: isConditionsFragment ? GENERAL_CONDITIONS_BOX.height : Math.max(candidate.fontSize * 2, candidate.height - fitHeight),
                   splitFrom: candidate.id,
                 });
-                cursorY = candidate.y + Math.min(availableHeight, fitHeight + 4) + 10;
+                cursorY = candidate.y + placedHeight + 10;
                 continue;
               }
             }
           }
 
-          nextPending.push({ ...candidate, y: pageStartY });
+          nextPending.push({
+            ...candidate,
+            x: isConditionsFragment ? GENERAL_CONDITIONS_BOX.x : candidate.x,
+            y: isConditionsFragment ? GENERAL_CONDITIONS_BOX.y : pageStartY,
+            width: isConditionsFragment ? GENERAL_CONDITIONS_BOX.width : candidate.width,
+            height: isConditionsFragment ? GENERAL_CONDITIONS_BOX.height : candidate.height,
+          });
         }
 
         rewrittenPages[pageIdx] = {
@@ -464,17 +514,19 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         };
 
         const noProgress = nextPending.length === pending.length
-          && nextPending.every((el, idx) => el.text === pending[idx]?.text && Math.round(el.y) === Math.round(pageStartY));
+          && nextPending.every((el, idx) => el.text === pending[idx]?.text && Math.round(el.y) === Math.round((isGeneralConditionsBox ? GENERAL_CONDITIONS_BOX.y : pageStartY)));
 
         pending = noProgress ? [] : nextPending;
         pageIdx += 1;
 
         if (pageIdx >= rewrittenPages.length && pending.length > 0) {
-          rewrittenPages.push(createContinuationPageFromTemplate(activeTemplatePage, repeatedChrome, margins));
+          rewrittenPages.push(createContinuationPageFromTemplate(isGeneralConditionsBox ? sourcePage : activeTemplatePage, repeatedChrome, margins));
         }
 
         if (pageIdx < rewrittenPages.length) {
-          activeTemplatePage = rewrittenPages[Math.min(pageIdx, rewrittenPages.length - 1)] ?? activeTemplatePage;
+          activeTemplatePage = isGeneralConditionsBox
+            ? sourcePage
+            : (rewrittenPages[Math.min(pageIdx, rewrittenPages.length - 1)] ?? activeTemplatePage);
         }
 
         if (noProgress || pageIdx > currentPageIdx + 40) break;
@@ -489,7 +541,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       toast.info("Contrato reorganizado mantendo margens e continuidade.", { id: "auto-reflow" });
       return trimmedPages.length > 0 ? trimmedPages : prev;
     });
-  }, [currentPageIdx, margins, measureHtmlHeight, splitHtmlAtHeight]);
+  }, [currentPageIdx, isGeneralConditionsElement, margins, measureHtmlHeight, splitHtmlAtHeight]);
 
   // --- Element operations ---
   const updateSelected = useCallback((updates: Partial<CanvasElement>) => {
