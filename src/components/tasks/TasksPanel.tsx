@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, LayoutGrid, CalendarDays, RefreshCw } from "lucide-react";
+import { Plus, LayoutGrid, CalendarDays, RefreshCw, Archive } from "lucide-react";
 import { useTasks } from "@/hooks/useTasks";
 import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
 import { useUsuarios } from "@/hooks/useUsuarios";
@@ -9,6 +9,7 @@ import { TaskKanbanBoard } from "./TaskKanbanBoard";
 import { TaskCalendarView } from "./TaskCalendarView";
 import { TaskCreateModal } from "./TaskCreateModal";
 import { TaskFilters } from "./TaskFilters";
+import { ArchivedTasksList } from "./ArchivedTasksList";
 import { GoogleCalendarConnect } from "./GoogleCalendarConnect";
 
 import { type Task, type DateFilterPreset } from "./taskTypes";
@@ -33,7 +34,7 @@ export function TasksPanel({ tenantId, userId, userName, cargoNome }: Props) {
   const [responsavelFilter, setResponsavelFilter] = useState("todos");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
-  const [view, setView] = useState<"kanban" | "calendar">("kanban");
+  const [view, setView] = useState<"kanban" | "calendar" | "archived">("kanban");
 
   // Alert for tasks due today
   const alertedRef = useRef(new Set<string>());
