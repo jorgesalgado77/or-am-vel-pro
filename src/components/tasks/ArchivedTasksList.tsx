@@ -2,9 +2,9 @@
  * Archived Tasks — list view with filters
  */
 import { useState, useMemo } from "react";
-import { format, startOfMonth, endOfMonth, subMonths, subDays, startOfYear, endOfYear, subYears } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths, subDays, startOfYear, endOfYear, subYears, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Archive, Search, Calendar, Clock, User, Tag, Filter } from "lucide-react";
+import { Archive, Search, Calendar, Clock, User, Tag, Filter, CheckCircle2, Timer } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -141,8 +141,9 @@ export function ArchivedTasksList({ tasks, onTaskClick, onRestore }: Props) {
               <tr className="bg-muted/50 border-b border-border">
                 <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Título</th>
                 <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Tipo</th>
-                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Data</th>
-                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Horário</th>
+                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Criação</th>
+                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Conclusão</th>
+                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Duração</th>
                 <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Responsável</th>
                 <th className="text-right px-4 py-2.5 font-medium text-muted-foreground">Ações</th>
               </tr>
@@ -150,6 +151,9 @@ export function ArchivedTasksList({ tasks, onTaskClick, onRestore }: Props) {
             <tbody>
               {filteredTasks.map(task => {
                 const typeLabel = TASK_TYPES.find(t => t.value === task.tipo)?.label || task.tipo;
+                const createdDate = new Date(task.created_at);
+                const concludedDate = task.updated_at ? new Date(task.updated_at) : null;
+                const daysBetween = concludedDate ? differenceInDays(concludedDate, createdDate) : null;
                 return (
                   <tr
                     key={task.id}
@@ -168,14 +172,26 @@ export function ArchivedTasksList({ tasks, onTaskClick, onRestore }: Props) {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <Calendar className="h-3 w-3" />
-                        {format(new Date(task.data_tarefa + "T00:00:00"), "dd/MM/yyyy")}
+                        {format(createdDate, "dd/MM/yyyy")}
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      {task.horario ? (
+                      {concludedDate ? (
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Clock className="h-3 w-3" />
-                          {task.horario}
+                          <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                          {format(concludedDate, "dd/MM/yyyy")}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {daysBetween !== null ? (
+                        <div className="flex items-center gap-1.5">
+                          <Timer className="h-3 w-3 text-muted-foreground" />
+                          <Badge variant={daysBetween <= 3 ? "default" : daysBetween <= 7 ? "secondary" : "outline"} className="text-[10px] h-5 px-1.5">
+                            {daysBetween === 0 ? "No mesmo dia" : `${daysBetween} dia${daysBetween !== 1 ? "s" : ""}`}
+                          </Badge>
                         </div>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
