@@ -1959,6 +1959,110 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         </div>
       )}
 
+      {/* Conditional Formatting Panel */}
+      {showConditionalPanel && (
+        <div className="border-x border-b border-border bg-background px-3 py-2 space-y-2">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <Palette className="h-3.5 w-3.5 text-primary" /> Formatação Condicional
+            </h4>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" className="h-6 text-[10px]" onClick={() => {
+                setConditionalRules(prev => [...prev, {
+                  id: `rule_${Date.now()}`, type: "greater", value1: "5000",
+                  bgColor: "#dbeafe", textColor: "#1e40af", bold: false,
+                }]);
+              }}>+ Regra</Button>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowConditionalPanel(false)}>
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+          <div className="space-y-1.5 max-h-[160px] overflow-y-auto">
+            {conditionalRules.map((rule, idx) => (
+              <div key={rule.id} className="flex items-center gap-2 text-[11px] bg-muted/30 rounded px-2 py-1.5">
+                <select
+                  value={rule.type}
+                  onChange={e => {
+                    const updated = [...conditionalRules];
+                    updated[idx] = { ...rule, type: e.target.value as ConditionalRule["type"] };
+                    setConditionalRules(updated);
+                  }}
+                  className="rounded border border-border bg-background px-1.5 py-0.5 text-[11px] w-24"
+                >
+                  <option value="greater">Maior que</option>
+                  <option value="less">Menor que</option>
+                  <option value="equal">Igual a</option>
+                  <option value="between">Entre</option>
+                  <option value="text_contains">Contém texto</option>
+                  <option value="text_starts">Começa com</option>
+                  <option value="empty">Vazio</option>
+                  <option value="not_empty">Não vazio</option>
+                </select>
+                {!["empty", "not_empty"].includes(rule.type) && (
+                  <input
+                    type="text" value={rule.value1}
+                    onChange={e => {
+                      const updated = [...conditionalRules];
+                      updated[idx] = { ...rule, value1: e.target.value };
+                      setConditionalRules(updated);
+                    }}
+                    className="w-20 rounded border border-border bg-background px-1.5 py-0.5 text-[11px]"
+                    placeholder="Valor"
+                  />
+                )}
+                {rule.type === "between" && (
+                  <>
+                    <span className="text-muted-foreground">e</span>
+                    <input
+                      type="text" value={rule.value2 || ""}
+                      onChange={e => {
+                        const updated = [...conditionalRules];
+                        updated[idx] = { ...rule, value2: e.target.value };
+                        setConditionalRules(updated);
+                      }}
+                      className="w-20 rounded border border-border bg-background px-1.5 py-0.5 text-[11px]"
+                      placeholder="Valor 2"
+                    />
+                  </>
+                )}
+                <div className="flex items-center gap-1 ml-auto">
+                  <label className="text-[10px] text-muted-foreground">Fundo</label>
+                  <input type="color" value={rule.bgColor} onChange={e => {
+                    const updated = [...conditionalRules];
+                    updated[idx] = { ...rule, bgColor: e.target.value };
+                    setConditionalRules(updated);
+                  }} className="h-5 w-5 cursor-pointer rounded border border-border" />
+                  <label className="text-[10px] text-muted-foreground">Texto</label>
+                  <input type="color" value={rule.textColor} onChange={e => {
+                    const updated = [...conditionalRules];
+                    updated[idx] = { ...rule, textColor: e.target.value };
+                    setConditionalRules(updated);
+                  }} className="h-5 w-5 cursor-pointer rounded border border-border" />
+                  <label className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                    <input type="checkbox" checked={rule.bold || false} onChange={e => {
+                      const updated = [...conditionalRules];
+                      updated[idx] = { ...rule, bold: e.target.checked };
+                      setConditionalRules(updated);
+                    }} className="h-3 w-3" />
+                    <strong>N</strong>
+                  </label>
+                  <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => {
+                    setConditionalRules(prev => prev.filter(r => r.id !== rule.id));
+                  }}>
+                    <Trash2 className="h-3 w-3 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            {conditionalRules.length === 0 && (
+              <p className="text-[11px] text-muted-foreground text-center py-2">Nenhuma regra. Clique em "+ Regra" para adicionar.</p>
+            )}
+          </div>
+        </div>
+      )
+
+
       {/* Eyedropper apply mode bar */}
       {eyedropperColor && (
         <div className="flex items-center gap-2 border-x border-b border-border bg-accent/30 px-3 py-1">
