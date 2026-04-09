@@ -3171,7 +3171,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                   {elements.map(renderElement)}
                 </div>
 
-            </div>
+
               {/* Context menu */}
               {contextMenu && (
                 <div
