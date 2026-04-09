@@ -43,6 +43,7 @@ interface CanvasElement {
   tableCols?: number;
   tableRows?: number;
   opacity?: number;
+  groupId?: string;
 }
 
 interface PageData {
@@ -392,6 +393,26 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     setContextMenu(null);
   };
 
+  // --- Group / Ungroup ---
+  const groupSelected = () => {
+    if (selectedIds.size < 2) { toast.error("Selecione pelo menos 2 elementos para agrupar"); return; }
+    const gid = `group_${++idCounter}_${Date.now()}`;
+    setCurrentElements(prev => prev.map(el => selectedIds.has(el.id) ? { ...el, groupId: gid } : el));
+    toast.success(`${selectedIds.size} elementos agrupados`);
+    setContextMenu(null);
+  };
+
+  const ungroupSelected = () => {
+    const selEls = elements.filter(e => selectedIds.has(e.id));
+    const groupIds = new Set(selEls.map(e => e.groupId).filter(Boolean));
+    if (groupIds.size === 0) { toast.error("Nenhum grupo encontrado na seleção"); return; }
+    setCurrentElements(prev => prev.map(el => groupIds.has(el.groupId) ? { ...el, groupId: undefined } : el));
+    toast.success("Elementos desagrupados");
+    setContextMenu(null);
+  };
+
+  const hasGroupInSelection = elements.some(e => selectedIds.has(e.id) && e.groupId);
+
   // --- Alignment functions ---
   const alignElements = useCallback((alignment: "left" | "center-h" | "right" | "top" | "center-v" | "bottom" | "distribute-h" | "distribute-v") => {
     if (selectedIds.size === 0) return;
@@ -658,7 +679,17 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     e.stopPropagation();
     setEditingTextId(null);
 
-    // Shift+click: toggle multi-select
+    // Ctrl+click (or Cmd on Mac): toggle multi-select
+    if (e.ctrlKey || e.metaKey) {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        if (next.has(el.id)) { next.delete(el.id); } else { next.add(el.id); }
+        return next;
+      });
+      return;
+    }
+
+    // Shift+click: also supports multi-select
     if (e.shiftKey) {
       setSelectedIds(prev => {
         const next = new Set(prev);
@@ -668,8 +699,14 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       return;
     }
 
-    // Normal click: select single (or keep multi-selection if already in set)
-    if (!selectedIds.has(el.id)) {
+    // If element is in a group, select all group members
+    if (el.groupId) {
+      const groupEls = elements.filter(e => e.groupId === el.groupId);
+      const groupIds = new Set(groupEls.map(e => e.id));
+      if (!selectedIds.has(el.id)) {
+        setSelectedIds(groupIds);
+      }
+    } else if (!selectedIds.has(el.id)) {
       setSelectedIds(new Set([el.id]));
     }
 
@@ -677,7 +714,10 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     if (!rect) return;
 
     // Build origins for all selected elements (including the clicked one)
-    const idsToMove = selectedIds.has(el.id) ? [...selectedIds] : [el.id];
+    const currentSelected = el.groupId 
+      ? new Set(elements.filter(e => e.groupId === el.groupId).map(e => e.id))
+      : selectedIds.has(el.id) ? selectedIds : new Set([el.id]);
+    const idsToMove = [...currentSelected];
     const origins: Record<string, { x: number; y: number }> = {};
     for (const id of idsToMove) {
       const found = elements.find(e => e.id === id);
@@ -1189,9 +1229,14 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     const isEditing = el.id === editingTextId;
 
     // Outer wrapper handles positioning, selection outline, and resize handles
+    const isGrouped = !!el.groupId;
+    const groupColor = isGrouped ? `hsl(${(el.groupId!.charCodeAt(6) * 37) % 360} 70% 55%)` : "";
     const wrapperStyle: React.CSSProperties = {
       position: "absolute", left: el.x, top: el.y, width: el.width, height: el.height,
-      outline: isSelected ? `2px ${isPrimary ? "solid" : "dashed"} hsl(210 80% 55%)` : "none", outlineOffset: "1px",
+      outline: isSelected 
+        ? `2px ${isPrimary ? "solid" : "dashed"} hsl(210 80% 55%)` 
+        : isGrouped ? `1px dashed ${groupColor}` : "none",
+      outlineOffset: "1px",
       opacity: el.opacity ?? 1,
       transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
       transformOrigin: "center center",
@@ -2143,6 +2188,16 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                     <>
                       <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground" onClick={duplicateSelected}>Duplicar</button>
                       <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-destructive/10 text-destructive" onClick={deleteSelected}>Excluir</button>
+                      {selectedIds.size >= 2 && (
+                        <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground" onClick={groupSelected}>
+                          🔗 Agrupar ({selectedIds.size} itens)
+                        </button>
+                      )}
+                      {hasGroupInSelection && (
+                        <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground" onClick={ungroupSelected}>
+                          ✂️ Desagrupar
+                        </button>
+                      )}
                       <div className="h-px bg-border my-1" />
                     </>
                   )}
@@ -2167,6 +2222,12 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                   </div>
                 </div>
               )}
+            </div>
+            {/* Add page button below canvas */}
+            <div className="flex justify-center py-4">
+              <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={addPage} title="Adicionar nova página">
+                <Plus className="h-4 w-4" /> Nova Página
+              </Button>
             </div>
           </div>
         </div>
