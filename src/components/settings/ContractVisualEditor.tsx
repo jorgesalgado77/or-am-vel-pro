@@ -1046,7 +1046,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
   // --- Render helpers ---
   const renderElement = (el: CanvasElement) => {
-    const isSelected = el.id === selectedId;
+    const isSelected = selectedIds.has(el.id);
+    const isPrimary = selectedId === el.id; // primary = first in set, shows resize/rotate handles
     const isEditing = el.id === editingTextId;
 
     // Outer wrapper handles positioning, selection outline, and resize handles
@@ -1347,7 +1348,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const applyTemplate = (tpl: ContractTemplate) => {
     setPages(tpl.pages.map(p => ({ ...p, id: pageId(), elements: p.elements.map(e => ({ ...e, id: genId() })) })));
     setCurrentPageIdx(0);
-    setSelectedId(null);
+    setSelectedIds(new Set());
     setShowTemplates(false);
     if (tpl.id !== "em-branco") toast.success(`Template "${tpl.name}" aplicado!`);
   };
@@ -1356,7 +1357,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     const pagesData = ct.pages_data as PageData[];
     setPages(pagesData.map(p => ({ ...p, id: pageId(), elements: (p.elements || []).map(e => ({ ...e, id: genId() })) })));
     setCurrentPageIdx(0);
-    setSelectedId(null);
+    setSelectedIds(new Set());
     setShowTemplates(false);
     toast.success(`Template "${ct.name}" carregado!`);
   };
@@ -1469,7 +1470,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       el.width = 180;
       el.height = 80;
       setCurrentElements(prev => [...prev, el]);
-      setSelectedId(el.id);
+      setSelectedIds(new Set([el.id]));
       setActiveTool("select");
       toast.success("Logo da empresa inserido!");
     } catch (err) {
@@ -1902,7 +1903,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                 setDragOverPageIdx(null);
               }}
               onDragEnd={() => { setDragPageIdx(null); setDragOverPageIdx(null); }}
-              onClick={() => { setCurrentPageIdx(idx); setSelectedId(null); }}
+              onClick={() => { setCurrentPageIdx(idx); setSelectedIds(new Set()); }}
               className={`w-full rounded border-2 transition-all cursor-pointer ${idx === currentPageIdx ? "border-primary shadow-sm" : "border-border hover:border-muted-foreground/30"} ${dragOverPageIdx === idx && dragPageIdx !== idx ? "border-primary/50 bg-primary/5" : ""} ${dragPageIdx === idx ? "opacity-40" : ""}`}
               title={`Página ${idx + 1} — arraste para reordenar`}
             >
@@ -1920,7 +1921,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                         return arr;
                       });
                       setCurrentPageIdx(prev => prev >= pages.length - 1 ? Math.max(0, pages.length - 2) : prev > idx ? prev - 1 : prev);
-                      setSelectedId(null);
+                      setSelectedIds(new Set());
                     }}
                     className="absolute top-0.5 right-0.5 z-10 opacity-0 group-hover/thumb:opacity-100 transition-opacity bg-destructive/90 hover:bg-destructive text-destructive-foreground rounded p-0.5"
                     title={`Excluir página ${idx + 1}`}
