@@ -1,7 +1,7 @@
 /**
  * ProductCatalog — Full product catalog management UI
  */
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, lazy, Suspense } from "react";
 import { PrazoEntregaSelect } from "@/components/shared/PrazoEntregaSelect";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
@@ -26,7 +26,10 @@ import { useProductCatalog, calculateSalePrice, type Product, type Supplier, typ
 import { ProductDetailModal } from "@/components/catalog/ProductDetailModal";
 import { ProductPromotionModal } from "@/components/catalog/ProductPromotionModal";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { usePromoExpirationAlerts } from "@/hooks/usePromoExpirationAlerts";
 import { maskCpfCnpj, maskPhone, maskCep } from "@/lib/masks";
+
+const PromotionsPanel = lazy(() => import("@/components/catalog/PromotionsPanel").then(m => ({ default: m.PromotionsPanel })));
 import { toast } from "sonner";
 
 const STOCK_STATUS_LABELS: Record<string, { label: string; color: string }> = {
@@ -122,6 +125,8 @@ export function ProductCatalog() {
   const { currentUser, hasPermission } = useCurrentUser();
   const canManageProducts = hasPermission("cadastrar_produtos");
   const isAdmin = ["administrador", "admin"].includes((currentUser?.cargo_nome || "").toLowerCase());
+
+  usePromoExpirationAlerts();
 
   const [activeTab, setActiveTab] = useState("products");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -431,9 +436,10 @@ export function ProductCatalog() {
   return (
     <div className="space-y-4">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-2 w-full max-w-xs">
+        <TabsList className="grid grid-cols-3 w-full max-w-md">
           <TabsTrigger value="products" className="gap-1.5 text-xs"><Package className="h-3.5 w-3.5" />Produtos</TabsTrigger>
-          <TabsTrigger value="suppliers" className="gap-1.5 text-xs"><Factory className="h-3.5 w-3.5" />Fornecedor Decorados</TabsTrigger>
+          <TabsTrigger value="promotions" className="gap-1.5 text-xs"><Tag className="h-3.5 w-3.5" />Promoções</TabsTrigger>
+          <TabsTrigger value="suppliers" className="gap-1.5 text-xs"><Factory className="h-3.5 w-3.5" />Fornecedores</TabsTrigger>
         </TabsList>
 
         {/* === PRODUCTS TAB === */}
@@ -593,6 +599,13 @@ export function ProductCatalog() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* === PROMOTIONS TAB === */}
+        <TabsContent value="promotions" className="mt-4">
+          <Suspense fallback={<div className="flex items-center justify-center py-12 text-muted-foreground">Carregando...</div>}>
+            <PromotionsPanel />
+          </Suspense>
         </TabsContent>
 
         {/* === SUPPLIERS TAB === */}
