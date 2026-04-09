@@ -27,6 +27,7 @@ import { useTextSplitter } from "./contract-editor/useTextSplitter";
 import { buildRepeatedElementFingerprints, createContinuationPageFromTemplate, getPageFlowBounds, isLikelyPageChrome, stripSplitMetadata } from "./contract-editor/pagination";
 import { EditorPropertiesPanel } from "./contract-editor/EditorPropertiesPanel";
 import { exportToPdf, exportToDocx, exportToXlsx } from "./contract-editor/exportHelpers";
+import { HeaderFooterConfig, defaultHeaderSettings, defaultFooterSettings, type HeaderFooterSettings } from "./contract-editor/HeaderFooterConfig";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("/pdf.worker.min.mjs", window.location.origin).href;
 
@@ -42,6 +43,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [activeTool, setActiveTool] = useState<ToolType>("select");
   const [activeShapeType, setActiveShapeType] = useState<ShapeType>("rect");
   const [margins, setMargins] = useState({ top: 40, right: 40, bottom: 40, left: 40 });
+  const [headerSettings, setHeaderSettings] = useState<HeaderFooterSettings>(defaultHeaderSettings);
+  const [footerSettings, setFooterSettings] = useState<HeaderFooterSettings>(defaultFooterSettings);
   const [zoom, setZoom] = useState(0.75);
   const [dragState, setDragState] = useState<{ ids: string[]; startX: number; startY: number; origins: Record<string, { x: number; y: number }> } | null>(null);
   const [resizeState, setResizeState] = useState<{ id: string; startX: number; startY: number; startW: number; startH: number; corner: string; startElX: number; startElY: number } | null>(null);
