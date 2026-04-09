@@ -146,6 +146,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [smartGuides, setSmartGuides] = useState<{ x: number[]; y: number[] }>({ x: [], y: [] });
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [showLayersPanel, setShowLayersPanel] = useState(true);
+  const [showSectionsPanel, setShowSectionsPanel] = useState(true);
 
   // User-placed draggable guide lines
   const [userGuides, setUserGuides] = useState<{ id: string; axis: "x" | "y"; pos: number }[]>([]);
