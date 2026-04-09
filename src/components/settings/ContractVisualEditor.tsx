@@ -686,6 +686,35 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
   // --- Drag & Resize ---
   const handleElementMouseDown = (e: React.MouseEvent, el: CanvasElement) => {
+    // Eyedropper mode: pick or apply color
+    if (activeTool === "eyedropper") {
+      e.stopPropagation();
+      if (!eyedropperColor) {
+        // Pick color from element - show menu to choose which color
+        const colors = { fill: el.fill, stroke: el.stroke, text: el.color };
+        // Auto-pick: prefer text color for text elements, fill for shapes
+        const picked = el.type === "text" ? colors.text : (colors.fill !== "transparent" ? colors.fill : colors.stroke);
+        setEyedropperColor(picked);
+        toast.success(`Cor copiada: ${picked}`);
+      } else {
+        // Apply color to element
+        if (eyedropperApplyMode === "stroke") {
+          setCurrentElements(prev => prev.map(e => e.id === el.id ? { ...e, stroke: eyedropperColor! } : e));
+          toast.success("Cor aplicada à borda");
+        } else if (eyedropperApplyMode === "text") {
+          setCurrentElements(prev => prev.map(e => e.id === el.id ? { ...e, color: eyedropperColor! } : e));
+          toast.success("Cor aplicada ao texto");
+        } else {
+          setCurrentElements(prev => prev.map(e => e.id === el.id ? { ...e, fill: eyedropperColor! } : e));
+          toast.success("Cor aplicada ao fundo");
+        }
+        setEyedropperColor(null);
+        setEyedropperApplyMode(null);
+        setActiveTool("select");
+      }
+      return;
+    }
+
     if (activeTool !== "select") return;
     e.stopPropagation();
     setEditingTextId(null);
