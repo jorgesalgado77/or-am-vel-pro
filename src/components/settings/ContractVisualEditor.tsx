@@ -1181,6 +1181,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     return () => observer.disconnect();
   }, [pages.length, visiblePageIdx]);
 
+  useEffect(() => {
     if (!contextMenu) return;
     const handler = () => setContextMenu(null);
     window.addEventListener("click", handler);
