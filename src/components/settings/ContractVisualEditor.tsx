@@ -3414,6 +3414,56 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                       background: "hsl(var(--primary) / 0.5)", pointerEvents: "none", zIndex: 9990,
                     }} />
                   ))}
+                  {/* User-placed draggable guide lines */}
+                  {userGuides.map(g => (
+                    <div
+                      key={g.id}
+                      style={{
+                        position: "absolute",
+                        ...(g.axis === "x"
+                          ? { left: g.pos, top: 0, width: 1, height: A4_HEIGHT, cursor: "col-resize" }
+                          : { top: g.pos, left: 0, height: 1, width: A4_WIDTH, cursor: "row-resize" }),
+                        background: "hsl(var(--chart-4))",
+                        zIndex: 9995,
+                      }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        setDraggingGuide({
+                          id: g.id,
+                          axis: g.axis,
+                          startMouse: g.axis === "x" ? e.clientX : e.clientY,
+                          startPos: g.pos,
+                        });
+                      }}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        setUserGuides(prev => prev.filter(ug => ug.id !== g.id));
+                        toast.info("Guia removida");
+                      }}
+                      title={`${g.axis === "x" ? "Vertical" : "Horizontal"}: ${Math.round(g.pos)}px — arraste para mover, duplo-clique para remover`}
+                    >
+                      {/* Wider hit area */}
+                      <div style={{
+                        position: "absolute",
+                        ...(g.axis === "x"
+                          ? { left: -3, top: 0, width: 7, height: "100%" }
+                          : { top: -3, left: 0, height: 7, width: "100%" }),
+                      }} />
+                      {/* Position label */}
+                      <div style={{
+                        position: "absolute",
+                        ...(g.axis === "x"
+                          ? { top: 4, left: 4 }
+                          : { left: 4, top: -14 }),
+                        fontSize: 9, color: "hsl(var(--chart-4))", fontWeight: 600,
+                        background: "hsl(var(--background) / 0.9)", padding: "0 3px", borderRadius: 2,
+                        pointerEvents: "none", whiteSpace: "nowrap",
+                      }}>
+                        {Math.round(g.pos)}px
+                      </div>
+                    </div>
+                  ))}
                   {/* Page number indicator */}
                   <div style={{
                     position: "absolute", bottom: Math.max(8, margins.bottom - 20), right: Math.max(12, margins.right),
