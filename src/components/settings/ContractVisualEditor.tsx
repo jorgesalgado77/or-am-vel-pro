@@ -393,6 +393,26 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     setContextMenu(null);
   };
 
+  // --- Group / Ungroup ---
+  const groupSelected = () => {
+    if (selectedIds.size < 2) { toast.error("Selecione pelo menos 2 elementos para agrupar"); return; }
+    const gid = `group_${++idCounter}_${Date.now()}`;
+    setCurrentElements(prev => prev.map(el => selectedIds.has(el.id) ? { ...el, groupId: gid } : el));
+    toast.success(`${selectedIds.size} elementos agrupados`);
+    setContextMenu(null);
+  };
+
+  const ungroupSelected = () => {
+    const selEls = elements.filter(e => selectedIds.has(e.id));
+    const groupIds = new Set(selEls.map(e => e.groupId).filter(Boolean));
+    if (groupIds.size === 0) { toast.error("Nenhum grupo encontrado na seleção"); return; }
+    setCurrentElements(prev => prev.map(el => groupIds.has(el.groupId) ? { ...el, groupId: undefined } : el));
+    toast.success("Elementos desagrupados");
+    setContextMenu(null);
+  };
+
+  const hasGroupInSelection = elements.some(e => selectedIds.has(e.id) && e.groupId);
+
   // --- Alignment functions ---
   const alignElements = useCallback((alignment: "left" | "center-h" | "right" | "top" | "center-v" | "bottom" | "distribute-h" | "distribute-v") => {
     if (selectedIds.size === 0) return;
