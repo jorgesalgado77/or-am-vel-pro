@@ -1699,8 +1699,9 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           contentEditable
           suppressContentEditableWarning
           ref={(ref) => {
-            if (ref && ref.innerHTML !== el.text) {
+            if (ref && !ref.dataset.initialized) {
               ref.innerHTML = el.text;
+              ref.dataset.initialized = "1";
             }
           }}
           onFocus={(e) => {
