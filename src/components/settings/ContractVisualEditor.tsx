@@ -1702,20 +1702,21 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       );
       if (!safeHtml) return;
       const target = e.currentTarget;
-      // Insert at cursor position
+      // Wrap pasted content in a span with explicit color to prevent invisible text
+      const coloredHtml = `<span style="color:${el.color || '#000000'}">${safeHtml}</span>`;
       const sel = window.getSelection();
       if (sel && sel.rangeCount > 0) {
         const range = sel.getRangeAt(0);
         range.deleteContents();
         const tmp = document.createElement("span");
-        tmp.innerHTML = safeHtml;
+        tmp.innerHTML = coloredHtml;
         const frag = document.createDocumentFragment();
         let lastNode: Node | null = null;
         while (tmp.firstChild) { lastNode = frag.appendChild(tmp.firstChild); }
         range.insertNode(frag);
         if (lastNode) { range.setStartAfter(lastNode); range.collapse(true); sel.removeAllRanges(); sel.addRange(range); }
       } else {
-        target.innerHTML += safeHtml;
+        target.innerHTML += coloredHtml;
       }
       requestAnimationFrame(() => {
         const newText = target.innerHTML;
