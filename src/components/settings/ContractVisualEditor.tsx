@@ -1409,12 +1409,24 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                           verticalAlign: "middle",
                         }}>
                           <input
-                            type="text" value={cell}
+                            type="text"
+                            value={isFormula(cell) ? evaluateCell(cell, el.tableData || []) : cell}
                             onChange={e => updateTableCell(el.id, ri, ci, e.target.value)}
-                            onClick={e => e.stopPropagation()}
+                            onClick={e => {
+                              e.stopPropagation();
+                              setEditingCellRef({ elId: el.id, row: ri, col: ci });
+                              setFormulaBarValue(cell);
+                              setShowFormulaSuggestions(false);
+                            }}
+                            onFocus={() => {
+                              setEditingCellRef({ elId: el.id, row: ri, col: ci });
+                              setFormulaBarValue(cell);
+                            }}
+                            title={isFormula(cell) ? `Fórmula: ${cell}` : undefined}
                             style={{
                               width: "100%", border: "none", outline: "none",
-                              background: "transparent", color: "inherit", fontFamily: "inherit",
+                              background: isFormula(cell) ? "hsl(var(--accent) / 0.3)" : "transparent",
+                              color: "inherit", fontFamily: "inherit",
                               fontSize: "inherit", fontWeight: "inherit", textAlign: "inherit",
                               padding: 0,
                             }}
