@@ -209,6 +209,14 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
         const parts = ((data as any).data_nascimento as string).split("-");
         setBirthDate(new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])));
       }
+      // Load saved theme from DB
+      const dbTheme = (data as any).color_theme;
+      if (dbTheme && dbTheme !== "default") {
+        setSelectedTheme(dbTheme);
+        applyTheme(dbTheme);
+      } else if (dbTheme === "default") {
+        setSelectedTheme("default");
+      }
     }
   }, [user?.id]);
 
