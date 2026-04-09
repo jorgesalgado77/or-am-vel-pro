@@ -510,7 +510,7 @@ export function ProductCatalog() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {products.map(p => {
+                        {(promoFilter ? products.filter(p => promoMap[p.id]) : products).map(p => {
                           const status = STOCK_STATUS_LABELS[p.stock_status] || STOCK_STATUS_LABELS.em_estoque;
                           const promo = promoMap[p.id];
                           const promoExpired = promo && new Date(promo.validade) <= new Date();
