@@ -3422,14 +3422,19 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                             </div>
                           </div>
                         ))}
-                        {/* Page number indicator */}
+                        {/* Page footer: client name + page number */}
                         <div style={{
-                          position: "absolute", bottom: Math.max(8, margins.bottom - 20), right: Math.max(12, margins.right),
+                          position: "absolute", bottom: Math.max(8, margins.bottom - 20), left: Math.max(12, margins.left), right: Math.max(12, margins.right),
+                          display: "flex", justifyContent: "space-between", alignItems: "center",
                           fontSize: 10, color: "hsl(var(--muted-foreground))", fontFamily: "Arial, sans-serif",
                           pointerEvents: "none", zIndex: 3, userSelect: "none",
-                          background: "hsl(var(--background) / 0.8)", padding: "1px 6px", borderRadius: 3,
                         }}>
-                          Página {pageIdx + 1}/{pages.length}
+                          <span style={{ background: "hsl(var(--background) / 0.8)", padding: "1px 6px", borderRadius: 3 }}>
+                            {previewVarsMode ? "Maria Fernanda da Silva" : "{{nome_cliente}}"}
+                          </span>
+                          <span style={{ background: "hsl(var(--background) / 0.8)", padding: "1px 6px", borderRadius: 3 }}>
+                            Página {pageIdx + 1}/{pages.length}
+                          </span>
                         </div>
                       </div>
 
