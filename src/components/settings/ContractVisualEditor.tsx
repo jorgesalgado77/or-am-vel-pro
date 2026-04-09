@@ -3160,61 +3160,93 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
       {/* Main area */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Page thumbnails sidebar */}
-        <div className="w-24 min-h-0 border-r border-border bg-muted/20 overflow-y-auto p-2 space-y-2">
-          {pages.map((page, idx) => (
-            <div
-              key={page.id}
-              draggable
-              onDragStart={() => setDragPageIdx(idx)}
-              onDragOver={(e) => { e.preventDefault(); setDragOverPageIdx(idx); }}
-              onDragLeave={() => setDragOverPageIdx(null)}
-              onDrop={() => {
-                if (dragPageIdx !== null && dragPageIdx !== idx) {
-                  setPages(prev => {
-                    const arr = [...prev];
-                    const [moved] = arr.splice(dragPageIdx, 1);
-                    arr.splice(idx, 0, moved);
-                    return arr;
-                  });
-                  setCurrentPageIdx(idx);
-                }
-                setDragPageIdx(null);
-                setDragOverPageIdx(null);
-              }}
-              onDragEnd={() => { setDragPageIdx(null); setDragOverPageIdx(null); }}
-              onClick={() => { setCurrentPageIdx(idx); setSelectedIds(new Set()); }}
-              className={`w-full rounded border-2 transition-all cursor-pointer ${idx === currentPageIdx ? "border-primary shadow-sm" : "border-border hover:border-muted-foreground/30"} ${dragOverPageIdx === idx && dragPageIdx !== idx ? "border-primary/50 bg-primary/5" : ""} ${dragPageIdx === idx ? "opacity-40" : ""}`}
-              title={`Página ${idx + 1} — arraste para reordenar`}
-            >
-              <div className="relative w-full bg-background group/thumb" style={{ aspectRatio: `${A4_WIDTH}/${A4_HEIGHT}` }}>
-                {page.backgroundImage && (
-                  <img src={page.backgroundImage} alt="" className="absolute inset-0 w-full h-full object-contain" style={{ opacity: page.backgroundOpacity }} />
-                )}
-                {pages.length > 1 && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!confirm(`Excluir página ${idx + 1}?`)) return;
-                      setPages(prev => {
-                        const arr = prev.filter((_, i) => i !== idx);
-                        return arr;
-                      });
-                      setCurrentPageIdx(prev => prev >= pages.length - 1 ? Math.max(0, pages.length - 2) : prev > idx ? prev - 1 : prev);
-                      setSelectedIds(new Set());
-                    }}
-                    className="absolute top-0.5 right-0.5 z-10 opacity-0 group-hover/thumb:opacity-100 transition-opacity bg-destructive/90 hover:bg-destructive text-destructive-foreground rounded p-0.5"
-                    title={`Excluir página ${idx + 1}`}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                )}
-                <div className="absolute bottom-0 left-0 right-0 bg-foreground/60 text-background text-[9px] text-center py-0.5 font-medium">
-                  {idx + 1}
+        {/* Left sidebar: thumbnails + layers */}
+        <div className="w-48 min-h-0 border-r border-border bg-muted/20 overflow-y-auto flex flex-col">
+          {/* Page thumbnails */}
+          <div className="p-2 space-y-2 shrink-0">
+            <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-1">Páginas</h4>
+            {pages.map((page, idx) => (
+              <div
+                key={page.id}
+                draggable
+                onDragStart={() => setDragPageIdx(idx)}
+                onDragOver={(e) => { e.preventDefault(); setDragOverPageIdx(idx); }}
+                onDragLeave={() => setDragOverPageIdx(null)}
+                onDrop={() => {
+                  if (dragPageIdx !== null && dragPageIdx !== idx) {
+                    setPages(prev => {
+                      const arr = [...prev];
+                      const [moved] = arr.splice(dragPageIdx, 1);
+                      arr.splice(idx, 0, moved);
+                      return arr;
+                    });
+                    setCurrentPageIdx(idx);
+                  }
+                  setDragPageIdx(null);
+                  setDragOverPageIdx(null);
+                }}
+                onDragEnd={() => { setDragPageIdx(null); setDragOverPageIdx(null); }}
+                onClick={() => { setCurrentPageIdx(idx); setSelectedIds(new Set()); }}
+                className={`w-full rounded border-2 transition-all cursor-pointer ${idx === currentPageIdx ? "border-primary shadow-sm" : "border-border hover:border-muted-foreground/30"} ${dragOverPageIdx === idx && dragPageIdx !== idx ? "border-primary/50 bg-primary/5" : ""} ${dragPageIdx === idx ? "opacity-40" : ""}`}
+                title={`Página ${idx + 1} — arraste para reordenar`}
+              >
+                <div className="relative w-full bg-background group/thumb" style={{ aspectRatio: `${A4_WIDTH}/${A4_HEIGHT}` }}>
+                  {page.backgroundImage && (
+                    <img src={page.backgroundImage} alt="" className="absolute inset-0 w-full h-full object-contain" style={{ opacity: page.backgroundOpacity }} />
+                  )}
+                  {pages.length > 1 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!confirm(`Excluir página ${idx + 1}?`)) return;
+                        setPages(prev => {
+                          const arr = prev.filter((_, i) => i !== idx);
+                          return arr;
+                        });
+                        setCurrentPageIdx(prev => prev >= pages.length - 1 ? Math.max(0, pages.length - 2) : prev > idx ? prev - 1 : prev);
+                        setSelectedIds(new Set());
+                      }}
+                      className="absolute top-0.5 right-0.5 z-10 opacity-0 group-hover/thumb:opacity-100 transition-opacity bg-destructive/90 hover:bg-destructive text-destructive-foreground rounded p-0.5"
+                      title={`Excluir página ${idx + 1}`}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  )}
+                  <div className="absolute bottom-0 left-0 right-0 bg-foreground/60 text-background text-[9px] text-center py-0.5 font-medium">
+                    {idx + 1}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+
+          {/* Layers panel */}
+          <div className="border-t border-border">
+            <button
+              onClick={() => setShowLayersPanel(!showLayersPanel)}
+              className="w-full flex items-center gap-1.5 px-2 py-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hover:bg-muted/40 transition-colors"
+            >
+              <Layers className="h-3.5 w-3.5" />
+              Camadas
+              <span className="ml-auto text-[10px]">{showLayersPanel ? "▾" : "▸"}</span>
+            </button>
+            {showLayersPanel && (
+              <div className="px-2 pb-2">
+                <ContractLayersPanel
+                  elements={elements}
+                  selectedIds={selectedIds}
+                  onSelect={setSelectedIds}
+                  onUpdate={setCurrentElements}
+                  hiddenIds={hiddenIds}
+                  onToggleHidden={(id) => setHiddenIds(prev => {
+                    const next = new Set(prev);
+                    if (next.has(id)) next.delete(id); else next.add(id);
+                    return next;
+                  })}
+                />
+              </div>
+            )}
+          </div>
         </div>
         {/* Canvas area with Word-like feel */}
         <div className="flex-1 min-w-0 min-h-0 overflow-auto" style={{ background: "hsl(var(--muted) / 0.6)" }}>
