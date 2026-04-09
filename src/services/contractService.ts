@@ -280,7 +280,22 @@ export function buildContractHtml(templateHtml: string, data: ContractData): str
     replacements[`{{modelo_ambiente_${n}}}`] = d.modelo || "";
   });
 
-  let html = templateHtml;
+  // Dynamic company phone variables
+  const phones = companyPhones || [];
+  if (phones.length > 0) {
+    replacements["{{telefones_uteis}}"] = `<table border="1" cellpadding="4" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:10px;">
+      <tr style="background:#0891b2;color:#fff;"><th>Setor</th><th>Responsável</th><th>Telefone</th></tr>
+      ${phones.map(p => `<tr><td>${p.setor || "—"}</td><td>${p.responsavel || "—"}</td><td>${p.telefone || "—"}</td></tr>`).join("")}
+    </table>`;
+    phones.forEach((p, i) => {
+      const n = i + 1;
+      replacements[`{{telefone_util_setor_${n}}}`] = p.setor || "";
+      replacements[`{{telefone_util_responsavel_${n}}}`] = p.responsavel || "";
+      replacements[`{{telefone_util_numero_${n}}}`] = p.telefone || "";
+    });
+  } else {
+    replacements["{{telefones_uteis}}"] = "";
+  }
   Object.entries(replacements).forEach(([key, val]) => {
     html = html.split(key).join(val);
   });
