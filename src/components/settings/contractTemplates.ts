@@ -108,8 +108,10 @@ export function getContractTemplates(): ContractTemplate[] {
             makeRect(0, 0, 794, 80, { fill: "#0891b2", stroke: "transparent", borderRadius: 0 }),
             // Logo da empresa (carregado automaticamente das configurações)
             makeText(10, 8, 70, 64, "{{logo_empresa}}", { fontSize: 10, color: "#ffffff", textAlign: "center" }),
-            makeText(85, 10, 350, 30, "{{empresa_nome}}", { fontSize: 22, fontWeight: "bold", color: "#ffffff" }),
-            makeText(85, 42, 350, 20, "{{empresa_subtitulo}}", { fontSize: 11, color: "#e0f2fe" }),
+            makeText(85, 6, 350, 24, "{{empresa_nome}}", { fontSize: 20, fontWeight: "bold", color: "#ffffff" }),
+            makeText(85, 30, 350, 14, "{{empresa_subtitulo}}", { fontSize: 10, color: "#e0f2fe" }),
+            makeText(85, 44, 350, 14, "{{endereco_loja}}, {{bairro_loja}} — {{cidade_loja}}/{{uf_loja}} — CEP: {{cep_loja}}", { fontSize: 8, color: "#e0f2fe" }),
+            makeText(85, 58, 350, 14, "CNPJ: {{cnpj_loja}}  |  Tel: {{telefone_loja}}  |  {{email_loja}}", { fontSize: 8, color: "#e0f2fe" }),
             makeText(450, 12, 300, 18, "CONTRATO DE VENDA", { fontSize: 16, fontWeight: "bold", color: "#ffffff", textAlign: "right" }),
             makeText(450, 32, 300, 15, "Nº Contrato: {{numero_contrato}}", { fontSize: 10, color: "#e0f2fe", textAlign: "right" }),
             makeText(450, 48, 300, 15, "Nº Orçamento: {{numero_orcamento}}", { fontSize: 10, color: "#e0f2fe", textAlign: "right" }),
