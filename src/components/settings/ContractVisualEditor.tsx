@@ -3180,7 +3180,53 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           </div>
         </div>
         {/* Canvas area with Word-like feel — all pages stacked vertically */}
-        <div className="flex-1 min-w-0 min-h-0 overflow-auto" data-pages-scroll style={{ background: "hsl(var(--muted) / 0.6)" }}>
+        <div className="flex-1 min-w-0 min-h-0 relative">
+          <div className="absolute inset-0 overflow-auto" data-pages-scroll style={{ background: "hsl(var(--muted) / 0.6)" }}>
+          {/* Floating page indicator */}
+          {pages.length > 1 && (
+            <div style={{
+              position: "sticky", top: 8, zIndex: 100, display: "flex", justifyContent: "center",
+              pointerEvents: "none", marginBottom: -32,
+            }}>
+              <div style={{
+                pointerEvents: "auto",
+                background: "hsl(var(--background) / 0.95)", border: "1px solid hsl(var(--border))",
+                borderRadius: 20, padding: "4px 12px",
+                fontSize: 11, fontWeight: 600, color: "hsl(var(--foreground))",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+                display: "flex", alignItems: "center", gap: 8,
+              }}>
+                {pages.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      const el = pageRefsMap.current.get(idx);
+                      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                      setCurrentPageIdx(idx);
+                      setSelectedIds(new Set());
+                    }}
+                    style={{
+                      width: idx === visiblePageIdx ? 24 : 8,
+                      height: 8,
+                      borderRadius: 4,
+                      border: "none",
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                      background: idx === visiblePageIdx
+                        ? "hsl(var(--primary))"
+                        : idx === currentPageIdx
+                          ? "hsl(var(--primary) / 0.4)"
+                          : "hsl(var(--muted-foreground) / 0.3)",
+                    }}
+                    title={`Página ${idx + 1}`}
+                  />
+                ))}
+                <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginLeft: 4 }}>
+                  {visiblePageIdx + 1}/{pages.length}
+                </span>
+              </div>
+            </div>
+          )}
           <div className="flex flex-col items-center py-6 px-4" style={{ minWidth: A4_WIDTH * zoom + RULER_SIZE + 48 }}>
             {pages.map((page, pageIdx) => {
               const isActivePage = pageIdx === currentPageIdx;
