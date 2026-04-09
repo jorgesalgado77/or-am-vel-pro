@@ -32,6 +32,8 @@ export const SAMPLE_PREVIEW_DATA: Record<string, string> = {
   // Company
   "{{empresa_nome}}": "MóveisMax Planejados",
   "{{empresa_subtitulo}}": "Móveis sob medida com qualidade e design",
+  "{{logo_empresa}}": "🏢",
+  "{{logo_empresa_url}}": "",
   "{{cnpj_loja}}": "12.345.678/0001-99",
   "{{endereco_loja}}": "Rua do Comércio, 100",
   "{{bairro_loja}}": "Centro",

@@ -106,10 +106,14 @@ export function getContractTemplates(): ContractTemplate[] {
           id: tplId(), backgroundOpacity: 0.5, elements: [
             // ── Header ──
             makeRect(0, 0, 794, 80, { fill: "#0891b2", stroke: "transparent", borderRadius: 0 }),
-            makeText(40, 15, 400, 30, "{{empresa_nome}}", { fontSize: 24, fontWeight: "bold", color: "#ffffff" }),
-            makeText(40, 48, 400, 20, "{{empresa_subtitulo}}", { fontSize: 12, color: "#e0f2fe" }),
-            makeText(450, 25, 300, 20, "CONTRATO DE VENDA", { fontSize: 16, fontWeight: "bold", color: "#ffffff", textAlign: "right" }),
-            makeText(450, 48, 300, 20, "Data: {{data_contrato}}", { fontSize: 11, color: "#e0f2fe", textAlign: "right" }),
+            // Logo da empresa (carregado automaticamente das configurações)
+            makeText(10, 8, 70, 64, "{{logo_empresa}}", { fontSize: 10, color: "#ffffff", textAlign: "center" }),
+            makeText(85, 10, 350, 30, "{{empresa_nome}}", { fontSize: 22, fontWeight: "bold", color: "#ffffff" }),
+            makeText(85, 42, 350, 20, "{{empresa_subtitulo}}", { fontSize: 11, color: "#e0f2fe" }),
+            makeText(450, 12, 300, 18, "CONTRATO DE VENDA", { fontSize: 16, fontWeight: "bold", color: "#ffffff", textAlign: "right" }),
+            makeText(450, 32, 300, 15, "Nº Contrato: {{numero_contrato}}", { fontSize: 10, color: "#e0f2fe", textAlign: "right" }),
+            makeText(450, 48, 300, 15, "Nº Orçamento: {{numero_orcamento}}", { fontSize: 10, color: "#e0f2fe", textAlign: "right" }),
+            makeText(450, 64, 300, 15, "Data: {{data_contrato}}", { fontSize: 10, color: "#e0f2fe", textAlign: "right" }),
 
             // ── Dados do Cliente ──
             makeText(40, 100, 714, 25, "DADOS DO CLIENTE", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
@@ -168,7 +172,9 @@ export function getContractTemplates(): ContractTemplate[] {
           id: tplId(), backgroundOpacity: 0.5, elements: [
             // ── Page 2: Condições e Assinaturas ──
             makeRect(0, 0, 794, 50, { fill: "#0891b2", stroke: "transparent" }),
-            makeText(40, 12, 714, 25, "CONTRATO DE VENDA — {{empresa_nome}}", { fontSize: 14, fontWeight: "bold", color: "#ffffff" }),
+            makeText(10, 8, 40, 34, "{{logo_empresa}}", { fontSize: 8, color: "#ffffff", textAlign: "center" }),
+            makeText(55, 12, 400, 25, "CONTRATO DE VENDA — {{empresa_nome}}", { fontSize: 13, fontWeight: "bold", color: "#ffffff" }),
+            makeText(500, 15, 254, 20, "Nº {{numero_contrato}}", { fontSize: 10, color: "#e0f2fe", textAlign: "right" }),
 
             makeText(40, 70, 714, 25, "CONDIÇÕES GERAIS", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
             makeLine(40, 92, 714),
