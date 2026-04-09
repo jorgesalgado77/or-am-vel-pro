@@ -302,6 +302,83 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const goToPrevPage = () => { if (currentPageIdx > 0) { setCurrentPageIdx(currentPageIdx - 1); setSelectedIds(new Set()); } };
   const goToNextPage = () => { if (currentPageIdx < pages.length - 1) { setCurrentPageIdx(currentPageIdx + 1); setSelectedIds(new Set()); } };
 
+  // --- Reflow: push elements down and auto-paginate ---
+  const reflowElements = useCallback((changedElId: string, newHeight: number) => {
+    const els = pages[currentPageIdx]?.elements || [];
+    const changedEl = els.find(e => e.id === changedElId);
+    if (!changedEl) return;
+    
+    const oldBottom = changedEl.y + changedEl.height;
+    const heightDelta = newHeight - changedEl.height;
+    if (heightDelta <= 0) return;
+    
+    // Update elements: resize changed + push below ones down
+    const updated = els.map(el => {
+      if (el.id === changedElId) return { ...el, height: newHeight };
+      if (el.y >= oldBottom - 5) return { ...el, y: el.y + heightDelta };
+      return el;
+    });
+    
+    // Split into fits / overflows
+    const fits = updated.filter(el => el.y + el.height <= A4_HEIGHT);
+    const overflows = updated.filter(el => el.y + el.height > A4_HEIGHT);
+    
+    // Cap changed element if it itself overflows
+    const cappedFits = fits.map(el => {
+      if (el.id === changedElId && el.y + el.height > A4_HEIGHT) {
+        return { ...el, height: A4_HEIGHT - el.y - 10 };
+      }
+      return el;
+    });
+    
+    if (overflows.length > 0) {
+      setPages(prev => {
+        const newPages = [...prev];
+        newPages[currentPageIdx] = { ...newPages[currentPageIdx], elements: cappedFits };
+        
+        let nextIdx = currentPageIdx + 1;
+        if (nextIdx >= newPages.length) {
+          newPages.push({ id: pageId(), elements: [], backgroundOpacity: 0.5 });
+        }
+        
+        const existingNextEls = newPages[nextIdx].elements;
+        let nextY = existingNextEls.length > 0
+          ? Math.max(...existingNextEls.map(e => e.y + e.height)) + 10
+          : 30;
+        
+        const movedElements = overflows.map(el => {
+          const moved = { ...el, y: nextY };
+          nextY += el.height + 10;
+          return moved;
+        });
+        
+        const fitsNext = movedElements.filter(e => e.y + e.height <= A4_HEIGHT);
+        const overflowsNext = movedElements.filter(e => e.y + e.height > A4_HEIGHT);
+        
+        newPages[nextIdx] = { ...newPages[nextIdx], elements: [...existingNextEls, ...fitsNext] };
+        
+        if (overflowsNext.length > 0) {
+          let extraIdx = nextIdx + 1;
+          if (extraIdx >= newPages.length) {
+            newPages.push({ id: pageId(), elements: [], backgroundOpacity: 0.5 });
+          }
+          let extraY = 30;
+          const extraMoved = overflowsNext.map(el => {
+            const moved = { ...el, y: extraY };
+            extraY += el.height + 10;
+            return moved;
+          });
+          newPages[extraIdx] = { ...newPages[extraIdx], elements: [...newPages[extraIdx].elements, ...extraMoved] };
+        }
+        
+        toast.info("Elementos reorganizados automaticamente entre páginas.", { id: "auto-reflow" });
+        return newPages;
+      });
+    } else {
+      setCurrentElements(() => updated);
+    }
+  }, [pages, currentPageIdx, setCurrentElements, setPages]);
+
   // --- Element operations ---
   const updateSelected = useCallback((updates: Partial<CanvasElement>) => {
     if (selectedIds.size === 0) return;
