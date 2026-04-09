@@ -1179,6 +1179,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             break;
         }
       }
+      // Page number
+      html += `<div style="position:absolute;bottom:${Math.max(8, margins.bottom - 20)}px;right:${Math.max(12, margins.right)}px;font-size:10px;color:#888;font-family:Arial,sans-serif;">Página ${pageIdx + 1}/${pages.length}</div>`;
       html += `</div>`;
       return html;
     }).join("\n");
@@ -2279,10 +2281,15 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         return;
       }
       
-      const el = createDefaultElement("image", 40, 40);
+      const el = createDefaultElement("image", margins.left, margins.top);
       el.imageUrl = logoUrl;
       el.width = 180;
       el.height = 80;
+      el.stroke = "transparent";
+      el.strokeWidth = 0;
+      const cp = clampToMargins(el, el.x, el.y);
+      el.x = cp.x;
+      el.y = cp.y;
       setCurrentElements(prev => [...prev, el]);
       setSelectedIds(new Set([el.id]));
       setActiveTool("select");
@@ -3169,6 +3176,15 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                     </span>
                   </div>
                   {elements.map(renderElement)}
+                  {/* Page number indicator */}
+                  <div style={{
+                    position: "absolute", bottom: Math.max(8, margins.bottom - 20), right: Math.max(12, margins.right),
+                    fontSize: 10, color: "hsl(var(--muted-foreground))", fontFamily: "Arial, sans-serif",
+                    pointerEvents: "none", zIndex: 3, userSelect: "none",
+                    background: "hsl(var(--background) / 0.8)", padding: "1px 6px", borderRadius: 3,
+                  }}>
+                    Página {currentPageIdx + 1}/{pages.length}
+                  </div>
                 </div>
 
 
