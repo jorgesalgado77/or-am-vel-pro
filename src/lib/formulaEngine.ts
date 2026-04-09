@@ -74,6 +74,33 @@ function splitArgs(argsStr: string): string[] {
   return args;
 }
 
+// Match a cell value against a criteria string (supports ">5", "<10", ">=3", "<>0", "text", "*wild*")
+function matchesCriteria(cellVal: string, criteria: string, data: string[][]): boolean {
+  const ops = [">=", "<=", "<>", "!=", ">", "<", "="];
+  for (const op of ops) {
+    if (criteria.startsWith(op)) {
+      const right = criteria.substring(op.length);
+      const lNum = parseFloat(cellVal.replace(/[R$\s.]/g, "").replace(",", "."));
+      const rNum = parseFloat(right.replace(",", "."));
+      const useNum = !isNaN(lNum) && !isNaN(rNum);
+      switch (op) {
+        case ">=": return useNum ? lNum >= rNum : cellVal >= right;
+        case "<=": return useNum ? lNum <= rNum : cellVal <= right;
+        case "<>": case "!=": return cellVal !== right;
+        case ">": return useNum ? lNum > rNum : cellVal > right;
+        case "<": return useNum ? lNum < rNum : cellVal < right;
+        case "=": return cellVal.toUpperCase() === right.toUpperCase();
+      }
+    }
+  }
+  // Wildcard support
+  if (criteria.includes("*") || criteria.includes("?")) {
+    const regex = new RegExp("^" + criteria.replace(/\*/g, ".*").replace(/\?/g, ".") + "$", "i");
+    return regex.test(cellVal);
+  }
+  return cellVal.toUpperCase() === criteria.toUpperCase();
+}
+
 // Evaluate a formula expression
 function evalExpr(expr: string, data: string[][]): string {
   const trimmed = expr.trim();
