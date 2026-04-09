@@ -12,7 +12,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export type ShapeType = "rect" | "circle" | "line";
-export type ToolType = "select" | "shape" | "text" | "image" | "table";
+export type ToolType = "select" | "shape" | "text" | "image" | "table" | "eyedropper";
 
 interface ContractEditorToolbarProps {
   activeTool: ToolType;
