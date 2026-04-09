@@ -122,6 +122,19 @@ export const TaskCard = memo(function TaskCard({ task, index, onClick, onDelete,
                 {task.anexos && task.anexos.length > 0 && (
                   <Paperclip className="h-3 w-3 text-muted-foreground" />
                 )}
+                {onArchive && task.status === "concluida" && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onArchive(task); }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-muted"
+                      >
+                        <Archive className="h-3.5 w-3.5 text-muted-foreground" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">Arquivar tarefa</TooltipContent>
+                  </Tooltip>
+                )}
                 {onDelete && (
                   <button
                     onClick={(e) => { e.stopPropagation(); onDelete(task); }}
