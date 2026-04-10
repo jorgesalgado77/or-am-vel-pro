@@ -14,7 +14,7 @@ interface KanbanColumnProps {
   cargoNome: string;
   tenantId: string;
   followUpStatus: Record<string, "active" | "paused" | "completed">;
-  measurementStatus: Record<string, { status: string; assigned_to: string | null }>;
+  measurementStatus: Record<string, { status: string; assigned_to: string | null; updated_at?: string | null }>;
   scheduledMeasurements?: Record<string, { date: string; time: string; km?: number }>;
   savingCardId?: string | null;
   canDelete: boolean;
