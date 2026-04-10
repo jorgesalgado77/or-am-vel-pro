@@ -32,6 +32,69 @@ import { HeaderFooterConfig, defaultHeaderSettings, defaultFooterSettings, type 
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("/pdf.worker.min.mjs", window.location.origin).href;
 
+const DEFAULT_EDITOR_MARGINS = { top: 40, right: 40, bottom: 40, left: 40 };
+
+const readStoredJson = <T,>(key: string, fallback: T, normalize: (value: unknown) => T): T => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    return normalize(JSON.parse(raw));
+  } catch {
+    return fallback;
+  }
+};
+
+const normalizeNumber = (value: unknown, fallback: number) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const normalizeMargins = (value: unknown) => {
+  const parsed = value && typeof value === "object"
+    ? value as Partial<Record<keyof typeof DEFAULT_EDITOR_MARGINS, unknown>>
+    : {};
+
+  return {
+    top: normalizeNumber(parsed.top, DEFAULT_EDITOR_MARGINS.top),
+    right: normalizeNumber(parsed.right, DEFAULT_EDITOR_MARGINS.right),
+    bottom: normalizeNumber(parsed.bottom, DEFAULT_EDITOR_MARGINS.bottom),
+    left: normalizeNumber(parsed.left, DEFAULT_EDITOR_MARGINS.left),
+  };
+};
+
+const normalizeHeaderFooterSettings = (value: unknown, fallback: HeaderFooterSettings): HeaderFooterSettings => {
+  const parsed = value && typeof value === "object"
+    ? value as Partial<Record<keyof HeaderFooterSettings, unknown>>
+    : {};
+
+  return {
+    ...fallback,
+    enabled: typeof parsed.enabled === "boolean" ? parsed.enabled : fallback.enabled,
+    height: normalizeNumber(parsed.height, fallback.height),
+    leftText: typeof parsed.leftText === "string" ? parsed.leftText : fallback.leftText,
+    centerText: typeof parsed.centerText === "string" ? parsed.centerText : fallback.centerText,
+    rightText: typeof parsed.rightText === "string" ? parsed.rightText : fallback.rightText,
+    fontSize: normalizeNumber(parsed.fontSize, fallback.fontSize),
+    fontFamily: typeof parsed.fontFamily === "string" ? parsed.fontFamily : fallback.fontFamily,
+    color: typeof parsed.color === "string" ? parsed.color : fallback.color,
+    backgroundColor: typeof parsed.backgroundColor === "string" ? parsed.backgroundColor : fallback.backgroundColor,
+    showLine: typeof parsed.showLine === "boolean" ? parsed.showLine : fallback.showLine,
+    lineColor: typeof parsed.lineColor === "string" ? parsed.lineColor : fallback.lineColor,
+  };
+};
+
+const getTextContentMetrics = (el: Pick<CanvasElement, "type" | "width" | "height">) => {
+  const hasInnerPadding = el.type === "rect" || el.type === "circle";
+  const paddingX = hasInnerPadding ? 16 : 0;
+  const paddingY = hasInnerPadding ? 16 : 0;
+
+  return {
+    contentWidth: Math.max(1, el.width - paddingX),
+    contentHeight: Math.max(1, el.height - paddingY),
+    paddingY,
+  };
+};
+
 
 
 
@@ -43,9 +106,13 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeTool, setActiveTool] = useState<ToolType>("select");
   const [activeShapeType, setActiveShapeType] = useState<ShapeType>("rect");
-  const [margins, setMargins] = useState({ top: 40, right: 40, bottom: 40, left: 40 });
-  const [headerSettings, setHeaderSettings] = useState<HeaderFooterSettings>(defaultHeaderSettings);
-  const [footerSettings, setFooterSettings] = useState<HeaderFooterSettings>(defaultFooterSettings);
+  const [margins, setMargins] = useState(() => readStoredJson("ce_margins", DEFAULT_EDITOR_MARGINS, normalizeMargins));
+  const [headerSettings, setHeaderSettings] = useState<HeaderFooterSettings>(() => (
+    readStoredJson("ce_header_settings", defaultHeaderSettings, (value) => normalizeHeaderFooterSettings(value, defaultHeaderSettings))
+  ));
+  const [footerSettings, setFooterSettings] = useState<HeaderFooterSettings>(() => (
+    readStoredJson("ce_footer_settings", defaultFooterSettings, (value) => normalizeHeaderFooterSettings(value, defaultFooterSettings))
+  ));
   const [zoom, setZoom] = useState(() => {
     try { const v = localStorage.getItem("ce_zoom"); if (v) return Number(v); } catch {} return 0.75;
   });
@@ -168,6 +235,9 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   useEffect(() => { try { localStorage.setItem("ce_layers", String(showLayersPanel)); } catch {} }, [showLayersPanel]);
   useEffect(() => { try { localStorage.setItem("ce_sections", String(showSectionsPanel)); } catch {} }, [showSectionsPanel]);
   useEffect(() => { try { localStorage.setItem("ce_pagebreak", String(showPageBreakIndicators)); } catch {} }, [showPageBreakIndicators]);
+  useEffect(() => { try { localStorage.setItem("ce_margins", JSON.stringify(margins)); } catch {} }, [margins]);
+  useEffect(() => { try { localStorage.setItem("ce_header_settings", JSON.stringify(headerSettings)); } catch {} }, [headerSettings]);
+  useEffect(() => { try { localStorage.setItem("ce_footer_settings", JSON.stringify(footerSettings)); } catch {} }, [footerSettings]);
 
   // Custom templates state
   const { templates: customTemplates, loading: loadingCustom, saveTemplate, updateTemplate, deleteTemplate } = useCustomTemplates();
@@ -460,6 +530,10 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           : A4_HEIGHT - margins.bottom;
         const pageStartY = Math.max(flowBounds.startY, reservedHeaderBottom);
         const pageBottomY = Math.max(pageStartY + 40, Math.min(flowBounds.endY, reservedFooterTop));
+        const fixedFragmentX = Math.max(GENERAL_CONDITIONS_BOX.x, margins.left);
+        const fixedFragmentY = Math.max(GENERAL_CONDITIONS_BOX.y, pageStartY);
+        const fixedFragmentWidth = Math.max(160, Math.min(GENERAL_CONDITIONS_BOX.width, A4_WIDTH - fixedFragmentX - margins.right));
+        const fixedFragmentHeight = Math.max(120, pageBottomY - fixedFragmentY);
         const pageStatic = pageIdx === currentPageIdx
           ? staticElements
           : (isGeneralConditionsBox
@@ -527,15 +601,15 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           const normalized = isConditionsFragment
             ? {
                 ...normalizedBase,
-                x: GENERAL_CONDITIONS_BOX.x,
-                y: GENERAL_CONDITIONS_BOX.y,
-                width: GENERAL_CONDITIONS_BOX.width,
-                height: GENERAL_CONDITIONS_BOX.height,
+                x: fixedFragmentX,
+                y: fixedFragmentY,
+                width: fixedFragmentWidth,
+                height: fixedFragmentHeight,
               }
             : normalizedBase;
           const shouldStartFreshPage = pageIdx > currentPageIdx && pageFlow.length === 0;
           const placedY = isConditionsFragment
-            ? GENERAL_CONDITIONS_BOX.y
+            ? fixedFragmentY
             : Math.max(cursorY, pageFlow.length === 0 ? (shouldStartFreshPage ? pageStartY : Math.max(pageStartY, normalized.y)) : cursorY);
           const candidate = { ...normalized, y: placedY };
 
@@ -555,10 +629,11 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           }
 
           if (isConditionsFragment && isTextual) {
-            const availableHeight = GENERAL_CONDITIONS_BOX.height;
+            const { contentWidth, paddingY } = getTextContentMetrics(candidate);
+            const availableHeight = Math.max(24, fixedFragmentHeight - paddingY);
             const [fitHtml, remHtml] = splitHtmlAtHeight(
               candidate.text,
-              GENERAL_CONDITIONS_BOX.width,
+              contentWidth,
               {
                 fontFamily: candidate.fontFamily,
                 fontSize: candidate.fontSize,
@@ -570,7 +645,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             );
 
             const fitHeight = fitHtml
-              ? measureHtmlHeight(fitHtml, GENERAL_CONDITIONS_BOX.width, {
+              ? measureHtmlHeight(fitHtml, contentWidth, {
                   fontFamily: candidate.fontFamily,
                   fontSize: candidate.fontSize,
                   fontWeight: candidate.fontWeight,
@@ -587,21 +662,21 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
               pageFlow.push({
                 ...candidate,
                 text: fitHtml,
-                height: GENERAL_CONDITIONS_BOX.height,
+                height: fixedFragmentHeight,
                 splitContinuationId: continuationId,
               });
               pageHasFixedFragment = true;
-              cursorY = GENERAL_CONDITIONS_BOX.y + GENERAL_CONDITIONS_BOX.height + 10;
+              cursorY = fixedFragmentY + fixedFragmentHeight + 10;
 
               if (needsContinuation) {
                 nextPending.push({
                   ...stripSplitMetadata(candidate),
                   id: continuationId || genId(),
                   text: remHtml,
-                  x: GENERAL_CONDITIONS_BOX.x,
-                  y: GENERAL_CONDITIONS_BOX.y,
-                  width: GENERAL_CONDITIONS_BOX.width,
-                  height: GENERAL_CONDITIONS_BOX.height,
+                  x: fixedFragmentX,
+                  y: fixedFragmentY,
+                  width: fixedFragmentWidth,
+                  height: fixedFragmentHeight,
                   splitFrom: candidate.id,
                 });
               }
@@ -617,13 +692,14 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           }
 
           if (isTextual) {
-            const availableHeight = pageBottomY - candidate.y;
+            const { contentWidth, paddingY } = getTextContentMetrics(candidate);
+            const availableHeight = pageBottomY - candidate.y - paddingY;
             const minSplitHeight = Math.max(candidate.fontSize * 1.6, 28);
 
             if (availableHeight >= minSplitHeight) {
               const [fitHtml, remHtml] = splitHtmlAtHeight(
                 candidate.text,
-                candidate.width,
+                contentWidth,
                 {
                   fontFamily: candidate.fontFamily,
                   fontSize: candidate.fontSize,
@@ -635,7 +711,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
               );
 
               const fitHeight = fitHtml
-                ? measureHtmlHeight(fitHtml, candidate.width, {
+                ? measureHtmlHeight(fitHtml, contentWidth, {
                     fontFamily: candidate.fontFamily,
                     fontSize: candidate.fontSize,
                     fontWeight: candidate.fontWeight,
@@ -644,11 +720,11 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                   })
                 : 0;
 
-              const didSplit = !!fitHtml && !!remHtml && fitHtml !== candidate.text && fitHeight > 0 && fitHeight < candidate.height;
+              const didSplit = !!fitHtml && !!remHtml && fitHtml !== candidate.text && fitHeight > 0 && fitHeight + paddingY < candidate.height;
 
               if (didSplit) {
                 const continuationId = genId();
-                const placedHeight = Math.min(availableHeight, fitHeight + 4);
+                const placedHeight = Math.min(pageBottomY - candidate.y, fitHeight + paddingY + 4);
                 pageFlow.push({
                   ...candidate,
                   text: fitHtml,
@@ -662,7 +738,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                   x: candidate.x,
                   y: pageStartY,
                   width: Math.max(candidate.width, A4_WIDTH - margins.left - margins.right),
-                  height: Math.max(candidate.fontSize * 2, candidate.height - fitHeight),
+                  height: Math.max(candidate.fontSize * 2 + paddingY, candidate.height - placedHeight),
                   splitFrom: candidate.id,
                 });
                 cursorY = candidate.y + placedHeight + 10;
@@ -679,10 +755,10 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
           nextPending.push({
             ...candidate,
-            x: isConditionsFragment ? GENERAL_CONDITIONS_BOX.x : candidate.x,
-            y: isConditionsFragment ? GENERAL_CONDITIONS_BOX.y : pageStartY,
-            width: isConditionsFragment ? GENERAL_CONDITIONS_BOX.width : candidate.width,
-            height: isConditionsFragment ? GENERAL_CONDITIONS_BOX.height : candidate.height,
+            x: isConditionsFragment ? fixedFragmentX : candidate.x,
+            y: isConditionsFragment ? fixedFragmentY : pageStartY,
+            width: isConditionsFragment ? fixedFragmentWidth : candidate.width,
+            height: isConditionsFragment ? fixedFragmentHeight : candidate.height,
           });
         }
 
@@ -694,7 +770,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         };
 
         const noProgress = nextPending.length === pending.length
-          && nextPending.every((el, idx) => el.text === pending[idx]?.text && Math.round(el.y) === Math.round((isGeneralConditionsBox ? GENERAL_CONDITIONS_BOX.y : pageStartY)));
+          && nextPending.every((el, idx) => el.text === pending[idx]?.text && Math.round(el.y) === Math.round(isGeneralConditionsBox ? fixedFragmentY : pageStartY));
 
         pending = noProgress ? [] : nextPending;
         pageIdx += 1;
@@ -1753,7 +1829,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
       const nextHtml = (changedElUpdates?.text as string | undefined) ?? textEl.innerHTML;
       const isFixedSectionText = !!currentPage && isGeneralConditionsElement({ ...currentEl, text: nextHtml }, currentPage);
-      const measuredHtmlHeight = measureHtmlHeight(nextHtml, currentEl.width, {
+      const { contentWidth, paddingY } = getTextContentMetrics(currentEl);
+      const measuredHtmlHeight = measureHtmlHeight(nextHtml, contentWidth, {
         fontFamily: currentEl.fontFamily,
         fontSize: currentEl.fontSize,
         fontWeight: currentEl.fontWeight,
@@ -1763,8 +1840,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       });
       const visualScrollHeight = textEl.scrollHeight;
       const newHeight = isFixedSectionText
-        ? Math.max(currentEl.height, measuredHtmlHeight + 4)
-        : Math.max(currentEl.height, visualScrollHeight, measuredHtmlHeight + 4);
+        ? Math.max(currentEl.height, measuredHtmlHeight + paddingY + 4)
+        : Math.max(currentEl.height, visualScrollHeight, measuredHtmlHeight + paddingY + 4);
 
       reflowElements(elId, newHeight, changedElUpdates);
     };
