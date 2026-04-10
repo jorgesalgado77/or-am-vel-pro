@@ -753,12 +753,37 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                             </TableRow>
                           );
                         })}
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-xs font-medium text-right">Total Catálogo</TableCell>
-                          <TableCell className="text-xs font-bold text-right text-primary">
-                            {formatCurrency(simulationData.catalogProducts.reduce((acc, cp) => acc + cp.sale_price * cp.quantity, 0))}
-                          </TableCell>
-                        </TableRow>
+                        {(() => {
+                          const totalCatalogo = simulationData.catalogProducts!.reduce((acc, cp) => acc + cp.sale_price * cp.quantity, 0);
+                          const totalEconomia = simulationData.catalogProducts!.reduce((acc, cp) => {
+                            if (cp.promo_price && cp.promo_price > 0 && cp.original_price) {
+                              return acc + (cp.original_price - cp.sale_price) * cp.quantity;
+                            }
+                            return acc;
+                          }, 0);
+                          return (
+                            <>
+                              <TableRow>
+                                <TableCell colSpan={5} className="text-xs font-medium text-right">Total Catálogo</TableCell>
+                                <TableCell className="text-xs font-bold text-right text-primary">
+                                  {formatCurrency(totalCatalogo)}
+                                </TableCell>
+                              </TableRow>
+                              {totalEconomia > 0 && (
+                                <TableRow className="bg-green-50 dark:bg-green-950/20">
+                                  <TableCell colSpan={5} className="text-xs font-medium text-right text-green-700 dark:text-green-400">
+                                    <span className="flex items-center justify-end gap-1">
+                                      <Flame className="h-3.5 w-3.5" /> Economia total com promoções
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="text-xs font-bold text-right text-green-700 dark:text-green-400">
+                                    -{formatCurrency(totalEconomia)}
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                            </>
+                          );
+                        })()}
                       </TableBody>
                     </Table>
                   </div>
