@@ -141,18 +141,23 @@ export function ClientsKanban({
       }
       const { start, end } = effectiveDates;
       if (start || end) {
-        // For closed deals, use contract date as the relevant date
-        const contractDate = (c as any).data_contrato ? new Date((c as any).data_contrato) : null;
-        const clientCreated = new Date(c.created_at);
-        const lastSimDate = lastSims[c.id]?.created_at ? new Date(lastSims[c.id].created_at) : null;
+        const clientStatus = String((c as any).status || "novo").toLowerCase().trim();
         const hasContract = contractClientIds.has(c.id) || !!(c as any).data_contrato;
         
-        // Priority: contract date for closed deals, then last sim, then created_at
-        let relevantDate = lastSimDate && lastSimDate > clientCreated ? lastSimDate : clientCreated;
-        if (hasContract && contractDate) relevantDate = contractDate;
-        
-        if (start && isBefore(relevantDate, startOfDay(start))) return false;
-        if (end && isAfter(relevantDate, endOfDay(end))) return false;
+        // Active leads (novo, em_negociacao, proposta_enviada) without contracts always carry over
+        const isActiveLead = !hasContract && ["novo", "em_negociacao", "proposta_enviada"].includes(clientStatus);
+        if (!isActiveLead) {
+          // For closed/expired/lost deals, apply period filter
+          const contractDate = (c as any).data_contrato ? new Date((c as any).data_contrato) : null;
+          const clientCreated = new Date(c.created_at);
+          const lastSimDate = lastSims[c.id]?.created_at ? new Date(lastSims[c.id].created_at) : null;
+          
+          let relevantDate = lastSimDate && lastSimDate > clientCreated ? lastSimDate : clientCreated;
+          if (hasContract && contractDate) relevantDate = contractDate;
+          
+          if (start && isBefore(relevantDate, startOfDay(start))) return false;
+          if (end && isAfter(relevantDate, endOfDay(end))) return false;
+        }
       }
       return true;
     });
