@@ -3669,6 +3669,108 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                             </span>
                           </div>
                         )}
+                        {/* Section break preview indicators */}
+                        {isActivePage && (() => {
+                          const reservedFooterTop = footerSettings.enabled
+                            ? A4_HEIGHT - Math.max(4, margins.bottom - footerSettings.height - 4) - footerSettings.height - 8
+                            : A4_HEIGHT - margins.bottom;
+                          const pageBottom = Math.min(A4_HEIGHT - margins.bottom, reservedFooterTop);
+
+                          // Detect sections on this page
+                          const sortedEls = pageElements
+                            .filter(el => !hiddenIds.has(el.id))
+                            .sort((a, b) => a.y - b.y);
+
+                          const indicators: React.ReactNode[] = [];
+
+                          for (let i = 0; i < sortedEls.length; i++) {
+                            const el = sortedEls[i];
+                            if (!isSectionTitleElement(el)) continue;
+
+                            // Gather section elements (title + following non-title elements)
+                            let sectionBottom = el.y + el.height;
+                            let j = i + 1;
+                            while (j < sortedEls.length && !isSectionTitleElement(sortedEls[j])) {
+                              sectionBottom = Math.max(sectionBottom, sortedEls[j].y + sortedEls[j].height);
+                              j++;
+                            }
+
+                            const sectionHeight = sectionBottom - el.y;
+                            const pageCapacity = pageBottom - margins.top;
+                            const fitsOnPage = sectionHeight <= pageCapacity;
+                            const overflows = sectionBottom > pageBottom;
+
+                            if (overflows && fitsOnPage) {
+                              // Section would be moved entirely to next page
+                              indicators.push(
+                                <div
+                                  key={`section-break-${el.id}`}
+                                  style={{
+                                    position: "absolute",
+                                    left: Math.max(el.x - 4, margins.left),
+                                    top: el.y - 2,
+                                    right: margins.right,
+                                    height: sectionBottom - el.y + 4,
+                                    border: "2px dashed hsl(30 90% 50% / 0.5)",
+                                    borderRadius: 6,
+                                    background: "hsl(30 90% 50% / 0.04)",
+                                    pointerEvents: "none",
+                                    zIndex: 2,
+                                  }}
+                                >
+                                  <span style={{
+                                    position: "absolute",
+                                    top: -10,
+                                    left: 8,
+                                    fontSize: 9,
+                                    fontWeight: 600,
+                                    color: "hsl(30 90% 40%)",
+                                    background: "hsl(var(--background) / 0.95)",
+                                    padding: "1px 6px",
+                                    borderRadius: 3,
+                                    whiteSpace: "nowrap",
+                                  }}>
+                                    ⚠ Seção será movida para a próxima página
+                                  </span>
+                                </div>,
+                              );
+                            } else if (overflows && !fitsOnPage) {
+                              // Section is too large, will be split
+                              indicators.push(
+                                <div
+                                  key={`section-split-${el.id}`}
+                                  style={{
+                                    position: "absolute",
+                                    left: 0,
+                                    right: 0,
+                                    top: pageBottom - 1,
+                                    height: 0,
+                                    borderTop: "2px dashed hsl(210 80% 55% / 0.5)",
+                                    pointerEvents: "none",
+                                    zIndex: 2,
+                                  }}
+                                >
+                                  <span style={{
+                                    position: "absolute",
+                                    left: 8,
+                                    top: 2,
+                                    fontSize: 9,
+                                    fontWeight: 600,
+                                    color: "hsl(210 80% 45%)",
+                                    background: "hsl(var(--background) / 0.95)",
+                                    padding: "1px 6px",
+                                    borderRadius: 3,
+                                    whiteSpace: "nowrap",
+                                  }}>
+                                    ✂ Texto será dividido entre páginas
+                                  </span>
+                                </div>,
+                              );
+                            }
+                          }
+
+                          return indicators;
+                        })()}
                         {isActivePage
                           ? pageElements.filter(el => !hiddenIds.has(el.id)).map(renderElement)
                           : pageElements.map(el => {
