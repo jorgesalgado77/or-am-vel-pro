@@ -58,6 +58,7 @@ interface CloseSaleFormData {
   telefone: string;
   email: string;
   endereco_entrega: string;
+  complemento_entrega: string;
   prazo_entrega: string;
   bairro_entrega: string;
   cidade_entrega: string;
@@ -114,6 +115,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
     telefone: "",
     email: "",
     endereco_entrega: "",
+    complemento_entrega: "",
     prazo_entrega: "",
     bairro_entrega: "",
     cidade_entrega: "",
