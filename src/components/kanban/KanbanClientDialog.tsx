@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { BriefingModal } from "@/components/BriefingModal";
 import { MovementHistory } from "./MovementHistory";
+import { StageReport } from "./StageReport";
 import { MeasurementRequestModal } from "./MeasurementRequestModal";
 import { supabase } from "@/lib/supabaseClient";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
@@ -664,6 +665,9 @@ export function KanbanClientDialog({
                 </div>
               </>
             )}
+
+            {/* Stage Duration Report */}
+            <StageReport clientId={client.id} clientCreatedAt={client.created_at} />
 
             {/* Movement History */}
             <MovementHistory clientId={client.id} />
