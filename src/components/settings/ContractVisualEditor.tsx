@@ -46,7 +46,9 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [margins, setMargins] = useState({ top: 40, right: 40, bottom: 40, left: 40 });
   const [headerSettings, setHeaderSettings] = useState<HeaderFooterSettings>(defaultHeaderSettings);
   const [footerSettings, setFooterSettings] = useState<HeaderFooterSettings>(defaultFooterSettings);
-  const [zoom, setZoom] = useState(0.75);
+  const [zoom, setZoom] = useState(() => {
+    try { const v = localStorage.getItem("ce_zoom"); if (v) return Number(v); } catch {} return 0.75;
+  });
   const [dragState, setDragState] = useState<{ ids: string[]; startX: number; startY: number; origins: Record<string, { x: number; y: number }> } | null>(null);
   const [resizeState, setResizeState] = useState<{ id: string; startX: number; startY: number; startW: number; startH: number; corner: string; startElX: number; startElY: number } | null>(null);
   const [rotateState, setRotateState] = useState<{ id: string; startAngle: number; elRotation: number; centerX: number; centerY: number } | null>(null);
@@ -145,15 +147,27 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [dragOverPageIdx, setDragOverPageIdx] = useState<number | null>(null);
   const [smartGuides, setSmartGuides] = useState<{ x: number[]; y: number[] }>({ x: [], y: [] });
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
-  const [showLayersPanel, setShowLayersPanel] = useState(true);
-  const [showSectionsPanel, setShowSectionsPanel] = useState(true);
-  const [showPageBreakIndicators, setShowPageBreakIndicators] = useState(true);
+  const [showLayersPanel, setShowLayersPanel] = useState(() => {
+    try { return localStorage.getItem("ce_layers") !== "false"; } catch { return true; }
+  });
+  const [showSectionsPanel, setShowSectionsPanel] = useState(() => {
+    try { return localStorage.getItem("ce_sections") !== "false"; } catch { return true; }
+  });
+  const [showPageBreakIndicators, setShowPageBreakIndicators] = useState(() => {
+    try { return localStorage.getItem("ce_pagebreak") !== "false"; } catch { return true; }
+  });
 
   // User-placed draggable guide lines
   const [userGuides, setUserGuides] = useState<{ id: string; axis: "x" | "y"; pos: number }[]>([]);
   const [draggingGuide, setDraggingGuide] = useState<{ id: string; axis: "x" | "y"; startMouse: number; startPos: number } | null>(null);
   const [visiblePageIdx, setVisiblePageIdx] = useState(0);
   const pageRefsMap = useRef<Map<number, HTMLDivElement>>(new Map());
+
+  // Persist editor preferences to localStorage
+  useEffect(() => { try { localStorage.setItem("ce_zoom", String(zoom)); } catch {} }, [zoom]);
+  useEffect(() => { try { localStorage.setItem("ce_layers", String(showLayersPanel)); } catch {} }, [showLayersPanel]);
+  useEffect(() => { try { localStorage.setItem("ce_sections", String(showSectionsPanel)); } catch {} }, [showSectionsPanel]);
+  useEffect(() => { try { localStorage.setItem("ce_pagebreak", String(showPageBreakIndicators)); } catch {} }, [showPageBreakIndicators]);
 
   // Custom templates state
   const { templates: customTemplates, loading: loadingCustom, saveTemplate, updateTemplate, deleteTemplate } = useCustomTemplates();
