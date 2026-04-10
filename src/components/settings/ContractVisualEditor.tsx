@@ -528,7 +528,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       const heightDelta = targetHeight - changedEl.height;
       const repeatedChrome = buildRepeatedElementFingerprints(prev);
 
-      if (heightDelta <= 0) {
+      if (heightDelta === 0) {
         if (!changedElUpdates || Object.keys(changedElUpdates).length === 0) return prev;
         const nextElements = sourceElements.map(el => el.id === changedElId
           ? {
@@ -543,6 +543,9 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         nextPages[currentPageIdx] = { ...sourcePage, elements: nextElements };
         return nextPages;
       }
+
+      // For both growth (heightDelta > 0) and shrinkage (heightDelta < 0),
+      // reflow all elements below the changed one
 
       const workingPages = [...prev];
 
@@ -1991,7 +1994,9 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     const elZIndex = isVariableOnly ? baseZ + 1000 : (isSelected ? baseZ + 500 : baseZ);
 
     const wrapperStyle: React.CSSProperties = {
-      position: "absolute", left: el.x, top: el.y, width: el.width, height: el.height,
+      position: "absolute", left: el.x, top: el.y, width: el.width,
+      height: isEditing ? undefined : el.height,
+      minHeight: isEditing ? el.height : undefined,
       zIndex: elZIndex,
       outline: isSelected 
         ? `2px ${isPrimary ? "solid" : "dashed"} ${isLocked ? "hsl(var(--destructive) / 0.6)" : "hsl(210 80% 55%)"}`
@@ -2001,6 +2006,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
       transformOrigin: "center center",
       cursor: isLocked ? "not-allowed" : undefined,
+      overflow: isEditing ? "visible" : "hidden",
     };
 
     // Inner style fills the wrapper — no position/size needed
@@ -2030,9 +2036,11 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         lineHeight: 1.4,
       });
       const visualScrollHeight = textEl.scrollHeight;
+      const minHeight = Math.max(20, currentEl.fontSize * 1.6);
+      const contentBasedHeight = Math.max(minHeight, visualScrollHeight, measuredHtmlHeight + paddingY + 4);
       const newHeight = isFixedSectionText
-        ? Math.max(currentEl.height, measuredHtmlHeight + paddingY + 4)
-        : Math.max(currentEl.height, visualScrollHeight, measuredHtmlHeight + paddingY + 4);
+        ? Math.max(currentEl.height, contentBasedHeight)
+        : contentBasedHeight;
 
       reflowElements(elId, newHeight, changedElUpdates);
     };
@@ -2321,6 +2329,16 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             e.stopPropagation();
             if (e.key === "Escape") {
               setEditingTextId(null);
+              return;
+            }
+            if (e.key === "Enter") {
+              requestAnimationFrame(() => {
+                const target = editableRefs.current[el.id];
+                if (target) {
+                  const newText = target.innerHTML;
+                  autoResizeElement(el.id, target, { text: newText });
+                }
+              });
             }
           }}
           style={{
