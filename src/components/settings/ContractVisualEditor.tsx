@@ -147,6 +147,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [showLayersPanel, setShowLayersPanel] = useState(true);
   const [showSectionsPanel, setShowSectionsPanel] = useState(true);
+  const [showPageBreakIndicators, setShowPageBreakIndicators] = useState(true);
 
   // User-placed draggable guide lines
   const [userGuides, setUserGuides] = useState<{ id: string; axis: "x" | "y"; pos: number }[]>([]);
@@ -3670,7 +3671,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                           </div>
                         )}
                         {/* Section break preview indicators */}
-                        {isActivePage && (() => {
+                        {isActivePage && showPageBreakIndicators && (() => {
                           const reservedFooterTop = footerSettings.enabled
                             ? A4_HEIGHT - Math.max(4, margins.bottom - footerSettings.height - 4) - footerSettings.height - 8
                             : A4_HEIGHT - margins.bottom;
