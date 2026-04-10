@@ -180,6 +180,21 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
           } catch {}
         }
       });
+    // Load contract types
+    supabase.from("contract_types" as any)
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .eq("ativo", true)
+      .order("created_at" as any)
+      .then(({ data }) => {
+        if (data) {
+          setContractTypes((data as any[]).map((d: any) => ({
+            id: d.id,
+            nome: d.nome,
+            prazo_entrega: d.prazo_entrega || "",
+          })));
+        }
+      });
   }, [open]);
 
   // Prefill from savedFormData (existing contract), client, briefing, and simulation data
