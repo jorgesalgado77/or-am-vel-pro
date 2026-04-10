@@ -523,12 +523,32 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
         });
       }
 
-      // Fetch company phones for contract variables
-      const { data: companyPhones } = await (supabase as any)
-        .from("company_useful_phones")
-        .select("setor, responsavel, telefone")
-        .eq("tenant_id", resolvedTenantId)
-        .order("ordem", { ascending: true });
+      // Fetch company phones and active promotions for contract variables
+      const [phonesResult, promosResult] = await Promise.all([
+        (supabase as any)
+          .from("company_useful_phones")
+          .select("setor, responsavel, telefone")
+          .eq("tenant_id", resolvedTenantId)
+          .order("ordem", { ascending: true }),
+        catalogProducts.length > 0
+          ? (supabase as any)
+              .from("product_promotions")
+              .select("product_id, valor_promocional, validade, ativo")
+              .eq("tenant_id", resolvedTenantId)
+              .eq("ativo", true)
+              .in("product_id", catalogProducts.map(cp => cp.product.id))
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      const companyPhones = phonesResult.data;
+      const activePromos = (promosResult.data || []) as any[];
+      const promoMap = new Map<string, number>();
+      for (const p of activePromos) {
+        const validade = new Date(p.validade);
+        if (validade > new Date()) {
+          promoMap.set(p.product_id, Number(p.valor_promocional));
+        }
+      }
 
       const html = buildContractHtml(templateHtml, {
         formData,
@@ -543,7 +563,12 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
         comissaoPercentual,
         items,
         itemDetails,
-        catalogProducts: catalogProducts.map(cp => ({ name: cp.product.name, internal_code: cp.product.internal_code, quantity: cp.quantity, sale_price: (cp as any).promoPrice ?? cp.product.sale_price })),
+        catalogProducts: catalogProducts.map(cp => ({
+          name: cp.product.name,
+          internal_code: cp.product.internal_code,
+          quantity: cp.quantity,
+          sale_price: promoMap.get(cp.product.id) ?? cp.product.sale_price,
+        })),
         companyPhones: (companyPhones as any[]) || [],
       });
 
