@@ -80,13 +80,11 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
       .from("simulations")
       .select("*, clients!inner(nome, numero_orcamento, vendedor, projetista_id)")
       .eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(500);
 
-    if (!isAdminOrManager && currentUser) {
-      query = query.or(
-        `clients.vendedor.eq.${currentUser.nome_completo},clients.projetista_id.eq.${currentUser.id}`
-      );
-    }
+    // Non-admin/manager: filter by vendedor name OR projetista_id after fetch
+    const needsUserFilter = !isAdminOrManager && currentUser;
 
     const { data, error } = await query;
 
