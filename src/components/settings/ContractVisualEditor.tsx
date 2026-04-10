@@ -239,6 +239,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [draggingGuide, setDraggingGuide] = useState<{ id: string; axis: "x" | "y"; startMouse: number; startPos: number } | null>(null);
   const [visiblePageIdx, setVisiblePageIdx] = useState(0);
   const pageRefsMap = useRef<Map<number, HTMLDivElement>>(new Map());
+  const pendingEditRef = useRef<string | null>(null);
 
   // Persist editor preferences to localStorage
   useEffect(() => { try { localStorage.setItem("ce_zoom", String(zoom)); } catch {} }, [zoom]);
@@ -1044,18 +1045,61 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const handleCtxReplace = (replaceWith: string, replaceAll: boolean) => {
     if (!ctxSelectedText) return;
     const escaped = ctxSelectedText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const regex = new RegExp(escaped, replaceAll ? "gi" : "i");
     let totalCount = 0;
+
+    // HTML-aware replacement: strip tags to find matches, then replace in HTML
+    const replaceInHtml = (html: string, pattern: string, replacement: string, all: boolean) => {
+      // Build a map of plain-text positions to HTML positions
+      const tagRegex = /<[^>]*>/g;
+      let plainText = "";
+      const htmlToPlainMap: number[] = []; // htmlToPlainMap[htmlIdx] = plainIdx
+      let inTag = false;
+      let tagMatch;
+      const tagRanges: { start: number; end: number }[] = [];
+      while ((tagMatch = tagRegex.exec(html)) !== null) {
+        tagRanges.push({ start: tagMatch.index, end: tagMatch.index + tagMatch[0].length });
+      }
+      let tagIdx = 0;
+      for (let i = 0; i < html.length; i++) {
+        if (tagIdx < tagRanges.length && i === tagRanges[tagIdx].start) {
+          // Skip entire tag
+          i = tagRanges[tagIdx].end - 1;
+          tagIdx++;
+          continue;
+        }
+        plainText += html[i];
+        htmlToPlainMap.push(i);
+      }
+
+      const searchRegex = new RegExp(pattern, all ? "gi" : "i");
+      const matches: { start: number; end: number }[] = [];
+      let m;
+      while ((m = searchRegex.exec(plainText)) !== null) {
+        matches.push({ start: m.index, end: m.index + m[0].length });
+        if (!all) break;
+      }
+      if (matches.length === 0) return html;
+
+      // Replace from end to start to preserve positions
+      let result = html;
+      for (let i = matches.length - 1; i >= 0; i--) {
+        const match = matches[i];
+        const htmlStart = htmlToPlainMap[match.start];
+        const htmlEnd = htmlToPlainMap[match.end - 1] + 1;
+        // Remove any HTML tags between start and end, keep the structure
+        result = result.substring(0, htmlStart) + replacement + result.substring(htmlEnd);
+        totalCount++;
+      }
+      return result;
+    };
 
     setPages(prev => prev.map(page => ({
       ...page,
       elements: page.elements.map(el => {
         if (el.type !== "text") return el;
         const plain = el.text.replace(/<[^>]*>/g, "");
-        if (!regex.test(plain)) return el;
-        const newText = replaceAll
-          ? el.text.replace(new RegExp(escaped, "gi"), () => { totalCount++; return replaceWith; })
-          : el.text.replace(new RegExp(escaped, "i"), () => { totalCount++; return replaceWith; });
+        if (!new RegExp(escaped, "i").test(plain)) return el;
+        const newText = replaceInHtml(el.text, escaped, replaceWith, replaceAll);
         return { ...el, text: newText };
       }),
     })));
@@ -1417,10 +1461,10 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       return;
     }
 
-    // If text element is already selected, enter edit mode on single click
+    // If text element is already selected, defer edit mode to mouseup (allow drag first)
     if ((el.type === "text" || el.type === "rect" || el.type === "circle") && selectedIds.has(el.id) && editingTextId !== el.id) {
-      setEditingTextId(el.id);
-      return;
+      pendingEditRef.current = el.id;
+      // Don't return - fall through to set up dragState so element can be dragged
     }
     // If already editing this element, don't start drag
     if (editingTextId === el.id) return;
@@ -1571,7 +1615,22 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         setUserGuides(prev => prev.map(g => g.id === draggingGuide.id ? { ...g, pos: newPos } : g));
       }
     };
-    const handleMouseUp = () => {
+    const handleMouseUp = (e: MouseEvent) => {
+      // Check if pending edit should activate (no drag movement occurred)
+      if (pendingEditRef.current && dragState) {
+        const dx = Math.abs(e.clientX - dragState.startX);
+        const dy = Math.abs(e.clientY - dragState.startY);
+        if (dx < 4 && dy < 4) {
+          // No significant movement - enter edit mode
+          setEditingTextId(pendingEditRef.current);
+          pendingEditRef.current = null;
+          setDragState(null);
+          setSmartGuides({ x: [], y: [] });
+          return;
+        }
+      }
+      pendingEditRef.current = null;
+
       // Cross-page drag: detect elements that moved beyond page bounds
       if (dragState) {
         setPages(prev => {
