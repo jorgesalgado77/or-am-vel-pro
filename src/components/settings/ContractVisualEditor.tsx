@@ -205,6 +205,10 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [varSearch, setVarSearch] = useState("");
+  const [ctxSelectedText, setCtxSelectedText] = useState("");
+  const [ctxReplaceText, setCtxReplaceText] = useState("");
+  const [ctxReplaceVarSearch, setCtxReplaceVarSearch] = useState("");
+  const [ctxShowReplace, setCtxShowReplace] = useState(false);
   const [importingPdf, setImportingPdf] = useState(false);
   const [pdfProgress, setPdfProgress] = useState({ current: 0, total: 0, status: "" });
   const [pdfImportSettings, setPdfImportSettings] = useState(() => {
