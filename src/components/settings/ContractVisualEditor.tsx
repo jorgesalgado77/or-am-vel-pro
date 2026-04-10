@@ -2494,6 +2494,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         style={wrapperStyle}
         onMouseDown={e => handleElementMouseDown(e, el)}
         onClick={e => e.stopPropagation()}
+        title={!isEditing && (el.type === "text" || el.type === "rect" || el.type === "circle") ? "Duplo-clique para editar" : undefined}
       >
         {innerContent}
         {/* Split continuation indicators */}
