@@ -38,6 +38,10 @@ const DEFAULT_CONTRACT_TEMPLATE_HTML = `
   <h2>Endereço de Entrega</h2>
   <p>{{endereco_entrega_completo}}</p>
 
+  <h2>Tipo de Contrato</h2>
+  <p><strong>Tipo:</strong> {{tipo_contrato}}</p>
+  <p><strong>Prazo de Entrega:</strong> {{prazo_entrega}}</p>
+
   <h2>Ambientes e Valores</h2>
   {{ambientes_valores_tabela}}
 

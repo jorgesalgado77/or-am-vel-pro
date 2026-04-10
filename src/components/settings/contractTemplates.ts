@@ -137,10 +137,16 @@ export function getContractTemplates(): ContractTemplate[] {
             makeText(40, 320, 350, 20, "CEP: {{cep_entrega}}"),
             makeText(400, 320, 350, 20, "Complemento: {{complemento_entrega}}"),
 
-            // ── Tabela 1: Ambientes e Valores (auto-adaptativa) ──
-            makeText(40, 360, 714, 25, "AMBIENTES E VALORES", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
+            // ── Tipo de Contrato ──
+            makeText(40, 360, 714, 25, "TIPO DE CONTRATO", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
             makeLine(40, 382, 714),
-            makeText(40, 390, 714, 20, "{{ambientes_valores_tabela}}", { fontSize: 11 }),
+            makeText(40, 390, 350, 20, "Tipo: {{tipo_contrato}}"),
+            makeText(400, 390, 350, 20, "Prazo de Entrega: {{prazo_entrega}}"),
+
+            // ── Tabela 1: Ambientes e Valores (auto-adaptativa) ──
+            makeText(40, 430, 714, 25, "AMBIENTES E VALORES", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
+            makeLine(40, 452, 714),
+            makeText(40, 460, 714, 20, "{{ambientes_valores_tabela}}", { fontSize: 11 }),
 
             // ── Tabela 2: Detalhes dos Ambientes (auto-adaptativa) ──
             makeText(40, 430, 714, 25, "DETALHES DOS AMBIENTES", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
