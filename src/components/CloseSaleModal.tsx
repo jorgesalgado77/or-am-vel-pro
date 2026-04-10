@@ -140,6 +140,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   const [sameAddress, setSameAddress] = useState(false);
   // deliveryDeadlines now handled by PrazoEntregaSelect
   const [fornecedores, setFornecedores] = useState<{id: string; nome: string; prazo_entrega?: string}[]>([]);
+  const [contractTypes, setContractTypes] = useState<{id: string; nome: string; prazo_entrega: string}[]>([]);
 
   const REQUIRED_FIELDS: { key: keyof CloseSaleFormData; label: string }[] = [
     { key: "nome_completo", label: "Nome Completo" },
