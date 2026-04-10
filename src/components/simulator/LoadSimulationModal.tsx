@@ -76,17 +76,12 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
     const tenantId = await getResolvedTenantId();
     if (!tenantId) { setLoading(false); return; }
 
-    let query = supabase
+    const { data, error } = await supabase
       .from("simulations")
       .select("*, clients!inner(nome, numero_orcamento, vendedor, projetista_id)")
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(500);
-
-    // Non-admin/manager: filter by vendedor name OR projetista_id after fetch
-    const needsUserFilter = !isAdminOrManager && currentUser;
-
-    const { data, error } = await query;
 
     if (error) {
       console.error("[LoadSimulationModal] Error:", error);
@@ -94,15 +89,18 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
     } else {
       let items = (data || []);
       
-      // Client-side filter for non-admin users
-      if (needsUserFilter) {
-        const userName = (currentUser.nome_completo || "").toLowerCase();
+      console.log("[LoadSimulationModal] Total fetched:", items.length, "isAdmin:", isAdminOrManager, "user:", currentUser?.nome_completo);
+      
+      // Client-side filter for non-admin users — only if currentUser is fully loaded
+      if (!isAdminOrManager && currentUser?.nome_completo) {
+        const userName = currentUser.nome_completo.toLowerCase();
         const userId = currentUser.id;
         items = items.filter((s: any) => {
           const vendedor = (s.clients?.vendedor || "").toLowerCase();
           const projetistaId = s.clients?.projetista_id || "";
-          return vendedor === userName || projetistaId === userId;
+          return vendedor.includes(userName) || userName.includes(vendedor) || projetistaId === userId;
         });
+        console.log("[LoadSimulationModal] After user filter:", items.length);
       }
       
       const mapped: SimulationWithClient[] = items.map((s: any) => ({
@@ -131,14 +129,14 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
   };
 
   useEffect(() => {
-    if (open) {
+    if (open && currentUser) {
       loadSimulations();
       setSearchName("");
       setSearchOrcamento("");
       setDateFilter("all");
       setCurrentPage(1);
     }
-  }, [open]);
+  }, [open, currentUser?.id]);
 
   const filtered = useMemo(() => {
     let list = simulations;
