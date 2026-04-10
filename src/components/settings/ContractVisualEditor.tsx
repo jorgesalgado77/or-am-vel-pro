@@ -1031,8 +1031,37 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     e.preventDefault();
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
+    const sel = window.getSelection();
+    const selectedText = sel?.toString()?.trim() || "";
+    setCtxSelectedText(selectedText);
+    setCtxReplaceText("");
+    setCtxReplaceVarSearch("");
+    setCtxShowReplace(selectedText.length > 0);
     setContextMenu({ x: e.clientX - rect.left, y: e.clientY - rect.top });
     setVarSearch("");
+  };
+
+  const handleCtxReplace = (replaceWith: string, replaceAll: boolean) => {
+    if (!ctxSelectedText) return;
+    const escaped = ctxSelectedText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(escaped, replaceAll ? "gi" : "i");
+    let totalCount = 0;
+
+    setPages(prev => prev.map(page => ({
+      ...page,
+      elements: page.elements.map(el => {
+        if (el.type !== "text") return el;
+        const plain = el.text.replace(/<[^>]*>/g, "");
+        if (!regex.test(plain)) return el;
+        const newText = replaceAll
+          ? el.text.replace(new RegExp(escaped, "gi"), () => { totalCount++; return replaceWith; })
+          : el.text.replace(new RegExp(escaped, "i"), () => { totalCount++; return replaceWith; });
+        return { ...el, text: newText };
+      }),
+    })));
+
+    setTimeout(() => toast.success(`${totalCount} substituição(ões) realizada(s)`), 100);
+    setContextMenu(null);
   };
 
   const insertVariable = (varText: string) => {
