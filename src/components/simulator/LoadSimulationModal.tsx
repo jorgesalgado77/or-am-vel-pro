@@ -70,15 +70,23 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
   }, [currentUser]);
 
   const loadSimulations = async () => {
-    if (!open) return;
+    if (!open || !currentUser?.id) return;
     setLoading(true);
 
     const tenantId = await getResolvedTenantId();
-    if (!tenantId) { setLoading(false); return; }
+    if (!tenantId) {
+      setLoading(false);
+      return;
+    }
+
+    const activeStatuses = ["novo", "em_negociacao", "proposta_enviada"];
+    const normalize = (value: string | null | undefined) => (value || "").toString().trim().toLowerCase();
+    const userName = normalize(currentUser.nome_completo || currentUser.apelido);
+    const userId = currentUser.id;
 
     const { data, error } = await supabase
       .from("simulations")
-      .select("*, clients!inner(nome, numero_orcamento, vendedor, projetista_id)")
+      .select("*, clients!inner(nome, numero_orcamento, vendedor, responsavel_id, status)")
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(500);
@@ -86,57 +94,54 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
     if (error) {
       console.error("[LoadSimulationModal] Error:", error);
       setSimulations([]);
-    } else {
-      let items = (data || []);
-      
-      console.log("[LoadSimulationModal] Total fetched:", items.length, "isAdmin:", isAdminOrManager, "user:", currentUser?.nome_completo);
-      
-      // Client-side filter for non-admin users — only if currentUser is fully loaded
-      if (!isAdminOrManager && currentUser?.nome_completo) {
-        const userName = currentUser.nome_completo.toLowerCase();
-        const userId = currentUser.id;
-        items = items.filter((s: any) => {
-          const vendedor = (s.clients?.vendedor || "").toLowerCase();
-          const projetistaId = s.clients?.projetista_id || "";
-          return vendedor.includes(userName) || userName.includes(vendedor) || projetistaId === userId;
-        });
-        console.log("[LoadSimulationModal] After user filter:", items.length);
-      }
-      
-      const mapped: SimulationWithClient[] = items.map((s: any) => ({
-        id: s.id,
-        client_id: s.client_id,
-        client_name: s.clients?.nome || "Sem nome",
-        numero_orcamento: s.clients?.numero_orcamento || null,
-        valor_tela: Number(s.valor_tela) || 0,
-        valor_final: Number(s.valor_final) || 0,
-        desconto1: Number(s.desconto1) || 0,
-        desconto2: Number(s.desconto2) || 0,
-        desconto3: Number(s.desconto3) || 0,
-        forma_pagamento: s.forma_pagamento || "A vista",
-        parcelas: s.parcelas || 1,
-        valor_entrada: Number(s.valor_entrada) || 0,
-        valor_parcela: Number(s.valor_parcela) || 0,
-        plus_percentual: Number(s.plus_percentual) || 0,
-        arquivo_nome: s.arquivo_nome,
-        estrategia_ia: s.estrategia_ia || null,
-        created_at: s.created_at,
-      }));
-      setSimulations(mapped);
+      setLoading(false);
+      return;
     }
 
+    let items = (data || []).filter((s: any) => activeStatuses.includes(s.clients?.status || ""));
+
+    if (!isAdminOrManager) {
+      items = items.filter((s: any) => {
+        const vendedor = normalize(s.clients?.vendedor);
+        const responsavelId = s.clients?.responsavel_id || "";
+        const sameSeller = !!userName && (vendedor === userName || vendedor.includes(userName) || userName.includes(vendedor));
+        return sameSeller || responsavelId === userId;
+      });
+    }
+
+    const mapped: SimulationWithClient[] = items.map((s: any) => ({
+      id: s.id,
+      client_id: s.client_id,
+      client_name: s.clients?.nome || "Sem nome",
+      numero_orcamento: s.clients?.numero_orcamento || null,
+      valor_tela: Number(s.valor_tela) || 0,
+      valor_final: Number(s.valor_final) || 0,
+      desconto1: Number(s.desconto1) || 0,
+      desconto2: Number(s.desconto2) || 0,
+      desconto3: Number(s.desconto3) || 0,
+      forma_pagamento: s.forma_pagamento || "A vista",
+      parcelas: s.parcelas || 1,
+      valor_entrada: Number(s.valor_entrada) || 0,
+      valor_parcela: Number(s.valor_parcela) || 0,
+      plus_percentual: Number(s.plus_percentual) || 0,
+      arquivo_nome: s.arquivo_nome,
+      estrategia_ia: s.estrategia_ia || null,
+      created_at: s.created_at,
+    }));
+
+    setSimulations(mapped);
     setLoading(false);
   };
 
   useEffect(() => {
-    if (open && currentUser) {
+    if (open && currentUser?.id) {
       loadSimulations();
       setSearchName("");
       setSearchOrcamento("");
       setDateFilter("all");
       setCurrentPage(1);
     }
-  }, [open, currentUser?.id]);
+  }, [open, currentUser?.id, currentUser?.cargo_nome]);
 
   const filtered = useMemo(() => {
     let list = simulations;
