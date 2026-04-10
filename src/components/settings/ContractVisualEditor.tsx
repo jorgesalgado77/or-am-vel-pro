@@ -3927,6 +3927,70 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
                           return indicators;
                         })()}
+                        {/* Continuation pages counter for fixed sections */}
+                        {isActivePage && showPageBreakIndicators && (() => {
+                          // Find elements on this page that have splitContinuationId (text continues on next page)
+                          const splitEls = pageElements.filter(el =>
+                            el.splitContinuationId && el.type === "text" && el.text
+                          );
+                          if (splitEls.length === 0) return null;
+
+                          // Count how many continuation pages exist for each split chain
+                          return splitEls.map(el => {
+                            // Check if this is a fixed-section element
+                            const isFixedSection = FIXED_SECTION_PATTERNS.some(pat =>
+                              pageElements.some(other =>
+                                other.id !== el.id && other.type === "text"
+                                && FIXED_SECTION_PATTERNS.some(p => p.test(stripHtmlText(other.text)))
+                                && other.y < el.y
+                              )
+                            );
+                            if (!isFixedSection) return null;
+
+                            // Count continuation pages by following splitFrom chain across all pages
+                            let continuationCount = 0;
+                            let currentId = el.id;
+                            for (const p of pages) {
+                              const cont = p.elements.find(e => e.splitFrom === currentId);
+                              if (cont) {
+                                continuationCount++;
+                                currentId = cont.id;
+                              }
+                            }
+
+                            if (continuationCount === 0) return null;
+
+                            return (
+                              <div
+                                key={`continuation-count-${el.id}`}
+                                style={{
+                                  position: "absolute",
+                                  right: el.x + el.width - 8,
+                                  top: el.y - 1,
+                                  zIndex: 10,
+                                  pointerEvents: "none",
+                                }}
+                              >
+                                <span style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 4,
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  color: "hsl(210 80% 45%)",
+                                  background: "hsl(210 80% 96%)",
+                                  border: "1px solid hsl(210 80% 80%)",
+                                  padding: "2px 8px",
+                                  borderRadius: 12,
+                                  whiteSpace: "nowrap",
+                                  boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+                                }}>
+                                  📄 +{continuationCount} {continuationCount === 1 ? "página" : "páginas"}
+                                </span>
+                              </div>
+                            );
+                          });
+                        })()}
                         {isActivePage
                           ? pageElements.filter(el => !hiddenIds.has(el.id)).map(renderElement)
                           : pageElements.map(el => {
