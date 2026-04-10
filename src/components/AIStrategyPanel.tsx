@@ -1,4 +1,4 @@
-import {useState, useMemo, useCallback, useEffect} from "react";
+import {useState, useMemo, useCallback, useEffect, useRef} from "react";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
 import {Badge} from "@/components/ui/badge";
 import {Switch} from "@/components/ui/switch";
@@ -115,18 +115,24 @@ export function AIStrategyPanel({
   const [enabled, setEnabled] = useState(initialEnabled ?? !!initialStrategy);
   const [selectedStrategy, setSelectedStrategyInternal] = useState<string | null>(initialStrategy || null);
 
+  // Use refs to avoid stale closures and prevent render loops
+  const onEnabledChangeRef = useRef(onEnabledChange);
+  onEnabledChangeRef.current = onEnabledChange;
+  const onStrategyChangeRef = useRef(onStrategyChange);
+  onStrategyChangeRef.current = onStrategyChange;
+
   useEffect(() => {
     setEnabled(initialEnabled ?? !!initialStrategy);
     setSelectedStrategyInternal(initialStrategy || null);
   }, [initialEnabled, initialStrategy]);
 
   useEffect(() => {
-    onEnabledChange?.(enabled);
+    onEnabledChangeRef.current?.(enabled);
     if (!enabled && selectedStrategy) {
       setSelectedStrategyInternal(null);
-      onStrategyChange?.(null);
+      onStrategyChangeRef.current?.(null);
     }
-  }, [enabled, selectedStrategy, onEnabledChange, onStrategyChange]);
+  }, [enabled, selectedStrategy]);
 
   const setSelectedStrategy = (s: string | null) => {
     setSelectedStrategyInternal(s);
