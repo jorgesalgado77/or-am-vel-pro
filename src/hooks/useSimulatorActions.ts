@@ -436,18 +436,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
         return;
       }
     }
-    try {
-      if (resolvedTenantId) {
-        const accessResult = await validateAccess(resolvedTenantId);
-        if (!accessResult.allowed) {
-          if (accessResult.reason?.includes("Básico")) toast.error(accessResult.reason, { duration: 6000 });
-          else toast.error(accessResult.reason || "Acesso não permitido à Deal Room");
-          return;
-        }
-        if (accessResult.plano === "basico" && accessResult.usage !== undefined && accessResult.limit !== undefined)
-          toast.info(`Uso diário: ${accessResult.usage}/${accessResult.limit} negociação(ões) no plano Básico`, { duration: 4000 });
-      }
-    } catch {}
+    // Deal Room access check removed — closing a sale should not require Deal Room
     logEvent({
       event_type: "integration",
       source: "close_sale_flow",
@@ -474,7 +463,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     }
 
     setCloseSaleModalOpen(true);
-  }, [effectiveClient, resolvedTenantId, validateAccess, environments]);
+  }, [effectiveClient, resolvedTenantId, environments]);
 
   const handleCloseSaleConfirm = useCallback(async (formData: any, items: any[], itemDetails: any[]) => {
     if (!effectiveClient) {
