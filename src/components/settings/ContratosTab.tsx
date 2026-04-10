@@ -56,6 +56,7 @@ const AVAILABLE_VARIABLES = [
   { var: "{{cidade_entrega}}", desc: "Cidade de entrega" },
   { var: "{{uf_entrega}}", desc: "UF de entrega" },
   { var: "{{cep_entrega}}", desc: "CEP de entrega" },
+  { var: "{{tipo_contrato}}", desc: "Tipo de contrato selecionado" },
   { var: "{{prazo_entrega}}", desc: "Prazo de entrega" },
   { var: "{{prazo_entrega_fornecedor}}", desc: "Prazo de entrega do fornecedor" },
   { var: "{{projetista}}", desc: "Projetista responsável" },
@@ -1167,17 +1168,20 @@ const DEFAULT_CONTRACT_HTML = `
       <li>Parcelas: {{parcelas}}x de {{valor_parcela}}</li>
     </ul>
 
-    <h2>CLÁUSULA 4ª — DA ENTREGA</h2>
+    <h2>CLÁUSULA 4ª — TIPO DE CONTRATO</h2>
+    <p><strong>Tipo de contrato:</strong> {{tipo_contrato}}</p>
+
+    <h2>CLÁUSULA 5ª — DA ENTREGA</h2>
     <p><strong>Endereço de entrega:</strong> {{endereco_entrega}}, {{bairro_entrega}} — {{cidade_entrega}}/{{uf_entrega}}, CEP {{cep_entrega}}.</p>
     <p><strong>Prazo de entrega:</strong> {{prazo_entrega}}</p>
 
-    <h2>CLÁUSULA 5ª — DO INDICADOR</h2>
+    <h2>CLÁUSULA 6ª — DO INDICADOR</h2>
     <p>Indicador: {{indicador_nome}} — Comissão: {{indicador_comissao}}%</p>
 
-    <h2>CLÁUSULA 6ª — OBSERVAÇÕES</h2>
+    <h2>CLÁUSULA 7ª — OBSERVAÇÕES</h2>
     <p>{{observacoes}}</p>
 
-    <h2>CLÁUSULA 7ª — DAS DISPOSIÇÕES GERAIS</h2>
+    <h2>CLÁUSULA 8ª — DAS DISPOSIÇÕES GERAIS</h2>
     <p>As partes elegem o foro da comarca de {{cidade_loja}}/{{uf_loja}} para dirimir quaisquer dúvidas oriundas do presente contrato.</p>
     <br/>
     <p>{{cidade_loja}}, {{data_atual}}</p>
