@@ -84,6 +84,9 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
   const expired = sim && !hasClosedContract ? isPast(addDays(new Date(sim.created_at), budgetValidityDays)) : false;
   const isActiveLead = !hasClosedContract && ["novo", "em_negociacao", "proposta_enviada"].includes(clientStatus);
   const daysInColumn = differenceInDays(new Date(), new Date(isActiveLead ? client.created_at : client.updated_at));
+  const operationalColumns = ["em_medicao", "em_liberado", "em_compras", "para_entrega", "para_montagem", "assistencia"];
+  const isOperationalCard = operationalColumns.includes(clientStatus);
+  const daysInStage = measurementUpdatedAt ? differenceInDays(new Date(), new Date(measurementUpdatedAt)) : daysInColumn;
   const tint = getColumnTint(clientStatus);
 
   return (
