@@ -220,6 +220,97 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const { hasPermission, currentUser } = useCurrentUser();
   const [resolvedTenantId, setResolvedTenantId] = useState<string | null>(null);
   useEffect(() => { getResolvedTenantId().then(setResolvedTenantId); }, []);
+
+  const syncCatalogProductsWithLiveData = useCallback(async (sourceProducts: SelectedProduct[], notify = false) => {
+    if (!resolvedTenantId || sourceProducts.length === 0) return sourceProducts;
+
+    const productIds = Array.from(new Set(sourceProducts.map(item => item.product.id).filter(Boolean)));
+    const [promoRes, stockRes] = await Promise.all([
+      (supabase.from as any)("product_promotions")
+        .select("product_id, valor_promocional, valor_original, desconto_percentual, validade")
+        .eq("tenant_id", resolvedTenantId)
+        .eq("ativo", true)
+        .in("product_id", productIds),
+      (supabase.from as any)("products")
+        .select("id, stock_status, stock_quantity, sale_price")
+        .in("id", productIds),
+    ]);
+
+    const promoMap = new Map<string, any>();
+    (promoRes.data || []).forEach((promo: any) => {
+      if (promo?.validade && new Date(promo.validade) > new Date()) {
+        promoMap.set(promo.product_id, promo);
+      }
+    });
+
+    const stockMap = new Map<string, any>();
+    (stockRes.data || []).forEach((stock: any) => stockMap.set(stock.id, stock));
+
+    const notifications: Array<{ type: "success" | "warning" | "info"; message: string }> = [];
+
+    const nextProducts = sourceProducts.map((item) => {
+      const promo = promoMap.get(item.product.id);
+      const currentStock = stockMap.get(item.product.id);
+      const liveStockQty = Number(currentStock?.stock_quantity ?? item.product.stock_quantity ?? 0);
+      const liveBasePrice = Number(currentStock?.sale_price ?? item.product.sale_price ?? 0);
+      const stockStatusRaw = String(currentStock?.stock_status || item.product.stock_status || "");
+      const hasImmediateStock = stockStatusRaw === "em_estoque" && liveStockQty >= item.quantity;
+
+      const updatedItem: any = {
+        ...item,
+        product: {
+          ...item.product,
+          sale_price: liveBasePrice,
+          stock_quantity: liveStockQty,
+          stock_status: hasImmediateStock ? "em_estoque" : "out_of_stock",
+        },
+      };
+
+      if (promo) {
+        const promoPrice = Number(promo.valor_promocional ?? liveBasePrice);
+        const originalPrice = Number(promo.valor_original ?? liveBasePrice);
+        updatedItem.product.sale_price = promoPrice;
+        updatedItem._promo_price = promoPrice;
+        updatedItem._original_price = originalPrice;
+
+        if (notify && (item.product.sale_price !== promoPrice || (item as any)._promo_price == null)) {
+          notifications.push({
+            type: "success",
+            message: `🔥 "${item.product.name}" em promoção! De ${formatCurrency(originalPrice)} por ${formatCurrency(promoPrice)} (-${promo.desconto_percentual}%)`,
+          });
+        }
+      } else {
+        if (notify && (item as any)._promo_price != null) {
+          notifications.push({
+            type: "info",
+            message: `💰 "${item.product.name}" saiu da promoção. Valor atualizado para ${formatCurrency(liveBasePrice)}.`,
+          });
+        }
+        delete updatedItem._promo_price;
+        delete updatedItem._original_price;
+      }
+
+      if (notify && !hasImmediateStock && (item.product.stock_status !== updatedItem.product.stock_status || item.product.stock_quantity !== liveStockQty || item.quantity > liveStockQty)) {
+        notifications.push({
+          type: "warning",
+          message: `📦 "${item.product.name}" sem estoque para entrega imediata — será encomendado ao fornecedor.`,
+        });
+      }
+
+      return updatedItem;
+    });
+
+    if (notify) {
+      notifications.forEach(({ type, message }) => {
+        if (type === "success") toast.success(message, { duration: 6000 });
+        else if (type === "warning") toast.warning(message, { duration: 6000 });
+        else toast.info(message, { duration: 6000 });
+      });
+    }
+
+    return nextProducts;
+  }, [resolvedTenantId]);
+
   const { getOptionsForField } = useDiscountOptions();
   const { projetistas } = useUsuarios();
   const { activeIndicadores } = useIndicadores();
@@ -230,6 +321,36 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const { loadRules: loadDiscountRules, checkDiscount, requestApproval } = useDiscountApproval();
 
   useEffect(() => { loadDiscountRules(); }, [loadDiscountRules]);
+
+  useEffect(() => {
+    if (!resolvedTenantId || catalogProducts.length === 0) return;
+
+    void syncCatalogProductsWithLiveData(catalogProducts, true).then((nextProducts) => {
+      const currentSnapshot = JSON.stringify(catalogProducts.map((item: any) => ({
+        id: item.product.id,
+        quantity: item.quantity,
+        sale_price: item.product.sale_price,
+        stock_status: item.product.stock_status,
+        stock_quantity: item.product.stock_quantity,
+        promo_price: item._promo_price ?? null,
+        original_price: item._original_price ?? null,
+      })));
+
+      const nextSnapshot = JSON.stringify(nextProducts.map((item: any) => ({
+        id: item.product.id,
+        quantity: item.quantity,
+        sale_price: item.product.sale_price,
+        stock_status: item.product.stock_status,
+        stock_quantity: item.product.stock_quantity,
+        promo_price: item._promo_price ?? null,
+        original_price: item._original_price ?? null,
+      })));
+
+      if (currentSnapshot !== nextSnapshot) {
+        setCatalogProducts(nextProducts);
+      }
+    });
+  }, [catalogProducts, resolvedTenantId, syncCatalogProductsWithLiveData]);
 
   const selectedIndicador = activeIndicadores.find(i => i.id === selectedIndicadorId);
   const comissaoPercentual = selectedIndicador ? selectedIndicador.comissao_percentual : 0;
@@ -433,17 +554,6 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
                 ? { ...item, quantity: newQty }
                 : item
             )));
-            // Fetch real-time stock from DB to update stock_quantity
-            (supabase as any).from("products").select("stock_quantity").eq("id", productId).single()
-              .then(({ data }: any) => {
-                if (data) {
-                  setCatalogProducts((prev) => prev.map((item) => (
-                    item.product.id === productId
-                      ? { ...item, product: { ...item.product, stock_quantity: Number(data.stock_quantity) || 0 } }
-                      : item
-                  )));
-                }
-              });
           }}
           onRemoveCatalogProduct={(productId) => {
             setCatalogProducts((prev) => prev.filter((item) => item.product.id !== productId));
@@ -621,64 +731,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
                   quantity: cp.quantity,
                 }));
 
-                // Check promotions & stock for loaded catalog products
-                const productIds = loadedProducts.map((p: any) => p.product.id).filter(Boolean);
-                if (productIds.length > 0 && resolvedTenantId) {
-                  Promise.all([
-                    (supabase.from as any)("product_promotions").select("product_id, valor_promocional, valor_original, desconto_percentual, validade").eq("tenant_id", resolvedTenantId).eq("ativo", true).in("product_id", productIds),
-                    (supabase.from as any)("catalog_products").select("id, stock_status, stock_quantity, sale_price").in("id", productIds),
-                  ]).then(([promoRes, stockRes]) => {
-                    const promoMap = new Map<string, any>();
-                    (promoRes.data || []).forEach((p: any) => {
-                      if (new Date(p.validade) > new Date()) promoMap.set(p.product_id, p);
-                    });
-                    const stockMap = new Map<string, any>();
-                    (stockRes.data || []).forEach((s: any) => stockMap.set(s.id, s));
-
-                    const notifications: string[] = [];
-                    const updated = loadedProducts.map((item: any) => {
-                      const promo = promoMap.get(item.product.id);
-                      const currentStock = stockMap.get(item.product.id);
-                      const updatedItem = { ...item, product: { ...item.product } };
-
-                      // Update stock info
-                      if (currentStock) {
-                        updatedItem.product.stock_status = currentStock.stock_status;
-                        updatedItem.product.stock_quantity = currentStock.stock_quantity;
-                        updatedItem.product.sale_price = currentStock.sale_price;
-
-                        if (currentStock.stock_status === "out_of_stock" || (currentStock.stock_quantity ?? 0) < item.quantity) {
-                          notifications.push(`📦 "${item.product.name}" sem estoque para entrega imediata — será encomendado ao fornecedor.`);
-                          updatedItem.product.stock_status = "out_of_stock";
-                        }
-                      }
-
-                      // Apply or remove promotion
-                      if (promo) {
-                        const oldPrice = item.product.sale_price;
-                        updatedItem.product.sale_price = promo.valor_promocional;
-                        (updatedItem as any)._promo_price = promo.valor_promocional;
-                        (updatedItem as any)._original_price = promo.valor_original;
-                        if (oldPrice !== promo.valor_promocional) {
-                          notifications.push(`🔥 "${item.product.name}" em promoção! De ${formatCurrency(promo.valor_original)} por ${formatCurrency(promo.valor_promocional)} (-${promo.desconto_percentual}%)`);
-                        }
-                      } else if (item.product.sale_price !== (currentStock?.sale_price || item.product.sale_price)) {
-                        notifications.push(`💰 "${item.product.name}" saiu da promoção. Valor atualizado para ${formatCurrency(currentStock?.sale_price || item.product.sale_price)}.`);
-                      }
-
-                      return updatedItem;
-                    });
-
-                    setCatalogProducts(updated);
-                    notifications.forEach(msg => {
-                      if (msg.startsWith("🔥")) toast.success(msg, { duration: 6000 });
-                      else if (msg.startsWith("📦")) toast.warning(msg, { duration: 6000 });
-                      else toast.info(msg, { duration: 6000 });
-                    });
-                  });
-                } else {
-                  setCatalogProducts(loadedProducts);
-                }
+                setCatalogProducts(loadedProducts);
               }
             }
             toast.success(`Simulação de ${sim.client_name} carregada!`);
@@ -687,40 +740,14 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
           onProductPickerConfirm={(items) => {
             setCatalogProducts((prev) => {
               const merged = new Map(prev.map((item) => [item.product.id, item]));
+
               for (const item of items) {
                 const existing = merged.get(item.product.id);
                 merged.set(item.product.id, existing ? { ...existing, quantity: existing.quantity + item.quantity } : item);
               }
+
               return Array.from(merged.values());
             });
-
-            // Check promotions for newly added products
-            const productIds = items.map(i => i.product.id).filter(Boolean);
-            if (productIds.length > 0 && resolvedTenantId) {
-              (supabase.from as any)("product_promotions")
-                .select("product_id, valor_promocional, valor_original, desconto_percentual, validade")
-                .eq("tenant_id", resolvedTenantId)
-                .eq("ativo", true)
-                .in("product_id", productIds)
-                .then(({ data: promos }: any) => {
-                  if (!promos || promos.length === 0) return;
-                  const promoMap = new Map<string, any>();
-                  promos.forEach((p: any) => {
-                    if (new Date(p.validade) > new Date()) promoMap.set(p.product_id, p);
-                  });
-                  if (promoMap.size === 0) return;
-
-                  setCatalogProducts(prev => prev.map(item => {
-                    const promo = promoMap.get(item.product.id);
-                    if (!promo) return item;
-                    const updated = { ...item, product: { ...item.product, sale_price: promo.valor_promocional } };
-                    (updated as any)._promo_price = promo.valor_promocional;
-                    (updated as any)._original_price = promo.valor_original;
-                    toast.success(`🔥 "${item.product.name}" em promoção! De ${formatCurrency(promo.valor_original)} por ${formatCurrency(promo.valor_promocional)} (-${promo.desconto_percentual}%)`, { duration: 6000 });
-                    return updated;
-                  }));
-                });
-            }
           }}
           resolvedTenantId={resolvedTenantId}
         />

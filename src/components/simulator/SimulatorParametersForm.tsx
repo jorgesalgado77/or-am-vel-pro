@@ -72,7 +72,7 @@ interface SimulatorParametersFormProps {
   onProductPicker: () => void;
   VALOR_TELA_MAX: number;
   VALOR_ENTRADA_MAX: number;
-  catalogProducts: Array<{ product: { id: string; internal_code: string; name: string; sale_price: number; stock_quantity?: number; stock_status?: string }; quantity: number }>;
+  catalogProducts: Array<{ product: { id: string; internal_code: string; name: string; sale_price: number; stock_quantity?: number; stock_status?: string }; quantity: number; _promo_price?: number; _original_price?: number }>;
   onUpdateCatalogProductQty: (productId: string, qty: number) => void;
   onRemoveCatalogProduct: (productId: string) => void;
   stockWarnings?: Record<string, string>;
@@ -244,10 +244,18 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
                   {catalogProducts.map(item => {
                     const warning = stockWarnings?.[item.product.id];
                     const stockQty = (item.product as any).stock_quantity ?? 0;
+                    const promoPrice = (item as any)._promo_price;
+                    const originalPrice = (item as any)._original_price;
+                    const isPromo = promoPrice != null && originalPrice != null && Number(promoPrice) > 0;
                     return (
-                    <TableRow key={item.product.id}>
+                    <TableRow key={item.product.id} className={isPromo ? "bg-primary/5" : undefined}>
                       <TableCell className="text-[10px] font-mono py-1">{item.product.internal_code}</TableCell>
-                      <TableCell className="text-[10px] py-1 max-w-[120px] truncate">{item.product.name}</TableCell>
+                      <TableCell className="text-[10px] py-1 max-w-[120px]">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="truncate">{item.product.name}</span>
+                          {isPromo && <Badge variant="outline" className="h-4 shrink-0 px-1 text-[8px] border-primary/30 bg-primary/10 text-primary">Promoção</Badge>}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-center py-1">
                         <div className="flex flex-col items-center gap-0.5">
                           <Input type="number" min={1} value={item.quantity} className={`w-14 h-6 text-xs text-center p-0.5 ${warning ? "border-amber-500 ring-1 ring-amber-300" : ""}`}
@@ -255,7 +263,12 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
                           <span className="text-[8px] text-muted-foreground">Est: {stockQty}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-[10px] text-right font-semibold py-1">{formatCurrency(item.product.sale_price * item.quantity)}</TableCell>
+                      <TableCell className="text-[10px] text-right py-1">
+                        <div className="flex flex-col items-end gap-0.5">
+                          {isPromo && <span className="text-[8px] text-muted-foreground line-through">{formatCurrency(Number(originalPrice) * item.quantity)}</span>}
+                          <span className="font-semibold text-primary">{formatCurrency(item.product.sale_price * item.quantity)}</span>
+                        </div>
+                      </TableCell>
                       <TableCell className="py-1">
                         <button onClick={() => onRemoveCatalogProduct(item.product.id)} className="text-destructive hover:text-destructive/80">
                           <X className="h-3 w-3" />
