@@ -57,7 +57,7 @@ const FORMA_LABELS: Record<string, string> = {
 
 const PAGE_SIZE = 10;
 
-const OPEN_STATUS_KEYS = new Set(["novo", "em_negociacao", "proposta_enviada"]);
+const CLOSED_STATUS_KEYS = new Set(["fechado", "venda_fechada", "perdido", "cancelado", "expirado"]);
 
 const normalizeText = (value: string | null | undefined) =>
   (value || "")
@@ -69,6 +69,16 @@ const normalizeText = (value: string | null | undefined) =>
 
 const toStatusKey = (value: string | null | undefined) =>
   normalizeText(value).replace(/[\s-]+/g, "_");
+
+const hasOpenClientStatus = (value: string | null | undefined) => {
+  const key = toStatusKey(value);
+  return !!key && !CLOSED_STATUS_KEYS.has(key);
+};
+
+const coerceClientRow = (value: unknown): Client | null => {
+  if (Array.isArray(value)) return (value[0] as Client) || null;
+  return (value as Client) || null;
+};
 
 const isAdminOrManagerRole = (cargoNome: string | null | undefined) => {
   const cargo = normalizeText(cargoNome);
@@ -86,14 +96,22 @@ const matchesUserIdentity = (source: string | null | undefined, identities: stri
 
 const isSimulationVisibleToUser = (
   simulation: any,
-  currentUser: NonNullable<ReturnType<typeof useCurrentUser>["currentUser"]>,
+  clientRow: Client | null,
+  currentUser: { id: string; nome_completo?: string | null; apelido?: string | null; email?: string | null },
+  authUser: { email?: string | null; user_metadata?: Record<string, any> } | null,
   isAdminOrManager: boolean,
 ) => {
-  const clientRow = simulation?.clients as Client | null;
-  if (!clientRow || !OPEN_STATUS_KEYS.has(toStatusKey(clientRow.status))) return false;
+  if (!clientRow || !hasOpenClientStatus(clientRow.status)) return false;
   if (isAdminOrManager) return true;
 
-  const userIdentities = [currentUser.nome_completo, currentUser.apelido, currentUser.email]
+  const userIdentities = [
+    currentUser.nome_completo,
+    currentUser.apelido,
+    currentUser.email,
+    authUser?.email,
+    typeof authUser?.user_metadata?.nome_completo === "string" ? authUser.user_metadata.nome_completo : null,
+    typeof authUser?.user_metadata?.apelido === "string" ? authUser.user_metadata.apelido : null,
+  ]
     .map(normalizeText)
     .filter(Boolean);
 
@@ -133,6 +151,11 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
       return;
     }
 
+    const { data: sessionData } = await supabase.auth.getSession();
+    const authUser = sessionData?.session?.user ?? null;
+    const resolvedCargoNome = currentUser?.cargo_nome || (typeof authUser?.user_metadata?.cargo_nome === "string" ? authUser.user_metadata.cargo_nome : null);
+    const canViewAll = isAdminOrManagerRole(resolvedCargoNome);
+
     const { data, error } = await supabase
       .from("simulations")
       .select("*, clients!inner(*)")
@@ -147,16 +170,31 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
       return;
     }
 
-    const items = (data || []).filter((simulation: any) =>
-      isSimulationVisibleToUser(simulation, currentUser, isAdminOrManager)
-    );
+    const simulationsRaw = data || [];
+    const clientIds = Array.from(new Set(simulationsRaw.map((simulation: any) => simulation.client_id).filter(Boolean)));
+
+    let clientMap = new Map<string, Client>();
+    if (clientIds.length > 0) {
+      const { data: clientsData } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .in("id", clientIds);
+
+      clientMap = new Map((clientsData || []).map((client: Client) => [client.id, client]));
+    }
+
+    const items = simulationsRaw.filter((simulation: any) => {
+      const clientRow = clientMap.get(simulation.client_id) || coerceClientRow(simulation.clients);
+      return isSimulationVisibleToUser(simulation, clientRow, currentUser, authUser, canViewAll);
+    });
 
     const mapped: SimulationWithClient[] = items.map((s: any) => ({
+      client: clientMap.get(s.client_id) || coerceClientRow(s.clients),
       id: s.id,
       client_id: s.client_id,
-      client_name: s.clients?.nome || "Sem nome",
-      client: (s.clients as Client) || null,
-      numero_orcamento: s.clients?.numero_orcamento || null,
+      client_name: (clientMap.get(s.client_id) || coerceClientRow(s.clients))?.nome || "Sem nome",
+      numero_orcamento: (clientMap.get(s.client_id) || coerceClientRow(s.clients))?.numero_orcamento || null,
       valor_tela: Number(s.valor_tela) || 0,
       valor_final: Number(s.valor_final) || 0,
       desconto1: Number(s.desconto1) || 0,
