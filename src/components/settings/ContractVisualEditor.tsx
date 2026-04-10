@@ -726,9 +726,11 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
               cursorY = fixedFragmentY + placedFrameHeight + 10;
 
               if (needsContinuation) {
+                const contId = continuationId || genId();
+                conditionsChainIds.add(contId);
                 nextPending.push({
                   ...stripSplitMetadata(candidate),
-                  id: continuationId || genId(),
+                  id: contId,
                   text: remHtml,
                   x: fixedFragmentX,
                   y: fixedFragmentY,
