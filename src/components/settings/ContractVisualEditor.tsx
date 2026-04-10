@@ -1615,7 +1615,22 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         setUserGuides(prev => prev.map(g => g.id === draggingGuide.id ? { ...g, pos: newPos } : g));
       }
     };
-    const handleMouseUp = () => {
+    const handleMouseUp = (e: MouseEvent) => {
+      // Check if pending edit should activate (no drag movement occurred)
+      if (pendingEditRef.current && dragState) {
+        const dx = Math.abs(e.clientX - dragState.startX);
+        const dy = Math.abs(e.clientY - dragState.startY);
+        if (dx < 4 && dy < 4) {
+          // No significant movement - enter edit mode
+          setEditingTextId(pendingEditRef.current);
+          pendingEditRef.current = null;
+          setDragState(null);
+          setSmartGuides({ x: [], y: [] });
+          return;
+        }
+      }
+      pendingEditRef.current = null;
+
       // Cross-page drag: detect elements that moved beyond page bounds
       if (dragState) {
         setPages(prev => {
