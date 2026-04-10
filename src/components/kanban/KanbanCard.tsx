@@ -115,10 +115,22 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
           <div className="p-2 sm:p-3">
             {/* Selo de contrato fechado no topo */}
             {hasClosedContract && clientStatus !== "novo" && (
-              <div className="mb-1.5">
+              <div className="mb-1.5 flex items-center gap-1 flex-wrap">
                 <Badge className="text-[9px] h-4 px-1.5 font-semibold bg-success/15 text-success border-success/30 gap-0.5" variant="outline">
                   <CheckCircle2 className="h-2.5 w-2.5" />Contrato
                 </Badge>
+                {operationalStatus && (
+                  <Badge className="text-[9px] h-4 px-1.5 font-semibold bg-accent text-accent-foreground border-accent-foreground/20 gap-0.5 animate-pulse" variant="outline">
+                    <Ruler className="h-2.5 w-2.5" />
+                    {operationalStatus === "em_medicao" ? "Em Medição" :
+                     operationalStatus === "em_liberado" ? "Em Liberação" :
+                     operationalStatus === "em_compras" ? "Em Compras" :
+                     operationalStatus === "para_entrega" ? "Para Entrega" :
+                     operationalStatus === "para_montagem" ? "Para Montagem" :
+                     operationalStatus === "assistencia" ? "Assistência" :
+                     operationalStatus === "finalizado" ? "Finalizado" : operationalStatus}
+                  </Badge>
+                )}
               </div>
             )}
             {/* Badge de tipo na coluna Novo */}
