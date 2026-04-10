@@ -117,6 +117,12 @@ const ALL_VARIABLES = [
   { var: "{{quantidade_ambientes}}", desc: "Nº total de ambientes", group: "Tabelas" },
   { var: "{{indicador_nome}}", desc: "Nome do indicador", group: "Outros" },
   { var: "{{indicador_comissao}}", desc: "Comissão do indicador", group: "Outros" },
+  { var: "{{logo_empresa}}", desc: "Logo da empresa (imagem)", group: "Empresa" },
+  { var: "{{empresa_subtitulo}}", desc: "Subtítulo/slogan da empresa", group: "Empresa" },
+  { var: "{{complemento_entrega}}", desc: "Complemento do endereço de entrega", group: "Endereço" },
+  { var: "{{ambientes_valores_tabela}}", desc: "Tabela automática: ambientes com valores", group: "Tabelas" },
+  { var: "{{ambientes_cores_tabela}}", desc: "Tabela automática: ambientes com cores e materiais", group: "Tabelas" },
+  { var: "{{produtos_catalogo_completo}}", desc: "Tabela completa de produtos do catálogo", group: "Tabelas" },
 ];
 
 const KNOWN_VARIABLES = ALL_VARIABLES.map(v => v.var);
