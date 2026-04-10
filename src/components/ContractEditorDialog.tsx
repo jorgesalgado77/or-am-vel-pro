@@ -235,7 +235,7 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="flex max-h-[90vh] max-w-7xl flex-col">
+      <DialogContent className="flex max-h-[95vh] max-w-7xl flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="text-base">Contrato — {clientName}</DialogTitle>
         </DialogHeader>
@@ -385,13 +385,14 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
         )}
 
         {/* Content */}
-        <div className="flex-1 overflow-hidden rounded-lg border border-border">
+        <div className="flex-1 min-h-0 overflow-hidden rounded-lg border border-border">
           {viewMode === "editor" ? (
             <div
               ref={editorRef}
               contentEditable
               suppressContentEditableWarning
-              className="prose prose-sm min-h-[400px] max-w-none overflow-y-auto bg-background p-6 text-sm text-foreground focus:outline-none"
+              className="prose prose-sm h-full max-w-none overflow-y-auto bg-background p-6 text-sm text-foreground focus:outline-none"
+              style={{ maxHeight: "calc(95vh - 200px)" }}
               dangerouslySetInnerHTML={{ __html: html }}
               onKeyDown={(e) => {
                 if (layoutLocked) {
@@ -409,7 +410,8 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
             <iframe
               ref={iframeRef}
               title={`Preview do contrato de ${clientName}`}
-              className="h-[70vh] w-full bg-muted/20"
+              className="w-full bg-muted/20"
+              style={{ height: "calc(95vh - 200px)" }}
               srcDoc={previewDocument}
             />
           )}

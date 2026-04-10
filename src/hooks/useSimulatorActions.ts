@@ -27,30 +27,65 @@ const DEFAULT_CONTRACT_TEMPLATE_HTML = `
   <h2>Cliente</h2>
   <p><strong>Nome:</strong> {{nome_cliente}}</p>
   <p><strong>CPF/CNPJ:</strong> {{cpf_cliente}}</p>
+  <p><strong>RG:</strong> {{rg_insc_estadual}}</p>
   <p><strong>Telefone:</strong> {{telefone_cliente}}</p>
   <p><strong>Email:</strong> {{email_cliente}}</p>
+  <p><strong>Profissão:</strong> {{profissao}}</p>
 
   <h2>Endereço</h2>
   <p>{{endereco}}, {{bairro}} - {{cidade}}/{{uf}} - {{cep}}</p>
 
-  <h2>Itens do projeto</h2>
+  <h2>Endereço de Entrega</h2>
+  <p>{{endereco_entrega_completo}}</p>
+
+  <h2>Ambientes e Valores</h2>
+  {{ambientes_valores_tabela}}
+
+  <h2>Detalhes dos Ambientes</h2>
+  {{ambientes_cores_tabela}}
+
+  <h2>Itens do Projeto</h2>
   {{itens_tabela}}
 
-  <h2>Detalhamento técnico</h2>
+  <h2>Detalhamento Técnico</h2>
   {{itens_detalhes}}
 
+  <h2>Produtos do Catálogo</h2>
+  {{produtos_catalogo_completo}}
+
   <h2>Pagamento</h2>
-  <p><strong>Valor total:</strong> {{valor_final}}</p>
+  <p><strong>Valor total:</strong> {{valor_final}} ({{valor_por_extenso}})</p>
   <p><strong>Entrada:</strong> {{valor_entrada}}</p>
   <p><strong>Parcelas:</strong> {{parcelas}}x de {{valor_parcela}}</p>
   <p><strong>Forma de pagamento:</strong> {{forma_pagamento}}</p>
+  <p><strong>Condições:</strong> {{condicoes_pagamento}}</p>
 
   <h2>Observações</h2>
   <p>{{observacoes}}</p>
 
-  <p style="margin-top:32px;">{{cidade}}, {{data_atual}}</p>
-  <p style="margin-top:48px;">________________________________________</p>
-  <p>{{nome_cliente}}</p>
+  <h2 style="color:#0891b2;">RESPONSÁVEIS</h2>
+  <hr/>
+  <table style="width:100%;border:none;border-collapse:collapse;margin-top:16px;">
+    <tr>
+      <td style="width:50%;border:none;vertical-align:top;"><strong>Vendedor:</strong> {{responsavel_venda}}</td>
+      <td style="width:50%;border:none;vertical-align:top;text-align:right;"><strong>Projetista:</strong> {{projetista}}</td>
+    </tr>
+  </table>
+  <table style="width:100%;border:none;border-collapse:collapse;margin-top:8px;">
+    <tr>
+      <td style="width:50%;border:none;"><strong>Indicador:</strong> {{indicador_nome}}</td>
+      <td style="width:50%;border:none;text-align:right;"><strong>Nº Orçamento:</strong> {{numero_orcamento}}</td>
+    </tr>
+  </table>
+
+  <p style="text-align:center;margin-top:16px;">{{cidade}}, {{data_atual}}</p>
+
+  <table style="width:100%;border:none;border-collapse:collapse;margin-top:48px;">
+    <tr>
+      <td style="width:50%;border:none;text-align:center;padding-top:32px;border-top:1px solid #000;">{{empresa_nome}}</td>
+      <td style="width:50%;border:none;text-align:center;padding-top:32px;border-top:1px solid #000;">{{nome_cliente}}</td>
+    </tr>
+  </table>
 `;
 
 interface UseSimulatorActionsParams {
@@ -523,12 +558,32 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
         });
       }
 
-      // Fetch company phones for contract variables
-      const { data: companyPhones } = await (supabase as any)
-        .from("company_useful_phones")
-        .select("setor, responsavel, telefone")
-        .eq("tenant_id", resolvedTenantId)
-        .order("ordem", { ascending: true });
+      // Fetch company phones and active promotions for contract variables
+      const [phonesResult, promosResult] = await Promise.all([
+        (supabase as any)
+          .from("company_useful_phones")
+          .select("setor, responsavel, telefone")
+          .eq("tenant_id", resolvedTenantId)
+          .order("ordem", { ascending: true }),
+        catalogProducts.length > 0
+          ? (supabase as any)
+              .from("product_promotions")
+              .select("product_id, valor_promocional, validade, ativo")
+              .eq("tenant_id", resolvedTenantId)
+              .eq("ativo", true)
+              .in("product_id", catalogProducts.map(cp => cp.product.id))
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      const companyPhones = phonesResult.data;
+      const activePromos = (promosResult.data || []) as any[];
+      const promoMap = new Map<string, number>();
+      for (const p of activePromos) {
+        const validade = new Date(p.validade);
+        if (validade > new Date()) {
+          promoMap.set(p.product_id, Number(p.valor_promocional));
+        }
+      }
 
       const html = buildContractHtml(templateHtml, {
         formData,
@@ -543,7 +598,12 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
         comissaoPercentual,
         items,
         itemDetails,
-        catalogProducts: catalogProducts.map(cp => ({ name: cp.product.name, internal_code: cp.product.internal_code, quantity: cp.quantity, sale_price: cp.product.sale_price })),
+        catalogProducts: catalogProducts.map(cp => ({
+          name: cp.product.name,
+          internal_code: cp.product.internal_code,
+          quantity: cp.quantity,
+          sale_price: promoMap.get(cp.product.id) ?? cp.product.sale_price,
+        })),
         companyPhones: (companyPhones as any[]) || [],
       });
 
