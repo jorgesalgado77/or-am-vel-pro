@@ -2033,9 +2033,11 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         lineHeight: 1.4,
       });
       const visualScrollHeight = textEl.scrollHeight;
+      const minHeight = Math.max(20, currentEl.fontSize * 1.6);
+      const contentBasedHeight = Math.max(minHeight, visualScrollHeight, measuredHtmlHeight + paddingY + 4);
       const newHeight = isFixedSectionText
-        ? Math.max(currentEl.height, measuredHtmlHeight + paddingY + 4)
-        : Math.max(currentEl.height, visualScrollHeight, measuredHtmlHeight + paddingY + 4);
+        ? Math.max(currentEl.height, contentBasedHeight)
+        : contentBasedHeight;
 
       reflowElements(elId, newHeight, changedElUpdates);
     };
