@@ -625,8 +625,8 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
                 const productIds = loadedProducts.map((p: any) => p.product.id).filter(Boolean);
                 if (productIds.length > 0 && resolvedTenantId) {
                   Promise.all([
-                    supabase.from("product_promotions").select("product_id, valor_promocional, valor_original, desconto_percentual, validade").eq("tenant_id", resolvedTenantId).eq("ativo", true).in("product_id", productIds),
-                    supabase.from("catalog_products").select("id, stock_status, stock_quantity, sale_price").in("id", productIds),
+                    (supabase.from as any)("product_promotions").select("product_id, valor_promocional, valor_original, desconto_percentual, validade").eq("tenant_id", resolvedTenantId).eq("ativo", true).in("product_id", productIds),
+                    (supabase.from as any)("catalog_products").select("id, stock_status, stock_quantity, sale_price").in("id", productIds),
                   ]).then(([promoRes, stockRes]) => {
                     const promoMap = new Map<string, any>();
                     (promoRes.data || []).forEach((p: any) => {
