@@ -470,8 +470,8 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               extremaUnlocked={!isVendedorOrProjetista || extremaLocked}
               initialStrategy={activeStrategy || undefined}
               initialEnabled={aiStrategyEnabled}
-              onStrategyChange={useCallback((s: string | null) => setActiveStrategy(s || ""), [])}
-              onEnabledChange={useCallback((v: boolean) => setAiStrategyEnabled(v), [])}
+              onStrategyChange={handleStrategyChange}
+              onEnabledChange={handleEnabledChange}
             />
           </Suspense>
 
