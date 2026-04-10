@@ -92,7 +92,20 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
       console.error("[LoadSimulationModal] Error:", error);
       setSimulations([]);
     } else {
-      const mapped: SimulationWithClient[] = (data || []).map((s: any) => ({
+      let items = (data || []);
+      
+      // Client-side filter for non-admin users
+      if (needsUserFilter) {
+        const userName = (currentUser.nome_completo || "").toLowerCase();
+        const userId = currentUser.id;
+        items = items.filter((s: any) => {
+          const vendedor = (s.clients?.vendedor || "").toLowerCase();
+          const projetistaId = s.clients?.projetista_id || "";
+          return vendedor === userName || projetistaId === userId;
+        });
+      }
+      
+      const mapped: SimulationWithClient[] = items.map((s: any) => ({
         id: s.id,
         client_id: s.client_id,
         client_name: s.clients?.nome || "Sem nome",
