@@ -1925,10 +1925,26 @@ export function MeasurementRequestModal({
       <DialogContent className="max-w-4xl h-[85vh] p-0 flex flex-col">
         <DialogHeader className="px-6 pt-4 pb-2 flex flex-row items-center justify-between">
           <DialogTitle>Pré-visualização do PDF</DialogTitle>
-          <Button variant="secondary" size="sm" className="gap-1.5" onClick={downloadPdf}>
-            <Download className="h-4 w-4" />
-            Baixar PDF
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {
+              const printWin = window.open("", "_blank");
+              if (!printWin) return;
+              printWin.document.write(`<html><head><title>Solicitação de Medida</title><style>@media print{img{width:100%;page-break-after:always;page-break-inside:avoid;}img:last-child{page-break-after:auto;}}body{margin:0;padding:0;}</style></head><body>`);
+              pdfPreviewImages.forEach((src, i) => {
+                printWin.document.write(`<img src="${src}" alt="Página ${i + 1}" style="width:100%;display:block;" />`);
+              });
+              printWin.document.write(`</body></html>`);
+              printWin.document.close();
+              setTimeout(() => { printWin.print(); }, 400);
+            }}>
+              <Printer className="h-4 w-4" />
+              Imprimir
+            </Button>
+            <Button variant="secondary" size="sm" className="gap-1.5" onClick={downloadPdf}>
+              <Download className="h-4 w-4" />
+              Baixar PDF
+            </Button>
+          </div>
         </DialogHeader>
         <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
           {pdfPreviewLoading ? (
