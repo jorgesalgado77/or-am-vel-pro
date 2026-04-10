@@ -1461,11 +1461,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       return;
     }
 
-    // If text element is already selected, defer edit mode to mouseup (allow drag first)
-    if ((el.type === "text" || el.type === "rect" || el.type === "circle") && selectedIds.has(el.id) && editingTextId !== el.id) {
-      pendingEditRef.current = el.id;
-      // Don't return - fall through to set up dragState so element can be dragged
-    }
+    // Single click only selects; double-click enters edit mode (handled in handleDoubleClick)
     // If already editing this element, don't start drag
     if (editingTextId === el.id) return;
 
@@ -1616,19 +1612,6 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       }
     };
     const handleMouseUp = (e: MouseEvent) => {
-      // Check if pending edit should activate (no drag movement occurred)
-      if (pendingEditRef.current && dragState) {
-        const dx = Math.abs(e.clientX - dragState.startX);
-        const dy = Math.abs(e.clientY - dragState.startY);
-        if (dx < 4 && dy < 4) {
-          // No significant movement - enter edit mode
-          setEditingTextId(pendingEditRef.current);
-          pendingEditRef.current = null;
-          setDragState(null);
-          setSmartGuides({ x: [], y: [] });
-          return;
-        }
-      }
       pendingEditRef.current = null;
 
       // Cross-page drag: detect elements that moved beyond page bounds
