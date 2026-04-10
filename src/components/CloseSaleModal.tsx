@@ -446,7 +446,31 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
             <Card>
               <CardHeader className="pb-3"><CardTitle className="text-sm">Dados do Contrato</CardTitle></CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                  <div>
+                    <Label className="text-xs">Tipo de Contrato</Label>
+                    <Select
+                      value={form.tipo_contrato}
+                      onValueChange={v => {
+                        updateField("tipo_contrato", v);
+                        const ct = contractTypes.find(t => t.nome === v);
+                        if (ct?.prazo_entrega) {
+                          updateField("prazo_entrega", ct.prazo_entrega);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="mt-1 h-9 text-sm">
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {contractTypes.map(ct => (
+                          <SelectItem key={ct.id} value={ct.nome}>
+                            {ct.nome}{ct.prazo_entrega ? ` (${ct.prazo_entrega})` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div>
                     <Label className="text-xs">Nº do Contrato</Label>
                     <Input value={form.numero_contrato} onChange={e => updateField("numero_contrato", e.target.value)} className="mt-1 h-9 text-sm" />
