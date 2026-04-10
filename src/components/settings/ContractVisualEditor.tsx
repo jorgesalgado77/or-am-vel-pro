@@ -2324,6 +2324,16 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             e.stopPropagation();
             if (e.key === "Escape") {
               setEditingTextId(null);
+              return;
+            }
+            if (e.key === "Enter") {
+              requestAnimationFrame(() => {
+                const target = editableRefs.current[el.id];
+                if (target) {
+                  const newText = target.innerHTML;
+                  autoResizeElement(el.id, target, { text: newText });
+                }
+              });
             }
           }}
           style={{
