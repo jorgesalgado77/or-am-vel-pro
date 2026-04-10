@@ -147,6 +147,7 @@ export function buildContractHtml(templateHtml: string, data: ContractData): str
     "{{cep_entrega}}": formData.cep_entrega || "",
     "{{complemento_entrega}}": formData.complemento_entrega || "",
     "{{prazo_entrega}}": formData.prazo_entrega || "",
+    "{{tipo_contrato}}": (formData as any).tipo_contrato || "",
     "{{observacoes}}": formData.observacoes || "",
     "{{projetista}}": formData.responsavel_venda || client.vendedor || "",
     "{{valor_tela}}": formatCurrency(valorTela),
