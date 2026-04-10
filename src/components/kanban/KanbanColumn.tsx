@@ -81,6 +81,7 @@ export const KanbanColumn = React.memo(function KanbanColumn({
                   tenantId={tenantId}
                   followUpStatus={followUpStatus[client.id]}
                   assignedTechnician={measurementStatus[client.id]?.assigned_to || null}
+                  operationalStatus={measurementStatus[client.id]?.status || null}
                   scheduledMeasurement={scheduledMeasurements?.[client.id] || null}
                   isSaving={savingCardId === client.id}
                   onClick={onClientClick}

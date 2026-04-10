@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect, useRef, lazy, Suspens
 import { DragDropContext, type DropResult } from "@hello-pangea/dnd";
 import { ChevronRight } from "lucide-react";
 import { addDays, isPast, format, endOfDay, startOfDay, startOfMonth, subMonths, subDays, isAfter, isBefore, differenceInDays, differenceInHours } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { supabase } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -92,7 +93,18 @@ export function ClientsKanban({
     return { start, end };
   }, [periodFilter, dateStart, dateEnd]);
 
-  // Filtered clients
+  const periodLabel = useMemo(() => {
+    const { start, end } = effectiveDates;
+    if (!start && !end) return "Todos os períodos";
+    if (periodFilter === "mes_atual") return format(new Date(), "MMMM 'de' yyyy", { locale: ptBR }).replace(/^./, c => c.toUpperCase());
+    if (periodFilter === "mes_anterior") { const prev = subMonths(new Date(), 1); return format(prev, "MMMM 'de' yyyy", { locale: ptBR }).replace(/^./, c => c.toUpperCase()); }
+    if (periodFilter === "60_dias") return "Últimos 60 dias";
+    if (periodFilter === "90_dias") return "Últimos 90 dias";
+    if (periodFilter === "6_meses") return "Últimos 6 meses";
+    if (start && end) return `${format(start, "dd/MM/yy")} — ${format(end, "dd/MM/yy")}`;
+    return "";
+  }, [effectiveDates, periodFilter]);
+
   const filtered = useMemo(() => {
     let baseClients = localClients;
     if (currentUser && cargoNome) {
@@ -634,6 +646,12 @@ export function ClientsKanban({
       ) : (
         <DragDropContext onDragEnd={handleDragEnd}>
           <div className="flex-1 min-h-0 min-w-0">
+            {/* Period header */}
+            <div className="flex items-center gap-2 px-2 py-1.5 mb-1">
+              <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+              <span className="text-xs font-semibold text-foreground">{periodLabel}</span>
+              <span className="text-[10px] text-muted-foreground">• {filtered.length} clientes</span>
+            </div>
             <div
               className="w-full max-w-full min-w-0 overflow-x-scroll overflow-y-hidden [&::-webkit-scrollbar]:h-3 [&::-webkit-scrollbar-track]:bg-muted/40 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-primary/50"
               style={{
