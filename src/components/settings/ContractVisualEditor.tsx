@@ -5,7 +5,7 @@ import { ContractEditorToolbar, type ToolType, type ShapeType } from "./Contract
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText, BookmarkPlus, Pencil, Trash, Upload, Image as ImageIcon, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, Eye, FileSpreadsheet, ToggleLeft, ToggleRight, Palette, Layers, ListOrdered } from "lucide-react";
+import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText, BookmarkPlus, Pencil, Trash, Upload, Image as ImageIcon, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, Eye, FileSpreadsheet, ToggleLeft, ToggleRight, Palette, Layers, ListOrdered, Search, Replace } from "lucide-react";
 // jsPDF/docx imports removed - now in contract-editor/exportHelpers
 import { ContractLayersPanel } from "./ContractLayersPanel";
 import { ContractSectionsPanel } from "./ContractSectionsPanel";
@@ -3691,6 +3691,69 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                     toast.success("Ordem das seções atualizada");
                   }}
                 />
+              </div>
+            )}
+          </div>
+
+          {/* Find & Replace panel */}
+          <div className="border-t border-border">
+            <button
+              onClick={() => setShowFindReplace(!showFindReplace)}
+              className="w-full flex items-center gap-1.5 px-2 py-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hover:bg-muted/40 transition-colors"
+            >
+              <Search className="h-3.5 w-3.5" />
+              Localizar e Substituir
+              <span className="ml-auto text-[10px]">{showFindReplace ? "▾" : "▸"}</span>
+            </button>
+            {showFindReplace && (
+              <div className="px-2 pb-2 space-y-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] text-muted-foreground font-medium">Localizar</label>
+                  <Input
+                    value={findText}
+                    onChange={e => setFindText(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") handleFind(); }}
+                    placeholder="Ex: INOVAMAD"
+                    className="h-7 text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] text-muted-foreground font-medium">Substituir por</label>
+                  <Input
+                    value={replaceText}
+                    onChange={e => setReplaceText(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") handleReplaceAll(); }}
+                    placeholder="Ex: {{empresa_nome}}"
+                    className="h-7 text-xs"
+                  />
+                </div>
+                <div className="flex gap-1">
+                  <Button variant="outline" size="sm" className="h-7 text-[10px] flex-1" onClick={handleFind}>
+                    <Search className="h-3 w-3 mr-1" /> Localizar
+                  </Button>
+                  <Button variant="default" size="sm" className="h-7 text-[10px] flex-1" onClick={handleReplaceAll} disabled={!findText.trim()}>
+                    <Replace className="h-3 w-3 mr-1" /> Substituir Tudo
+                  </Button>
+                </div>
+                {findResults.length > 0 && (
+                  <div className="space-y-1 max-h-[120px] overflow-y-auto">
+                    {findResults.map((r, i) => (
+                      <button
+                        key={`${r.elId}-${i}`}
+                        className="w-full text-left text-[10px] px-2 py-1 rounded hover:bg-accent transition-colors flex items-center justify-between"
+                        onClick={() => {
+                          setCurrentPageIdx(r.pageIdx);
+                          setSelectedIds(new Set([r.elId]));
+                          const target = pageRefsMap.current.get(r.pageIdx);
+                          if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }}
+                      >
+                        <span className="text-foreground">Pág. {r.pageIdx + 1}</span>
+                        <span className="text-muted-foreground">{r.count}x</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
