@@ -1143,6 +1143,7 @@ const DEFAULT_CONTRACT_HTML = `
     <hr/>
     <p>Pelo presente instrumento particular, de um lado:</p>
     <p><strong>CONTRATANTE:</strong> {{nome_cliente}}, nascido(a) em {{data_nascimento}}, profissão {{profissao}}, inscrito(a) no CPF/CNPJ sob nº {{cpf_cliente}}, RG/Insc. Estadual {{rg_insc_estadual}}, telefone {{telefone_cliente}}, e-mail {{email_cliente}}.</p>
+    <p><strong>Tipo de Contrato:</strong> {{tipo_contrato}}</p>
     <p><strong>Endereço:</strong> {{endereco}}, {{bairro}} — {{cidade}}/{{uf}}, CEP {{cep}}.</p>
     <p><strong>CONTRATADA:</strong> {{empresa_nome}}, CNPJ {{cnpj_loja}}, com sede em {{endereco_loja}}, {{bairro_loja}} — {{cidade_loja}}/{{uf_loja}}, CEP {{cep_loja}}.</p>
 
@@ -1168,14 +1169,11 @@ const DEFAULT_CONTRACT_HTML = `
       <li>Parcelas: {{parcelas}}x de {{valor_parcela}}</li>
     </ul>
 
-    <h2>CLÁUSULA 4ª — TIPO DE CONTRATO</h2>
-    <p><strong>Tipo de contrato:</strong> {{tipo_contrato}}</p>
-
-    <h2>CLÁUSULA 5ª — DA ENTREGA</h2>
+    <h2>CLÁUSULA 4ª — DA ENTREGA</h2>
     <p><strong>Endereço de entrega:</strong> {{endereco_entrega}}, {{bairro_entrega}} — {{cidade_entrega}}/{{uf_entrega}}, CEP {{cep_entrega}}.</p>
     <p><strong>Prazo de entrega:</strong> {{prazo_entrega}}</p>
 
-    <h2>CLÁUSULA 6ª — DO INDICADOR</h2>
+    <h2>CLÁUSULA 5ª — DO INDICADOR</h2>
     <p>Indicador: {{indicador_nome}} — Comissão: {{indicador_comissao}}%</p>
 
     <h2>CLÁUSULA 7ª — OBSERVAÇÕES</h2>

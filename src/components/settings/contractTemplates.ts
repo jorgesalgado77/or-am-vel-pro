@@ -126,22 +126,18 @@ export function getContractTemplates(): ContractTemplate[] {
             makeText(400, 155, 350, 20, "Telefone: {{telefone_cliente}}"),
             makeText(40, 180, 350, 20, "E-mail: {{email_cliente}}"),
             makeText(400, 180, 350, 20, "Profissão: {{profissao}}"),
-            makeText(40, 205, 714, 20, "Endereço: {{endereco}}, {{bairro}} — {{cidade}}/{{uf}} — CEP: {{cep}}"),
+            makeText(40, 205, 350, 20, "Tipo de Contrato: {{tipo_contrato}}"),
+            makeText(400, 205, 350, 20, "Prazo de Entrega: {{prazo_entrega}}"),
+            makeText(40, 230, 714, 20, "Endereço: {{endereco}}, {{bairro}} — {{cidade}}/{{uf}} — CEP: {{cep}}"),
 
             // ── Endereço de Entrega ──
-            makeText(40, 240, 714, 25, "ENDEREÇO DE ENTREGA", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
-            makeLine(40, 262, 714),
-            makeText(40, 270, 714, 20, "Endereço: {{endereco_entrega}}"),
-            makeText(40, 295, 350, 20, "Bairro: {{bairro_entrega}}"),
-            makeText(400, 295, 350, 20, "Cidade: {{cidade_entrega}} / {{uf_entrega}}"),
-            makeText(40, 320, 350, 20, "CEP: {{cep_entrega}}"),
-            makeText(400, 320, 350, 20, "Complemento: {{complemento_entrega}}"),
-
-            // ── Tipo de Contrato ──
-            makeText(40, 360, 714, 25, "TIPO DE CONTRATO", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
-            makeLine(40, 382, 714),
-            makeText(40, 390, 350, 20, "Tipo: {{tipo_contrato}}"),
-            makeText(400, 390, 350, 20, "Prazo de Entrega: {{prazo_entrega}}"),
+            makeText(40, 265, 714, 25, "ENDEREÇO DE ENTREGA", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
+            makeLine(40, 287, 714),
+            makeText(40, 295, 714, 20, "Endereço: {{endereco_entrega}}"),
+            makeText(40, 320, 350, 20, "Bairro: {{bairro_entrega}}"),
+            makeText(400, 320, 350, 20, "Cidade: {{cidade_entrega}} / {{uf_entrega}}"),
+            makeText(40, 345, 350, 20, "CEP: {{cep_entrega}}"),
+            makeText(400, 345, 350, 20, "Complemento: {{complemento_entrega}}"),
 
             // ── Tabela 1: Ambientes e Valores (auto-adaptativa) ──
             makeText(40, 430, 714, 25, "AMBIENTES E VALORES", { fontSize: 13, fontWeight: "bold", color: "#0891b2" }),
