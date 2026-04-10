@@ -374,7 +374,11 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       .replace(/-webkit-text-fill-color\s*:[^;\"]+;?/gi, "")
       .replace(/opacity\s*:[^;\"]+;?/gi, "")
       .replace(/mix-blend-mode\s*:[^;\"]+;?/gi, "")
-      .replace(/<span\b([^>]*)>/gi, `<span$1 style="color:${visibleColor} !important;background:transparent !important;opacity:1 !important;-webkit-text-fill-color:${visibleColor} !important;mix-blend-mode:normal !important;">`)
+      .replace(/<(span|p|div|li|td|th|h[1-6])\b([^>]*)>/gi, (match, tag, attrs) => {
+        // Don't double-add style if already has our visibility styles
+        if (attrs.includes("-webkit-text-fill-color")) return match;
+        return `<${tag}${attrs} style="color:${visibleColor} !important;background:transparent !important;opacity:1 !important;-webkit-text-fill-color:${visibleColor} !important;mix-blend-mode:normal !important;">`;
+      })
       .replace(/<font\b([^>]*)color=(['\"])[^'\"]*\2([^>]*)>/gi, `<font$1$3>`);
   }, []);
 
