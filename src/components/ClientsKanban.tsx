@@ -646,6 +646,12 @@ export function ClientsKanban({
       ) : (
         <DragDropContext onDragEnd={handleDragEnd}>
           <div className="flex-1 min-h-0 min-w-0">
+            {/* Period header */}
+            <div className="flex items-center gap-2 px-2 py-1.5 mb-1">
+              <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+              <span className="text-xs font-semibold text-foreground">{periodLabel}</span>
+              <span className="text-[10px] text-muted-foreground">• {filtered.length} clientes</span>
+            </div>
             <div
               className="w-full max-w-full min-w-0 overflow-x-scroll overflow-y-hidden [&::-webkit-scrollbar]:h-3 [&::-webkit-scrollbar-track]:bg-muted/40 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-primary/50"
               style={{
