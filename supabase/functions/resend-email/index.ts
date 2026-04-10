@@ -234,7 +234,7 @@ serve(async (req) => {
 
       try {
         const sb = getSupabaseAdmin();
-        await sb.from("mia_email_history").insert({
+        const { error: historyError } = await sb.from("mia_email_history").insert({
           tenant_id: tenant_id,
           to_email: Array.isArray(to) ? to.join(", ") : to,
           cc_email: cc ? (Array.isArray(cc) ? cc.join(", ") : cc) : null,
@@ -244,9 +244,14 @@ serve(async (req) => {
           resend_id: data.id || null,
           status: "sent",
           sent_by: body.sent_by || null,
+          created_at: new Date().toISOString(),
         });
+
+        if (historyError) {
+          console.error("Failed to save email history:", historyError);
+        }
       } catch (e) {
-        console.warn("Failed to save email history:", e);
+        console.error("Failed to save email history:", e);
       }
 
       return respond({ success: true, email_id: data.id, source });
