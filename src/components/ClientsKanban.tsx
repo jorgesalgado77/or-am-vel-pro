@@ -224,16 +224,31 @@ export function ClientsKanban({
         // Standard flow for non-technical roles
         if (status === "proposta_enviada") status = "em_negociacao";
         if (status === "novo" && client.vendedor) status = "em_negociacao";
-        if (contractClientIds.has(client.id)) {
-          const operationalIds = KANBAN_COLUMNS_OPERACIONAL.map(c => c.id);
-          if (!operationalIds.includes(status)) status = "fechado";
-        }
-        const mr = measurementStatus[client.id];
         const hasContractRecord = contractClientIds.has(client.id);
-        if (mr && !hasContractRecord) {
+        const mr = measurementStatus[client.id];
+        
+        if (hasContractRecord) {
+          // Client has a contract — resolve to operational column based on measurement_request status
+          if (mr) {
+            const resolvedOp = resolveTechnicalColumn(mr.status);
+            // Map technical column IDs to operational equivalents
+            const techToOp: Record<string, string> = {
+              nova_solicitacao: "em_medicao",
+              em_medicao: "em_medicao",
+              em_liberado: "em_liberado",
+              negativos: "em_medicao", // negativos stay visible in em_medicao for admin
+              enviado_compras: "em_compras",
+            };
+            status = techToOp[resolvedOp] || "em_medicao";
+          } else {
+            const operationalIds = KANBAN_COLUMNS_OPERACIONAL.map(c => c.id);
+            if (!operationalIds.includes(status)) status = "fechado";
+          }
+        } else if (mr) {
+          // Has measurement request but no contract yet — show in em_medicao
           if (status === "fechado") status = "em_medicao";
-          else if (status === "em_medicao" && mr.assigned_to) status = "em_liberado";
         }
+        
         const sim = lastSims[client.id];
         if (sim && status !== "fechado" && status !== "perdido" && status !== "expirado" && !KANBAN_COLUMNS_OPERACIONAL.some(c => c.id === status)) {
           if (isPast(addDays(new Date(sim.created_at), settings.budget_validity_days))) status = "expirado";
@@ -332,6 +347,7 @@ export function ClientsKanban({
         [draggableId]: {
           status: mrStatus,
           assigned_to: prev[draggableId]?.assigned_to ?? previousMeasurement?.assigned_to ?? null,
+          updated_at: new Date().toISOString(),
         },
       }));
 
