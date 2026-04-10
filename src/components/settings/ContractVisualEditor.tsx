@@ -864,6 +864,49 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     });
   }, [currentPageIdx, footerSettings.enabled, footerSettings.height, headerSettings.enabled, headerSettings.height, isGeneralConditionsElement, margins, measureHtmlHeight, splitHtmlAtHeight]);
 
+  // --- Find & Replace ---
+  const handleFind = useCallback(() => {
+    if (!findText.trim()) { setFindResults([]); return; }
+    const results: { pageIdx: number; elId: string; count: number }[] = [];
+    const searchLower = findText.toLowerCase();
+    pages.forEach((page, pageIdx) => {
+      page.elements.forEach(el => {
+        if ((el.type === "text" || el.type === "rect") && el.text) {
+          const plain = el.text.replace(/<[^>]*>/g, "").toLowerCase();
+          const matches = plain.split(searchLower).length - 1;
+          if (matches > 0) results.push({ pageIdx, elId: el.id, count: matches });
+        }
+      });
+    });
+    setFindResults(results);
+    if (results.length === 0) toast.info("Nenhuma ocorrência encontrada");
+    else toast.success(`${results.reduce((s, r) => s + r.count, 0)} ocorrência(s) em ${results.length} elemento(s)`);
+  }, [findText, pages]);
+
+  const handleReplaceAll = useCallback(() => {
+    if (!findText.trim()) return;
+    const searchTerm = findText;
+    let totalCount = 0;
+    setPages(prev => prev.map(page => ({
+      ...page,
+      elements: page.elements.map(el => {
+        if ((el.type === "text" || el.type === "rect") && el.text) {
+          // Replace in HTML text preserving tags
+          const regex = new RegExp(searchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+          const newText = el.text.replace(regex, (match) => {
+            totalCount++;
+            return replaceText;
+          });
+          if (newText !== el.text) return { ...el, text: newText };
+        }
+        return el;
+      }),
+    })));
+    setFindResults([]);
+    if (totalCount > 0) toast.success(`${totalCount} ocorrência(s) substituída(s) por "${replaceText}"`);
+    else toast.info("Nenhuma ocorrência encontrada");
+  }, [findText, replaceText]);
+
   // --- Element operations ---
   const updateSelected = useCallback((updates: Partial<CanvasElement>) => {
     if (selectedIds.size === 0) return;
