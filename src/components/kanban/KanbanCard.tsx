@@ -80,7 +80,8 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
   const clientStatus = ((client as any).status || "novo").toLowerCase();
   const hasClosedContract = !!(client as any).contrato_fechado_visual || clientStatus === "fechado" || !!(client as any).data_contrato;
   const expired = sim && !hasClosedContract ? isPast(addDays(new Date(sim.created_at), budgetValidityDays)) : false;
-  const daysInColumn = differenceInDays(new Date(), new Date(client.updated_at));
+  const isActiveLead = !hasClosedContract && ["novo", "em_negociacao", "proposta_enviada"].includes(clientStatus);
+  const daysInColumn = differenceInDays(new Date(), new Date(isActiveLead ? client.created_at : client.updated_at));
   const tint = getColumnTint(clientStatus);
 
   return (
