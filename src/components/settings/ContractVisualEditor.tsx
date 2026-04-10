@@ -279,6 +279,25 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     /PRODUTOS?\s+D[OE]\s+CAT[AÁ]LOGO/i,
   ];
 
+  const SECTION_TITLE_PATTERNS = [
+    ...FIXED_SECTION_PATTERNS,
+    /RESPONS[AÁ]VEIS/i,
+    /ASSINATURAS?/i,
+    /TELEFONES?\s+ÚTEIS/i,
+    /RESUMO\s+FINANCEIRO/i,
+    /FORMA\s+DE\s+PAGAMENTO/i,
+    /DADOS\s+DO\s+CLIENTE/i,
+    /ENDERE[CÇ]O\s+DE\s+ENTREGA/i,
+  ];
+
+  const stripHtmlText = (value: string) => value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+
+  const isSectionTitleElement = (el: CanvasElement) => (
+    el.type === "text"
+    && !!el.text
+    && SECTION_TITLE_PATTERNS.some((pattern) => pattern.test(stripHtmlText(el.text)))
+  );
+
   const isGeneralConditionsElement = useCallback((el: CanvasElement, page: PageData) => {
     const isTextual = (el.type === "text" || el.type === "rect") && !!el.text;
     const matchesFrame = Math.abs(el.x - FIXED_SECTION_BOX.x) <= 8
@@ -386,7 +405,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       const workingPages = [...prev];
 
       const staticElements = sourceElements
-        .filter(el => isLikelyPageChrome(el, repeatedChrome, margins) || (!isGeneralConditionsBox && el.y < changedEl.y))
+        .filter(el => isLikelyPageChrome(el, repeatedChrome, margins) || el.y < changedEl.y)
         .map(stripSplitMetadata);
 
       const flowCandidates = sourceElements
@@ -418,8 +437,14 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         }
 
         const flowBounds = getPageFlowBounds(page, repeatedChrome, margins);
-        const pageStartY = flowBounds.startY;
-        const pageBottomY = flowBounds.endY;
+        const reservedHeaderBottom = headerSettings.enabled
+          ? Math.max(headerSettings.height + 4, margins.top - 4) + 8
+          : margins.top;
+        const reservedFooterTop = footerSettings.enabled
+          ? A4_HEIGHT - Math.max(4, margins.bottom - footerSettings.height - 4) - footerSettings.height - 8
+          : A4_HEIGHT - margins.bottom;
+        const pageStartY = Math.max(flowBounds.startY, reservedHeaderBottom);
+        const pageBottomY = Math.max(pageStartY + 40, Math.min(flowBounds.endY, reservedFooterTop));
         const pageStatic = pageIdx === currentPageIdx
           ? staticElements
           : (isGeneralConditionsBox
@@ -433,16 +458,54 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         // Track whether this page already has a fixed-section fragment
         let pageHasFixedFragment = false;
 
-        for (const original of pending) {
+        const moveSectionToNextPage = (items: CanvasElement[], startY: number) => {
+          const sectionStartY = Math.min(...items.map((item) => item.y));
+          nextPending.push(
+            ...items.map((item) => ({
+              ...stripSplitMetadata(item),
+              y: startY + (item.y - sectionStartY),
+            })),
+          );
+        };
+
+        const getSectionGroup = (items: CanvasElement[], startIdx: number) => {
+          const first = items[startIdx];
+          if (!first || !isSectionTitleElement(first)) return null;
+
+          let endIdx = startIdx;
+          while (endIdx + 1 < items.length && !isSectionTitleElement(items[endIdx + 1])) {
+            endIdx += 1;
+          }
+
+          const groupItems = items.slice(startIdx, endIdx + 1).map(stripSplitMetadata);
+          const startY = Math.min(...groupItems.map((item) => item.y));
+          const endY = Math.max(...groupItems.map((item) => item.y + item.height));
+
+          return {
+            endIdx,
+            items: groupItems,
+            startY,
+            height: endY - startY,
+          };
+        };
+
+        for (let pendingIdx = 0; pendingIdx < pending.length; pendingIdx += 1) {
+          const original = pending[pendingIdx];
           const isConditionsFragment = isGeneralConditionsBox && (original.id === changedElId || original.splitFrom === changedElId);
           const normalizedBase = stripSplitMetadata(original);
+          const sectionGroup = !isConditionsFragment ? getSectionGroup(pending, pendingIdx) : null;
 
           // If a fixed-section fragment already occupies this page, push all other elements to next page
           if (pageHasFixedFragment && !isConditionsFragment) {
-            nextPending.push({
-              ...normalizedBase,
-              y: pageStartY,
-            });
+            if (sectionGroup) {
+              moveSectionToNextPage(sectionGroup.items, pageStartY);
+              pendingIdx = sectionGroup.endIdx;
+            } else {
+              nextPending.push({
+                ...normalizedBase,
+                y: pageStartY,
+              });
+            }
             continue;
           }
 
@@ -455,13 +518,26 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                 height: GENERAL_CONDITIONS_BOX.height,
               }
             : normalizedBase;
+          const shouldStartFreshPage = pageIdx > currentPageIdx && pageFlow.length === 0;
           const placedY = isConditionsFragment
             ? GENERAL_CONDITIONS_BOX.y
-            : Math.max(cursorY, pageFlow.length === 0 ? Math.max(pageStartY, normalized.y) : cursorY);
+            : Math.max(cursorY, pageFlow.length === 0 ? (shouldStartFreshPage ? pageStartY : Math.max(pageStartY, normalized.y)) : cursorY);
           const candidate = { ...normalized, y: placedY };
 
           const candidateBottom = candidate.y + candidate.height;
           const isTextual = (candidate.type === "text" || candidate.type === "rect") && !!candidate.text;
+
+          if (sectionGroup && !isConditionsFragment) {
+            const pageCapacity = pageBottomY - pageStartY;
+            const availableHeight = pageBottomY - placedY;
+            const sectionFitsPage = sectionGroup.height <= pageCapacity;
+
+            if (pageFlow.length > 0 && sectionFitsPage && sectionGroup.height > availableHeight) {
+              moveSectionToNextPage(sectionGroup.items, pageStartY);
+              pendingIdx = sectionGroup.endIdx;
+              continue;
+            }
+          }
 
           if (isConditionsFragment && isTextual) {
             const availableHeight = GENERAL_CONDITIONS_BOX.height;
@@ -580,6 +656,12 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             }
           }
 
+          if (sectionGroup && !isConditionsFragment) {
+            moveSectionToNextPage(sectionGroup.items, pageStartY);
+            pendingIdx = sectionGroup.endIdx;
+            continue;
+          }
+
           nextPending.push({
             ...candidate,
             x: isConditionsFragment ? GENERAL_CONDITIONS_BOX.x : candidate.x,
@@ -624,7 +706,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       toast.info("Contrato reorganizado mantendo margens e continuidade.", { id: "auto-reflow" });
       return trimmedPages.length > 0 ? trimmedPages : prev;
     });
-  }, [currentPageIdx, isGeneralConditionsElement, margins, measureHtmlHeight, splitHtmlAtHeight]);
+  }, [currentPageIdx, footerSettings.enabled, footerSettings.height, headerSettings.enabled, headerSettings.height, isGeneralConditionsElement, margins, measureHtmlHeight, splitHtmlAtHeight]);
 
   // --- Element operations ---
   const updateSelected = useCallback((updates: Partial<CanvasElement>) => {
