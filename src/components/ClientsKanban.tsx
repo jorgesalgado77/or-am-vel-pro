@@ -158,7 +158,10 @@ export function ClientsKanban({
         
         // Active leads (novo, em_negociacao, proposta_enviada) without contracts always carry over
         const isActiveLead = !hasContract && ["novo", "em_negociacao", "proposta_enviada"].includes(clientStatus);
-        if (!isActiveLead) {
+        // Clients with active measurement requests (operational stages) should always be visible
+        const mr = measurementStatus[c.id];
+        const isActiveOperational = hasContract && mr && !["finalizado", "concluido"].includes((mr.status || "").toLowerCase());
+        if (!isActiveLead && !isActiveOperational) {
           // For closed/expired/lost deals, apply period filter
           const contractDate = (c as any).data_contrato ? new Date((c as any).data_contrato) : null;
           const clientCreated = new Date(c.created_at);
