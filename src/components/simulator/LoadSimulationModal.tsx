@@ -57,6 +57,57 @@ const FORMA_LABELS: Record<string, string> = {
 
 const PAGE_SIZE = 10;
 
+const OPEN_STATUS_KEYS = new Set(["novo", "em_negociacao", "proposta_enviada"]);
+
+const normalizeText = (value: string | null | undefined) =>
+  (value || "")
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
+const toStatusKey = (value: string | null | undefined) =>
+  normalizeText(value).replace(/[\s-]+/g, "_");
+
+const isAdminOrManagerRole = (cargoNome: string | null | undefined) => {
+  const cargo = normalizeText(cargoNome);
+  return cargo === "admin" || cargo.includes("administrador") || cargo.includes("gerente");
+};
+
+const matchesUserIdentity = (source: string | null | undefined, identities: string[]) => {
+  const normalizedSource = normalizeText(source);
+  if (!normalizedSource) return false;
+
+  return identities.some((identity) =>
+    identity && (normalizedSource === identity || normalizedSource.includes(identity) || identity.includes(normalizedSource))
+  );
+};
+
+const isSimulationVisibleToUser = (
+  simulation: any,
+  currentUser: NonNullable<ReturnType<typeof useCurrentUser>["currentUser"]>,
+  isAdminOrManager: boolean,
+) => {
+  const clientRow = simulation?.clients as Client | null;
+  if (!clientRow || !OPEN_STATUS_KEYS.has(toStatusKey(clientRow.status))) return false;
+  if (isAdminOrManager) return true;
+
+  const userIdentities = [currentUser.nome_completo, currentUser.apelido, currentUser.email]
+    .map(normalizeText)
+    .filter(Boolean);
+
+  const responsibleId = String((clientRow as any)?.responsavel_id || "").trim();
+  if (responsibleId && responsibleId === currentUser.id) return true;
+
+  return [
+    (clientRow as any)?.vendedor,
+    (clientRow as any)?.projetista,
+    (clientRow as any)?.responsavel_nome,
+    (simulation as any)?.vendedor,
+  ].some((value) => matchesUserIdentity(value, userIdentities));
+};
+
 export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationModalProps) {
   const { currentUser } = useCurrentUser();
   const [simulations, setSimulations] = useState<SimulationWithClient[]>([]);
@@ -69,8 +120,7 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
   const [deleting, setDeleting] = useState(false);
 
   const isAdminOrManager = useMemo(() => {
-    const cargo = currentUser?.cargo_nome?.toLowerCase() || "";
-    return cargo === "administrador" || cargo === "gerente";
+    return isAdminOrManagerRole(currentUser?.cargo_nome);
   }, [currentUser]);
 
   const loadSimulations = async () => {
@@ -82,10 +132,6 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
       setLoading(false);
       return;
     }
-
-    const activeStatuses = ["novo", "em_negociacao", "proposta_enviada"];
-    const normalize = (value: string | null | undefined) => (value || "").toString().trim().toLowerCase();
-    const userNames = [currentUser.nome_completo, currentUser.apelido].map(normalize).filter(Boolean);
 
     const { data, error } = await supabase
       .from("simulations")
@@ -101,14 +147,9 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
       return;
     }
 
-    let items = (data || []).filter((s: any) => activeStatuses.includes(s.clients?.status || ""));
-
-    if (!isAdminOrManager) {
-      items = items.filter((s: any) => {
-        const vendedor = normalize(s.clients?.vendedor);
-        return userNames.some((name) => vendedor === name || vendedor.includes(name) || name.includes(vendedor));
-      });
-    }
+    const items = (data || []).filter((simulation: any) =>
+      isSimulationVisibleToUser(simulation, currentUser, isAdminOrManager)
+    );
 
     const mapped: SimulationWithClient[] = items.map((s: any) => ({
       id: s.id,
