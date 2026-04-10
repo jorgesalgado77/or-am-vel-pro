@@ -93,7 +93,23 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(500);
-...
+
+    if (error) {
+      console.error("[LoadSimulationModal] Error:", error);
+      setSimulations([]);
+      setLoading(false);
+      return;
+    }
+
+    let items = (data || []).filter((s: any) => activeStatuses.includes(s.clients?.status || ""));
+
+    if (!isAdminOrManager) {
+      items = items.filter((s: any) => {
+        const vendedor = normalize(s.clients?.vendedor);
+        return userNames.some((name) => vendedor === name || vendedor.includes(name) || name.includes(vendedor));
+      });
+    }
+
     const mapped: SimulationWithClient[] = items.map((s: any) => ({
       id: s.id,
       client_id: s.client_id,
