@@ -119,18 +119,24 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                 <Badge className="text-[9px] h-4 px-1.5 font-semibold bg-success/15 text-success border-success/30 gap-0.5" variant="outline">
                   <CheckCircle2 className="h-2.5 w-2.5" />Contrato
                 </Badge>
-                {operationalStatus && (
-                  <Badge className="text-[9px] h-4 px-1.5 font-semibold bg-accent text-accent-foreground border-accent-foreground/20 gap-0.5 animate-pulse" variant="outline">
-                    <Ruler className="h-2.5 w-2.5" />
-                    {operationalStatus === "em_medicao" ? "Em Medição" :
-                     operationalStatus === "em_liberado" ? "Em Liberação" :
-                     operationalStatus === "em_compras" ? "Em Compras" :
-                     operationalStatus === "para_entrega" ? "Para Entrega" :
-                     operationalStatus === "para_montagem" ? "Para Montagem" :
-                     operationalStatus === "assistencia" ? "Assistência" :
-                     operationalStatus === "finalizado" ? "Finalizado" : operationalStatus}
-                  </Badge>
-                )}
+                {operationalStatus && (() => {
+                  const opCfg: Record<string, { label: string; cls: string }> = {
+                    em_medicao: { label: "Em Medição", cls: "bg-[hsl(270_70%_55%/0.15)] text-[hsl(270_70%_45%)] border-[hsl(270_70%_55%/0.3)]" },
+                    em_liberado: { label: "Em Liberação", cls: "bg-[hsl(30_80%_50%/0.15)] text-[hsl(30_80%_40%)] border-[hsl(30_80%_50%/0.3)]" },
+                    em_compras: { label: "Em Compras", cls: "bg-[hsl(45_90%_50%/0.15)] text-[hsl(45_90%_35%)] border-[hsl(45_90%_50%/0.3)]" },
+                    para_entrega: { label: "Para Entrega", cls: "bg-[hsl(215_80%_55%/0.15)] text-[hsl(215_80%_40%)] border-[hsl(215_80%_55%/0.3)]" },
+                    para_montagem: { label: "Para Montagem", cls: "bg-[hsl(280_60%_55%/0.15)] text-[hsl(280_60%_40%)] border-[hsl(280_60%_55%/0.3)]" },
+                    assistencia: { label: "Assistência", cls: "bg-[hsl(15_80%_55%/0.15)] text-[hsl(15_80%_40%)] border-[hsl(15_80%_55%/0.3)]" },
+                    finalizado: { label: "Finalizado", cls: "bg-success/15 text-success border-success/30" },
+                  };
+                  const cfg = opCfg[operationalStatus] || { label: operationalStatus, cls: "bg-accent text-accent-foreground border-accent-foreground/20" };
+                  return (
+                    <Badge className={cn("text-[9px] h-4 px-1.5 font-semibold gap-0.5", cfg.cls)} variant="outline">
+                      <Ruler className="h-2.5 w-2.5" />
+                      {cfg.label}
+                    </Badge>
+                  );
+                })()}
               </div>
             )}
             {/* Badge de tipo na coluna Novo */}
