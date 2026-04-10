@@ -225,7 +225,13 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
   }, [open, currentUser?.id, currentUser?.cargo_nome, currentUser?.nome_completo, currentUser?.apelido]);
 
   const filtered = useMemo(() => {
-    let list = simulations;
+    // Deduplicate: keep only the latest simulation per client (already sorted by created_at desc)
+    const seenClients = new Set<string>();
+    let list = simulations.filter(s => {
+      if (seenClients.has(s.client_id)) return false;
+      seenClients.add(s.client_id);
+      return true;
+    });
 
     if (searchName.trim()) {
       const term = searchName.toLowerCase().trim();
