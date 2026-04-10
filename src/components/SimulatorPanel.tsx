@@ -547,6 +547,11 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
           VALOR_TELA_MAX={actions.VALOR_TELA_MAX} VALOR_ENTRADA_MAX={VALOR_ENTRADA_MAX}
           catalogProducts={catalogProducts}
           stockWarnings={stockWarnings}
+          onSyncPromotions={async () => {
+            if (catalogProducts.length === 0) return;
+            const synced = await syncCatalogProductsWithLiveData(catalogProducts, true);
+            if (synced) setCatalogProducts(synced);
+          }}
           onUpdateCatalogProductQty={(productId, qty) => {
             const newQty = Math.max(1, Number.isFinite(qty) ? qty : 1);
             setCatalogProducts((prev) => prev.map((item) => (
