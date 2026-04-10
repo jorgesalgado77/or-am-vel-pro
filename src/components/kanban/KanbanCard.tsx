@@ -27,6 +27,7 @@ interface KanbanCardProps {
   assignedTechnician?: string | null;
   scheduledMeasurement?: { date: string; time: string; km?: number } | null;
   operationalStatus?: string | null;
+  measurementUpdatedAt?: string | null;
   isSaving?: boolean;
   onClick: (client: Client) => void;
   onQuickDelete?: (client: Client) => void;
@@ -77,12 +78,15 @@ function getColumnTint(status: string): { borderColor: string; bgClass: string }
   }
 }
 
-export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, tenantId, followUpStatus, assignedTechnician, scheduledMeasurement, operationalStatus, isSaving, onClick, onQuickDelete, onScheduleMeasurement }: KanbanCardProps) {
+export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, tenantId, followUpStatus, assignedTechnician, scheduledMeasurement, operationalStatus, measurementUpdatedAt, isSaving, onClick, onQuickDelete, onScheduleMeasurement }: KanbanCardProps) {
   const clientStatus = ((client as any).status || "novo").toLowerCase();
   const hasClosedContract = !!(client as any).contrato_fechado_visual || clientStatus === "fechado" || !!(client as any).data_contrato;
   const expired = sim && !hasClosedContract ? isPast(addDays(new Date(sim.created_at), budgetValidityDays)) : false;
   const isActiveLead = !hasClosedContract && ["novo", "em_negociacao", "proposta_enviada"].includes(clientStatus);
   const daysInColumn = differenceInDays(new Date(), new Date(isActiveLead ? client.created_at : client.updated_at));
+  const operationalColumns = ["em_medicao", "em_liberado", "em_compras", "para_entrega", "para_montagem", "assistencia"];
+  const isOperationalCard = operationalColumns.includes(clientStatus);
+  const daysInStage = measurementUpdatedAt ? differenceInDays(new Date(), new Date(measurementUpdatedAt)) : daysInColumn;
   const tint = getColumnTint(clientStatus);
 
   return (
@@ -137,6 +141,21 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                     </Badge>
                   );
                 })()}
+                {/* Days stuck in current operational stage */}
+                {isOperationalCard && (
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "text-[9px] h-4 px-1.5 font-bold gap-0.5 animate-pulse",
+                      daysInStage <= 2 && "border-success/50 text-success bg-success/10",
+                      daysInStage > 2 && daysInStage <= 5 && "border-warning/50 text-warning bg-warning/10",
+                      daysInStage > 5 && "border-destructive/50 text-destructive bg-destructive/10",
+                    )}
+                  >
+                    <Clock className="h-2.5 w-2.5" />
+                    {daysInStage === 0 ? "hoje" : `${daysInStage}d nesta etapa`}
+                  </Badge>
+                )}
               </div>
             )}
             {/* Badge de tipo na coluna Novo */}

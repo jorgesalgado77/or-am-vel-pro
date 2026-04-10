@@ -158,7 +158,10 @@ export function ClientsKanban({
         
         // Active leads (novo, em_negociacao, proposta_enviada) without contracts always carry over
         const isActiveLead = !hasContract && ["novo", "em_negociacao", "proposta_enviada"].includes(clientStatus);
-        if (!isActiveLead) {
+        // Clients with active measurement requests (operational stages) should always be visible
+        const mr = measurementStatus[c.id];
+        const isActiveOperational = hasContract && mr && !["finalizado", "concluido"].includes((mr.status || "").toLowerCase());
+        if (!isActiveLead && !isActiveOperational) {
           // For closed/expired/lost deals, apply period filter
           const contractDate = (c as any).data_contrato ? new Date((c as any).data_contrato) : null;
           const clientCreated = new Date(c.created_at);
@@ -224,16 +227,31 @@ export function ClientsKanban({
         // Standard flow for non-technical roles
         if (status === "proposta_enviada") status = "em_negociacao";
         if (status === "novo" && client.vendedor) status = "em_negociacao";
-        if (contractClientIds.has(client.id)) {
-          const operationalIds = KANBAN_COLUMNS_OPERACIONAL.map(c => c.id);
-          if (!operationalIds.includes(status)) status = "fechado";
-        }
-        const mr = measurementStatus[client.id];
         const hasContractRecord = contractClientIds.has(client.id);
-        if (mr && !hasContractRecord) {
+        const mr = measurementStatus[client.id];
+        
+        if (hasContractRecord) {
+          // Client has a contract — resolve to operational column based on measurement_request status
+          if (mr) {
+            const resolvedOp = resolveTechnicalColumn(mr.status);
+            // Map technical column IDs to operational equivalents
+            const techToOp: Record<string, string> = {
+              nova_solicitacao: "em_medicao",
+              em_medicao: "em_medicao",
+              em_liberado: "em_liberado",
+              negativos: "em_medicao", // negativos stay visible in em_medicao for admin
+              enviado_compras: "em_compras",
+            };
+            status = techToOp[resolvedOp] || "em_medicao";
+          } else {
+            const operationalIds = KANBAN_COLUMNS_OPERACIONAL.map(c => c.id);
+            if (!operationalIds.includes(status)) status = "fechado";
+          }
+        } else if (mr) {
+          // Has measurement request but no contract yet — show in em_medicao
           if (status === "fechado") status = "em_medicao";
-          else if (status === "em_medicao" && mr.assigned_to) status = "em_liberado";
         }
+        
         const sim = lastSims[client.id];
         if (sim && status !== "fechado" && status !== "perdido" && status !== "expirado" && !KANBAN_COLUMNS_OPERACIONAL.some(c => c.id === status)) {
           if (isPast(addDays(new Date(sim.created_at), settings.budget_validity_days))) status = "expirado";
@@ -332,6 +350,7 @@ export function ClientsKanban({
         [draggableId]: {
           status: mrStatus,
           assigned_to: prev[draggableId]?.assigned_to ?? previousMeasurement?.assigned_to ?? null,
+          updated_at: new Date().toISOString(),
         },
       }));
 
@@ -421,24 +440,65 @@ export function ClientsKanban({
       }
       setSavingCardId(null);
     } else {
+      const operationalIds = KANBAN_COLUMNS_OPERACIONAL.map(c => c.id);
+      const isOperationalMove = operationalIds.includes(newStatus);
+      
       // Standard flow: update clients table
       setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: newStatus, ...(newStatus === "fechado" ? { data_contrato: new Date().toISOString() } : {}) } as any : c));
-      const updatePayload: any = { status: newStatus };
-      if (newStatus === "fechado") {
-        updatePayload.data_contrato = new Date().toISOString();
-      }
-      const { error } = await supabase.from("clients").update(updatePayload).eq("id", draggableId);
-      if (error) {
-        setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: oldStatus } as any : c));
-        toast.error("Erro ao mover cliente");
+      
+      if (isOperationalMove) {
+        // Admin/gerente moving card in operational columns — update measurement_requests
+        const opToMrStatus: Record<string, string> = {
+          em_medicao: "em_andamento",
+          em_liberado: "em_liberacao",
+          em_compras: "enviado_compras",
+          para_entrega: "para_entrega",
+          para_montagem: "para_montagem",
+          assistencia: "assistencia",
+          finalizado: "finalizado",
+        };
+        const mrStatus = opToMrStatus[newStatus] || newStatus;
+        setMeasurementStatus(prev => ({
+          ...prev,
+          [draggableId]: { ...prev[draggableId], status: mrStatus, updated_at: new Date().toISOString() },
+        }));
+        
+        const { error } = await supabase
+          .from("measurement_requests" as any)
+          .update({ status: mrStatus, updated_at: new Date().toISOString() } as any)
+          .eq("client_id", draggableId)
+          .eq("tenant_id", tenantId);
+        
+        if (error) {
+          setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: oldStatus } as any : c));
+          toast.error("Erro ao mover solicitação");
+        } else {
+          const colLabel = KANBAN_ALL_COLUMNS.find(c => c.id === newStatus)?.label;
+          toast.success(`${client.nome} movido para "${colLabel}"`);
+          supabase.from("client_movements" as any).insert({
+            tenant_id: tenantId, client_id: draggableId,
+            from_column: source.droppableId, to_column: newStatus,
+            moved_by: currentUser?.nome_completo || "Sistema",
+          }).then(() => {});
+        }
       } else {
-        const colLabel = KANBAN_ALL_COLUMNS.find(c => c.id === newStatus)?.label;
-        toast.success(`${client.nome} movido para "${colLabel}"`);
-        supabase.from("client_movements" as any).insert({
-          tenant_id: tenantId, client_id: draggableId,
-          from_column: source.droppableId, to_column: newStatus,
-          moved_by: currentUser?.nome_completo || "Sistema",
-        }).then(() => {});
+        const updatePayload: any = { status: newStatus };
+        if (newStatus === "fechado") {
+          updatePayload.data_contrato = new Date().toISOString();
+        }
+        const { error } = await supabase.from("clients").update(updatePayload).eq("id", draggableId);
+        if (error) {
+          setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: oldStatus } as any : c));
+          toast.error("Erro ao mover cliente");
+        } else {
+          const colLabel = KANBAN_ALL_COLUMNS.find(c => c.id === newStatus)?.label;
+          toast.success(`${client.nome} movido para "${colLabel}"`);
+          supabase.from("client_movements" as any).insert({
+            tenant_id: tenantId, client_id: draggableId,
+            from_column: source.droppableId, to_column: newStatus,
+            moved_by: currentUser?.nome_completo || "Sistema",
+          }).then(() => {});
+        }
       }
       setSavingCardId(null);
     }

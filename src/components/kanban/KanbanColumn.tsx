@@ -14,7 +14,7 @@ interface KanbanColumnProps {
   cargoNome: string;
   tenantId: string;
   followUpStatus: Record<string, "active" | "paused" | "completed">;
-  measurementStatus: Record<string, { status: string; assigned_to: string | null }>;
+  measurementStatus: Record<string, { status: string; assigned_to: string | null; updated_at?: string | null }>;
   scheduledMeasurements?: Record<string, { date: string; time: string; km?: number }>;
   savingCardId?: string | null;
   canDelete: boolean;
@@ -82,6 +82,7 @@ export const KanbanColumn = React.memo(function KanbanColumn({
                   followUpStatus={followUpStatus[client.id]}
                   assignedTechnician={measurementStatus[client.id]?.assigned_to || null}
                   operationalStatus={measurementStatus[client.id]?.status || null}
+                  measurementUpdatedAt={measurementStatus[client.id]?.updated_at || null}
                   scheduledMeasurement={scheduledMeasurements?.[client.id] || null}
                   isSaving={savingCardId === client.id}
                   onClick={onClientClick}

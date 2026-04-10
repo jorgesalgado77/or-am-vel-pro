@@ -20,7 +20,7 @@ export function useKanbanData(externalClients: Client[]) {
   const [lastSims, setLastSims] = useState<Record<string, LastSimInfo>>({});
   const [followUpStatus, setFollowUpStatus] = useState<Record<string, "active" | "paused" | "completed">>({});
   const [contractClientIds, setContractClientIds] = useState<Set<string>>(new Set());
-  const [measurementStatus, setMeasurementStatus] = useState<Record<string, { status: string; assigned_to: string | null }>>({});
+  const [measurementStatus, setMeasurementStatus] = useState<Record<string, { status: string; assigned_to: string | null; updated_at: string | null }>>({});
   const [scheduledMeasurements, setScheduledMeasurements] = useState<Record<string, { date: string; time: string; km?: number }>>({});
   const [expandedClient, setExpandedClient] = useState<Client | null>(null);
 
@@ -209,7 +209,7 @@ export function useKanbanData(externalClients: Client[]) {
       const currentClients = localClientsRef.current;
       // Always fetch ALL measurement requests for the tenant — filter client-side
       // This avoids .or() URL-encoding issues with names containing spaces/accents
-      const { data } = await supabase.from("measurement_requests" as any).select("client_id, status, assigned_to").eq("tenant_id", tenantId);
+      const { data } = await supabase.from("measurement_requests" as any).select("client_id, status, assigned_to, updated_at").eq("tenant_id", tenantId);
       if (!data) return;
 
       // For basic technical roles, filter to only requests assigned to them (by name or ID)
@@ -223,8 +223,8 @@ export function useKanbanData(externalClients: Client[]) {
         });
       }
 
-      const statusMap: Record<string, { status: string; assigned_to: string | null }> = {};
-      filtered.forEach((r: any) => { statusMap[r.client_id] = { status: r.status || "pending", assigned_to: r.assigned_to || null }; });
+      const statusMap: Record<string, { status: string; assigned_to: string | null; updated_at: string | null }> = {};
+      filtered.forEach((r: any) => { statusMap[r.client_id] = { status: r.status || "pending", assigned_to: r.assigned_to || null, updated_at: r.updated_at || null }; });
       setMeasurementStatus(statusMap);
       if (!isTechnical) {
         const updates: Array<{ id: string; status: string }> = [];
