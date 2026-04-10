@@ -584,6 +584,10 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                       <SelectContent>{UF_OPTIONS.map(uf => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
+                  <div>
+                    <Label className="text-xs">Complemento</Label>
+                    <Input value={form.complemento_entrega} onChange={e => updateField("complemento_entrega", e.target.value)} className="mt-1 h-9 text-sm" placeholder="Apto, Bloco, etc." disabled={sameAddress} />
+                  </div>
                 </div>
               </CardContent>
             </Card>
