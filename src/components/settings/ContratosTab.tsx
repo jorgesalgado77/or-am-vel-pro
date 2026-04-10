@@ -111,6 +111,12 @@ const AVAILABLE_VARIABLES = [
   { var: "{{telefone_util_setor_N}}", desc: "Setor do telefone útil N (ex: _1, _2...)" },
   { var: "{{telefone_util_responsavel_N}}", desc: "Responsável do telefone útil N" },
   { var: "{{telefone_util_numero_N}}", desc: "Número do telefone útil N" },
+  { var: "{{logo_empresa}}", desc: "Logo da empresa (imagem)" },
+  { var: "{{empresa_subtitulo}}", desc: "Subtítulo/slogan da empresa" },
+  { var: "{{complemento_entrega}}", desc: "Complemento do endereço de entrega" },
+  { var: "{{ambientes_valores_tabela}}", desc: "Tabela automática: ambientes com valores" },
+  { var: "{{ambientes_cores_tabela}}", desc: "Tabela automática: ambientes com cores e materiais" },
+  { var: "{{produtos_catalogo_completo}}", desc: "Tabela completa de produtos do catálogo" },
 ];
 
 export function ContratosTab() {
