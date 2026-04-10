@@ -25,23 +25,37 @@ interface SimulatorClientPickerProps {
   selectedVendedorNome: string;
   onVendedorChange: (nome: string) => void;
   onQuickClientOpen: () => void;
+  linkedClient?: Client | null;
+  onUnlinkClient?: () => void;
 }
 
 export const SimulatorClientPicker = React.memo(function SimulatorClientPicker({
-  clientSearch, setClientSearch, searchingClients, clientResults, onLinkClient,
-  vendedores, selectedVendedorNome, onVendedorChange, onQuickClientOpen,
+  clientSearch,
+  setClientSearch,
+  searchingClients,
+  clientResults,
+  onLinkClient,
+  vendedores,
+  selectedVendedorNome,
+  onVendedorChange,
+  onQuickClientOpen,
+  linkedClient,
+  onUnlinkClient,
 }: SimulatorClientPickerProps) {
+  const hasLinkedClient = !!linkedClient;
+
   return (
     <Card className="border-dashed border-primary/30 bg-primary/5">
       <CardContent className="pt-4 pb-4 space-y-3">
-        {/* Seller Selection */}
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-sm font-medium text-foreground">
             <UserCheck className="h-4 w-4 text-primary" />
             Vendedor / Projetista Responsável
           </div>
           <Select value={selectedVendedorNome || "_none"} onValueChange={v => onVendedorChange(v === "_none" ? "" : v)}>
-            <SelectTrigger className="h-9"><SelectValue placeholder="Selecione o responsável" /></SelectTrigger>
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="Selecione o responsável" />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="_none">Selecione...</SelectItem>
               {vendedores.map(v => (
@@ -57,7 +71,7 @@ export const SimulatorClientPicker = React.memo(function SimulatorClientPicker({
               <UserPlus className="h-4 w-4 text-primary" />
               Vincular Cliente
             </div>
-            <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={onQuickClientOpen}>
+            <Button variant="outline" size="sm" type="button" className="h-7 text-xs gap-1" onClick={onQuickClientOpen}>
               <PlusCircle className="h-3 w-3" /> Novo Cliente
             </Button>
           </div>
@@ -67,24 +81,46 @@ export const SimulatorClientPicker = React.memo(function SimulatorClientPicker({
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              value={clientSearch}
-              onChange={(e) => setClientSearch(e.target.value)}
+              value={hasLinkedClient ? linkedClient.nome : clientSearch}
+              onChange={(e) => {
+                if (hasLinkedClient) return;
+                setClientSearch(e.target.value);
+              }}
               placeholder="Buscar por nome do cliente..."
-              className="pl-9"
+              readOnly={hasLinkedClient}
+              className="pl-9 pr-9"
             />
+            {hasLinkedClient && onUnlinkClient && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2"
+                onClick={onUnlinkClient}
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </div>
-          {searchingClients && (
+          {hasLinkedClient && (
+            <div className="flex items-center gap-2 text-xs text-primary">
+              <Badge variant="secondary" className="text-[10px]">Cliente vinculado</Badge>
+              <span className="truncate">{linkedClient.nome}</span>
+            </div>
+          )}
+          {searchingClients && !hasLinkedClient && (
             <p className="text-xs text-muted-foreground">Buscando...</p>
           )}
-          {clientResults.length > 0 && (
+          {!hasLinkedClient && clientResults.length > 0 && (
             <div className="border rounded-md divide-y max-h-40 overflow-y-auto bg-background">
               {clientResults.map((c) => (
                 <button
                   key={c.id}
+                  type="button"
                   className="w-full text-left px-3 py-2 hover:bg-accent transition-colors text-sm"
                   onClick={() => {
                     onLinkClient(c);
-                    toast.success(`Cliente "${c.nome}" vinculado ao simulador`);
+                    toast.success(`Cliente \"${c.nome}\" vinculado ao simulador`);
                   }}
                 >
                   <span className="font-medium">{c.nome}</span>
@@ -110,7 +146,7 @@ export const LinkedClientBadge = React.memo(function LinkedClientBadge({ client,
       <UserPlus className="h-4 w-4 text-primary" />
       <span className="font-medium">{client.nome}</span>
       <Badge variant="secondary" className="text-[10px]">vinculado</Badge>
-      <button onClick={onUnlink} className="ml-auto text-muted-foreground hover:text-destructive">
+      <button type="button" onClick={onUnlink} className="ml-auto text-muted-foreground hover:text-destructive">
         <X className="h-3.5 w-3.5" />
       </button>
     </div>

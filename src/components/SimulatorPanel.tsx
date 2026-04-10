@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { SimulatorParametersForm } from "@/components/simulator/SimulatorParametersForm";
-import { SimulatorClientPicker, LinkedClientBadge } from "@/components/simulator/SimulatorClientPicker";
+import { SimulatorClientPicker } from "@/components/simulator/SimulatorClientPicker";
 import type { ImportedEnvironment } from "@/components/simulator/SimulatorEnvironmentsTable";
 import type { SelectedProduct } from "@/components/simulator/ProductPickerForSimulator";
 import { SimulatorResultCard } from "@/components/simulator/SimulatorResultCard";
@@ -143,28 +143,6 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const [searchingClients, setSearchingClients] = useState(false);
   const effectiveClient = client || linkedClient;
 
-  // Restore linked client from stored ID
-  useEffect(() => {
-    if (client || linkedClient || !stored.linkedClientId) return;
-    supabase.from("clients").select("*").eq("id", stored.linkedClientId).single()
-      .then(({ data }) => { if (data) setLinkedClient(data as Client); });
-  }, []);
-
-  const searchClients = useCallback(async (term: string) => {
-    if (!term || term.length < 2) { setClientResults([]); return; }
-    const tid = await getResolvedTenantId();
-    if (!tid) return;
-    setSearchingClients(true);
-    const { data } = await supabase.from("clients").select("*").eq("tenant_id", tid).ilike("nome", `%${term}%`).limit(5);
-    setClientResults((data as Client[]) || []);
-    setSearchingClients(false);
-  }, []);
-
-  useEffect(() => {
-    const t = setTimeout(() => searchClients(clientSearch), 300);
-    return () => clearTimeout(t);
-  }, [clientSearch, searchClients]);
-
   // ─── File / Environment State ───
   const [importedFile, setImportedFile] = useState<File | null>(null);
   const [selectedIndicadorId, setSelectedIndicadorId] = useState(stored.selectedIndicadorId ?? client?.indicador_id ?? "");
@@ -188,6 +166,37 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     nome: "", cpf: "", telefone1: "", telefone2: "", email: "",
     vendedor: "", quantidade_ambientes: 0, descricao_ambientes: "", indicador_id: "",
   });
+  const selectedVendedorNome = effectiveClient?.vendedor || newClient.vendedor || "";
+
+  useEffect(() => {
+    if (client) {
+      setLinkedClient(null);
+      setClientSearch(client.nome || "");
+      if (client.vendedor) {
+        setNewClient((prev) => prev.vendedor === client.vendedor ? prev : { ...prev, vendedor: client.vendedor });
+      }
+      return;
+    }
+
+    if (linkedClient) {
+      setClientSearch(linkedClient.nome || "");
+      if (linkedClient.vendedor) {
+        setNewClient((prev) => prev.vendedor === linkedClient.vendedor ? prev : { ...prev, vendedor: linkedClient.vendedor });
+      }
+      return;
+    }
+
+    if (!stored.linkedClientId) return;
+
+    supabase
+      .from("clients")
+      .select("*")
+      .eq("id", stored.linkedClientId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setLinkedClient(data as Client);
+      });
+  }, [client, linkedClient, stored.linkedClientId]);
   const catalogProductsTotal = useMemo(
     () => catalogProducts.reduce((sum, item) => sum + item.product.sale_price * item.quantity, 0),
     [catalogProducts],
@@ -515,21 +524,20 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
             </Suspense>
           )}
 
-          {!effectiveClient && (
-            <SimulatorClientPicker
-              clientSearch={clientSearch} setClientSearch={setClientSearch}
-              searchingClients={searchingClients} clientResults={clientResults}
-              onLinkClient={(c) => { setLinkedClient(c); setClientSearch(""); setClientResults([]); }}
-              vendedores={projetistas.map(p => ({ id: p.id, nome_completo: p.nome_completo }))}
-              selectedVendedorNome={newClient.vendedor}
-              onVendedorChange={(nome) => setNewClient(prev => ({ ...prev, vendedor: nome }))}
-              onQuickClientOpen={() => setShowClientForm(true)}
-            />
-          )}
-
-          {linkedClient && !client && (
-            <LinkedClientBadge client={linkedClient} onUnlink={() => { setLinkedClient(null); setClientSearch(""); }} />
-          )}
+          <SimulatorClientPicker
+            clientSearch={clientSearch} setClientSearch={setClientSearch}
+            searchingClients={searchingClients} clientResults={clientResults}
+            onLinkClient={(c) => { setLinkedClient(c); setClientSearch(""); setClientResults([]); }}
+            vendedores={projetistas.map(p => ({ id: p.id, nome_completo: p.nome_completo }))}
+            selectedVendedorNome={selectedVendedorNome}
+            onVendedorChange={(nome) => {
+              if (effectiveClient) return;
+              setNewClient(prev => ({ ...prev, vendedor: nome }));
+            }}
+            onQuickClientOpen={() => setShowClientForm(true)}
+            linkedClient={effectiveClient}
+            onUnlinkClient={!client ? () => { setLinkedClient(null); setClientSearch(""); } : undefined}
+          />
 
           {!effectiveClient && showClientForm && (
             <SimulatorClientForm newClient={newClient} onChange={setNewClient} onCancel={() => setShowClientForm(false)} onSave={actions.handleSave} saving={actions.saving} projetistas={projetistas} indicadores={activeIndicadores} />
@@ -571,9 +579,17 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
             setFormaPagamento(sim.forma_pagamento as FormaPagamento); setParcelas(sim.parcelas);
             setValorEntrada(sim.valor_entrada); setPlusPercentual(sim.plus_percentual);
             setCatalogProducts([]);
+            if (sim.client) {
+              setLinkedClient(sim.client);
+              setClientSearch(sim.client.nome || "");
+              setClientResults([]);
+              setShowClientForm(false);
+              if (sim.client.vendedor) {
+                setNewClient((prev) => prev.vendedor === sim.client.vendedor ? prev : { ...prev, vendedor: sim.client.vendedor });
+              }
+            }
             if (sim.desconto3 > 0) setDesconto3Unlocked(true);
             if (sim.plus_percentual > 0) setPlusUnlocked(true);
-            // Restore AI strategy
             const parsed = sim.arquivo_nome ? parseArquivoNome(sim.arquivo_nome) : null;
             const iaEnabled = parsed?.metadata?.iaStrategyEnabled ?? !!sim.estrategia_ia;
             setActiveStrategy(sim.estrategia_ia || parsed?.metadata?.estrategiaIa || "");

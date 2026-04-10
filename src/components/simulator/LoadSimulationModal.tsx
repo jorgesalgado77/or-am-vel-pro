@@ -15,11 +15,15 @@ import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import type { Database } from "@/integrations/supabase/types";
+
+type Client = Database["public"]["Tables"]["clients"]["Row"];
 
 interface SimulationWithClient {
   id: string;
   client_id: string;
   client_name: string;
+  client: Client | null;
   numero_orcamento: string | null;
   valor_tela: number;
   valor_final: number;
@@ -85,7 +89,7 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
 
     const { data, error } = await supabase
       .from("simulations")
-      .select("*, clients!inner(nome, numero_orcamento, vendedor, status)")
+      .select("*, clients!inner(*)")
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(500);
@@ -110,6 +114,7 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
       id: s.id,
       client_id: s.client_id,
       client_name: s.clients?.nome || "Sem nome",
+      client: (s.clients as Client) || null,
       numero_orcamento: s.clients?.numero_orcamento || null,
       valor_tela: Number(s.valor_tela) || 0,
       valor_final: Number(s.valor_final) || 0,
