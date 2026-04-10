@@ -130,15 +130,30 @@ export function useTextSplitter() {
       wrapper.innerHTML = html;
       const topNodes = Array.from(wrapper.childNodes);
 
-      if (topNodes.length > 1) {
+      // Flatten single-child wrappers to get actual content nodes
+      const getEffectiveNodes = (nodes: Node[]): Node[] => {
+        if (nodes.length === 1 && nodes[0].nodeType === 1) {
+          const el = nodes[0] as HTMLElement;
+          const tag = el.tagName?.toLowerCase();
+          // If it's a wrapper div/span with multiple children, use its children
+          if ((tag === "div" || tag === "span" || tag === "section" || tag === "article") && el.childNodes.length > 1) {
+            return Array.from(el.childNodes);
+          }
+        }
+        return nodes;
+      };
+
+      const effectiveNodes = getEffectiveNodes(topNodes);
+
+      if (effectiveNodes.length > 1) {
         let lo = 0;
-        let hi = topNodes.length;
+        let hi = effectiveNodes.length;
 
         while (lo < hi) {
           const mid = Math.floor((lo + hi + 1) / 2);
           const testDiv = document.createElement("div");
           for (let i = 0; i < mid; i++) {
-            testDiv.appendChild(topNodes[i].cloneNode(true));
+            testDiv.appendChild(effectiveNodes[i].cloneNode(true));
           }
           measure.innerHTML = testDiv.innerHTML;
           if (measure.scrollHeight <= maxHeight) {
@@ -152,11 +167,11 @@ export function useTextSplitter() {
         const fittingDiv = document.createElement("div");
         const remainderDiv = document.createElement("div");
 
-        for (let i = 0; i < topNodes.length; i++) {
+        for (let i = 0; i < effectiveNodes.length; i++) {
           if (i < splitAt) {
-            fittingDiv.appendChild(topNodes[i].cloneNode(true));
+            fittingDiv.appendChild(effectiveNodes[i].cloneNode(true));
           } else {
-            remainderDiv.appendChild(topNodes[i].cloneNode(true));
+            remainderDiv.appendChild(effectiveNodes[i].cloneNode(true));
           }
         }
 
@@ -165,9 +180,68 @@ export function useTextSplitter() {
         if (fitHtml && remHtml && measureHtmlHeight(fitHtml, width, style) <= maxHeight) {
           return [fitHtml, remHtml];
         }
+
+        // If binary search on nodes didn't produce a valid split (e.g. first node is too big),
+        // try to recursively split the first overflowing node
+        if (splitAt === 1 && effectiveNodes.length > 1) {
+          const firstNode = effectiveNodes[0];
+          if (firstNode.nodeType === 1) {
+            const firstEl = firstNode as HTMLElement;
+            const firstHtml = firstEl.outerHTML || firstEl.innerHTML;
+            const [subFit, subRem] = splitHtmlAtHeight(firstHtml, width, style, maxHeight);
+            if (subFit && subRem) {
+              const restDiv = document.createElement("div");
+              for (let i = 1; i < effectiveNodes.length; i++) {
+                restDiv.appendChild(effectiveNodes[i].cloneNode(true));
+              }
+              return [subFit, subRem + restDiv.innerHTML];
+            }
+          }
+        }
       }
 
-      const plainText = htmlToPlainText(html);
+      // For single-node content or failed multi-node split, try splitting text within
+      // by converting to paragraphs/lines first
+      const contentHtml = effectiveNodes.length === 1 && effectiveNodes[0].nodeType === 1
+        ? (effectiveNodes[0] as HTMLElement).innerHTML || html
+        : html;
+
+      // Try paragraph-level splitting first if content has block elements
+      const paraWrapper = document.createElement("div");
+      paraWrapper.innerHTML = contentHtml;
+      const blockNodes = Array.from(paraWrapper.childNodes).filter(n => {
+        if (n.nodeType === 3) return (n.textContent || "").trim().length > 0;
+        if (n.nodeType === 1) return true;
+        return false;
+      });
+
+      if (blockNodes.length > 1) {
+        let lo = 0;
+        let hi = blockNodes.length;
+
+        while (lo < hi) {
+          const mid = Math.floor((lo + hi + 1) / 2);
+          const testDiv = document.createElement("div");
+          for (let i = 0; i < mid; i++) testDiv.appendChild(blockNodes[i].cloneNode(true));
+          measure.innerHTML = testDiv.innerHTML;
+          if (measure.scrollHeight <= maxHeight) lo = mid; else hi = mid - 1;
+        }
+
+        if (lo >= 1) {
+          const fitDiv = document.createElement("div");
+          const remDiv = document.createElement("div");
+          for (let i = 0; i < blockNodes.length; i++) {
+            (i < lo ? fitDiv : remDiv).appendChild(blockNodes[i].cloneNode(true));
+          }
+          const f = fitDiv.innerHTML;
+          const r = remDiv.innerHTML;
+          if (f && r && measureHtmlHeight(f, width, style) <= maxHeight) {
+            return [f, r];
+          }
+        }
+      }
+
+      const plainText = htmlToPlainText(contentHtml);
       if (!plainText) return [html, ""];
 
       const splitTokens = (tokens: string[]) => {
