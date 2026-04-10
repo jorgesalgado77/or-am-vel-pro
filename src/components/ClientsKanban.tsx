@@ -93,7 +93,18 @@ export function ClientsKanban({
     return { start, end };
   }, [periodFilter, dateStart, dateEnd]);
 
-  // Filtered clients
+  const periodLabel = useMemo(() => {
+    const { start, end } = effectiveDates;
+    if (!start && !end) return "Todos os períodos";
+    if (periodFilter === "mes_atual") return format(new Date(), "MMMM 'de' yyyy", { locale: ptBR }).replace(/^./, c => c.toUpperCase());
+    if (periodFilter === "mes_anterior") { const prev = subMonths(new Date(), 1); return format(prev, "MMMM 'de' yyyy", { locale: ptBR }).replace(/^./, c => c.toUpperCase()); }
+    if (periodFilter === "60_dias") return "Últimos 60 dias";
+    if (periodFilter === "90_dias") return "Últimos 90 dias";
+    if (periodFilter === "6_meses") return "Últimos 6 meses";
+    if (start && end) return `${format(start, "dd/MM/yy")} — ${format(end, "dd/MM/yy")}`;
+    return "";
+  }, [effectiveDates, periodFilter]);
+
   const filtered = useMemo(() => {
     let baseClients = localClients;
     if (currentUser && cargoNome) {
