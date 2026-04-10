@@ -318,7 +318,44 @@ export function ClientsKanban({
       const names = toMove.slice(0, 3).map(c => c.nome).join(", ");
       toast.error(`❌ ${toMove.length} cliente(s) movido(s) para "Perdido" após 3+ dias expirados: ${names}${toMove.length > 3 ? "..." : ""}`, { duration: 8000 });
     }
-  }, [columnData, loading, isTechnicalRole, lastSims]);
+
+    // 4. Cards stuck in operational stages for 3+ days — toast + push
+    const operationalStageIds = ["em_medicao", "em_liberado", "em_compras", "para_entrega", "para_montagem", "assistencia"];
+    const stageLabels: Record<string, string> = {
+      em_medicao: "Em Medição", em_liberado: "Em Liberação", em_compras: "Em Compras",
+      para_entrega: "Para Entrega", para_montagem: "Para Montagem", assistencia: "Assistência",
+    };
+    const stalledOperational: { name: string; stage: string; days: number }[] = [];
+    operationalStageIds.forEach(stageId => {
+      const cards = columnData[stageId] || [];
+      cards.forEach(c => {
+        const mr = measurementStatus[c.id];
+        const refDate = mr?.updated_at ? new Date(mr.updated_at) : new Date(c.updated_at || c.created_at);
+        const days = differenceInDays(now, refDate);
+        if (days >= 3) {
+          stalledOperational.push({ name: c.nome, stage: stageLabels[stageId] || stageId, days });
+        }
+      });
+    });
+
+    if (stalledOperational.length > 0) {
+      const summary = stalledOperational.slice(0, 3).map(s => `${s.name} (${s.stage} — ${s.days}d)`).join(", ");
+      toast.warning(`🚨 ${stalledOperational.length} contrato(s) parado(s) há 3+ dias em etapas operacionais: ${summary}${stalledOperational.length > 3 ? "..." : ""}`, { duration: 10000 });
+
+      // Push notification
+      if (currentUser?.id) {
+        import("@/lib/pushHelper").then(({ sendPushIfEnabled }) => {
+          sendPushIfEnabled(
+            "tarefas",
+            currentUser!.id,
+            `🚨 ${stalledOperational.length} contrato(s) parado(s)`,
+            `Etapas operacionais com atraso: ${stalledOperational.slice(0, 3).map(s => `${s.name} (${s.stage})`).join(", ")}`,
+            `stalled-ops-${new Date().toISOString().substring(0, 10)}`
+          );
+        }).catch(() => {});
+      }
+    }
+  }, [columnData, loading, isTechnicalRole, lastSims, measurementStatus, currentUser]);
 
   // Map technical column IDs to measurement_requests status values
   const technicalStatusMap: Record<string, string> = {
