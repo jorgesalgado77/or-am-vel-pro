@@ -1856,7 +1856,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     .sort((a, b) => a.var.localeCompare(b.var));
 
   // --- Render helpers ---
-  const renderElement = (el: CanvasElement) => {
+  const renderElement = (el: CanvasElement, _arrayIndex?: number, _array?: CanvasElement[]) => {
     const isSelected = selectedIds.has(el.id);
     const isPrimary = selectedId === el.id; // primary = first in set, shows resize/rotate handles
     const isEditing = el.id === editingTextId;
@@ -1865,8 +1865,16 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     const isGrouped = !!el.groupId;
     const isLocked = !!el.locked;
     const groupColor = isGrouped ? `hsl(${(el.groupId!.charCodeAt(6) * 37) % 360} 70% 55%)` : "";
+
+    // Compute z-index: base from array position, boost for small variable-only elements
+    const elIdx = elements.indexOf(el);
+    const isVariableOnly = el.type === "text" && el.text && /^\s*\{\{[^}]+\}\}\s*$/.test(stripHtmlText(el.text));
+    const baseZ = elIdx >= 0 ? elIdx + 1 : 1;
+    const elZIndex = isVariableOnly ? baseZ + 1000 : (isSelected ? baseZ + 500 : baseZ);
+
     const wrapperStyle: React.CSSProperties = {
       position: "absolute", left: el.x, top: el.y, width: el.width, height: el.height,
+      zIndex: elZIndex,
       outline: isSelected 
         ? `2px ${isPrimary ? "solid" : "dashed"} ${isLocked ? "hsl(var(--destructive) / 0.6)" : "hsl(210 80% 55%)"}`
         : isGrouped ? `1px dashed ${groupColor}` : "none",
