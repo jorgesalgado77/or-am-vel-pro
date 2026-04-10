@@ -687,14 +687,40 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
           onProductPickerConfirm={(items) => {
             setCatalogProducts((prev) => {
               const merged = new Map(prev.map((item) => [item.product.id, item]));
-
               for (const item of items) {
                 const existing = merged.get(item.product.id);
                 merged.set(item.product.id, existing ? { ...existing, quantity: existing.quantity + item.quantity } : item);
               }
-
               return Array.from(merged.values());
             });
+
+            // Check promotions for newly added products
+            const productIds = items.map(i => i.product.id).filter(Boolean);
+            if (productIds.length > 0 && resolvedTenantId) {
+              (supabase.from as any)("product_promotions")
+                .select("product_id, valor_promocional, valor_original, desconto_percentual, validade")
+                .eq("tenant_id", resolvedTenantId)
+                .eq("ativo", true)
+                .in("product_id", productIds)
+                .then(({ data: promos }: any) => {
+                  if (!promos || promos.length === 0) return;
+                  const promoMap = new Map<string, any>();
+                  promos.forEach((p: any) => {
+                    if (new Date(p.validade) > new Date()) promoMap.set(p.product_id, p);
+                  });
+                  if (promoMap.size === 0) return;
+
+                  setCatalogProducts(prev => prev.map(item => {
+                    const promo = promoMap.get(item.product.id);
+                    if (!promo) return item;
+                    const updated = { ...item, product: { ...item.product, sale_price: promo.valor_promocional } };
+                    (updated as any)._promo_price = promo.valor_promocional;
+                    (updated as any)._original_price = promo.valor_original;
+                    toast.success(`🔥 "${item.product.name}" em promoção! De ${formatCurrency(promo.valor_original)} por ${formatCurrency(promo.valor_promocional)} (-${promo.desconto_percentual}%)`, { duration: 6000 });
+                    return updated;
+                  }));
+                });
+            }
           }}
           resolvedTenantId={resolvedTenantId}
         />
