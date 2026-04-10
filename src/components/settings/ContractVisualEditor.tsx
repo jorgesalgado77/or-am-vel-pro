@@ -1991,7 +1991,9 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     const elZIndex = isVariableOnly ? baseZ + 1000 : (isSelected ? baseZ + 500 : baseZ);
 
     const wrapperStyle: React.CSSProperties = {
-      position: "absolute", left: el.x, top: el.y, width: el.width, height: el.height,
+      position: "absolute", left: el.x, top: el.y, width: el.width,
+      height: isEditing ? undefined : el.height,
+      minHeight: isEditing ? el.height : undefined,
       zIndex: elZIndex,
       outline: isSelected 
         ? `2px ${isPrimary ? "solid" : "dashed"} ${isLocked ? "hsl(var(--destructive) / 0.6)" : "hsl(210 80% 55%)"}`
@@ -2001,6 +2003,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
       transformOrigin: "center center",
       cursor: isLocked ? "not-allowed" : undefined,
+      overflow: isEditing ? "visible" : "hidden",
     };
 
     // Inner style fills the wrapper — no position/size needed
