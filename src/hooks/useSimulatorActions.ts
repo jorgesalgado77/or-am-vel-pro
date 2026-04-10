@@ -463,7 +463,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     }
 
     setCloseSaleModalOpen(true);
-  }, [effectiveClient, resolvedTenantId, validateAccess, environments]);
+  }, [effectiveClient, resolvedTenantId, environments]);
 
   const handleCloseSaleConfirm = useCallback(async (formData: any, items: any[], itemDetails: any[]) => {
     if (!effectiveClient) {
