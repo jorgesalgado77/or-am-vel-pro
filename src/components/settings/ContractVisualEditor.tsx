@@ -134,6 +134,12 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   // Variable preview mode
   const [previewVarsMode, setPreviewVarsMode] = useState(false);
 
+  // Find & Replace state
+  const [showFindReplace, setShowFindReplace] = useState(false);
+  const [findText, setFindText] = useState("");
+  const [replaceText, setReplaceText] = useState("");
+  const [findResults, setFindResults] = useState<{ pageIdx: number; elId: string; count: number }[]>([]);
+
   // Conditional formatting
   const [conditionalRules, setConditionalRules] = useState<ConditionalRule[]>(DEFAULT_CONDITIONAL_RULES);
   const [showConditionalPanel, setShowConditionalPanel] = useState(false);
