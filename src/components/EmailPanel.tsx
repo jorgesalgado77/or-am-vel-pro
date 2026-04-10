@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Mail, Send, Clock, CheckCircle2, XCircle, ChevronLeft, ChevronRight,
   Plus, Loader2, Inbox, Paperclip, X, FileText, Image, Upload, Users,
@@ -116,6 +117,8 @@ interface EmailRecord {
   created_at: string;
   sent_by?: string;
 }
+
+type EmailStatusFilter = "all" | "sent" | "failed" | "pending";
 
 interface CustomTemplate {
   name: string;
@@ -348,6 +351,9 @@ export function EmailPanel() {
   const [totalCount, setTotalCount] = useState(0);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [expandedEmailId, setExpandedEmailId] = useState<string | null>(null);
+  const [historyStatusFilter, setHistoryStatusFilter] = useState<EmailStatusFilter>("all");
+  const [historyDateFrom, setHistoryDateFrom] = useState("");
+  const [historyDateTo, setHistoryDateTo] = useState("");
 
   // Custom template state
   const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>(() => {
@@ -365,28 +371,56 @@ export function EmailPanel() {
     setLoadingHistory(true);
     try {
       const tenantId = await getResolvedTenantId();
+      if (!tenantId) {
+        setEmails([]);
+        setTotalCount(0);
+        setLoadingHistory(false);
+        return;
+      }
+
       const from = (p - 1) * PAGE_SIZE;
       const toRange = from + PAGE_SIZE - 1;
 
-      const { data, count, error } = await (supabase as any)
+      let query = (supabase as any)
         .from("mia_email_history")
         .select("id, to_email, cc_email, subject, body_html, status, created_at, sent_by", { count: "exact" })
         .eq("tenant_id", tenantId)
-        .order("created_at", { ascending: false })
-        .range(from, toRange);
+        .order("created_at", { ascending: false });
+
+      if (historyStatusFilter !== "all") {
+        query = query.eq("status", historyStatusFilter);
+      }
+
+      if (historyDateFrom) {
+        query = query.gte("created_at", `${historyDateFrom}T00:00:00`);
+      }
+
+      if (historyDateTo) {
+        query = query.lte("created_at", `${historyDateTo}T23:59:59.999`);
+      }
+
+      const { data, count, error } = await query.range(from, toRange);
 
       if (!error) {
         setEmails((data || []) as EmailRecord[]);
         setTotalCount(count || 0);
+      } else {
+        console.error("[EmailPanel] loadHistory error:", error);
       }
     } catch { /* silent */ }
     setLoadingHistory(false);
-  }, []);
+  }, [historyStatusFilter, historyDateFrom, historyDateTo]);
 
   // Load history on tab switch + realtime subscription
   useEffect(() => {
     if (tab === "history") loadHistory(page);
   }, [tab, page, loadHistory]);
+
+  useEffect(() => {
+    if (tab === "history") {
+      setPage(1);
+    }
+  }, [tab, historyStatusFilter, historyDateFrom, historyDateTo]);
 
   // Realtime subscription for email history
   useEffect(() => {
@@ -611,6 +645,7 @@ export function EmailPanel() {
   };
 
   const stepNumber = ["to", "cc", "subject", "body", "review"].indexOf(step) + 1;
+  const hasHistoryFilters = historyStatusFilter !== "all" || !!historyDateFrom || !!historyDateTo;
 
   const renderContactSuggestions = (
     contacts: string[],
@@ -896,6 +931,48 @@ export function EmailPanel() {
               </CardTitle>
             </CardHeader>
             <CardContent>
+              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Status</Label>
+                  <Select value={historyStatusFilter} onValueChange={(value) => setHistoryStatusFilter(value as EmailStatusFilter)}>
+                    <SelectTrigger className="h-9 w-[180px]">
+                      <SelectValue placeholder="Todos os status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="sent">Enviado</SelectItem>
+                      <SelectItem value="failed">Falhou</SelectItem>
+                      <SelectItem value="pending">Pendente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">De</Label>
+                  <Input type="date" value={historyDateFrom} onChange={(e) => setHistoryDateFrom(e.target.value)} className="h-9 w-[170px]" />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Até</Label>
+                  <Input type="date" value={historyDateTo} onChange={(e) => setHistoryDateTo(e.target.value)} className="h-9 w-[170px]" />
+                </div>
+
+                {hasHistoryFilters && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9"
+                    onClick={() => {
+                      setHistoryStatusFilter("all");
+                      setHistoryDateFrom("");
+                      setHistoryDateTo("");
+                    }}
+                  >
+                    Limpar filtros
+                  </Button>
+                )}
+              </div>
+
               {loadingHistory ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -903,10 +980,24 @@ export function EmailPanel() {
               ) : emails.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <Mail className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                  <p>Nenhum email enviado ainda.</p>
-                  <Button variant="link" onClick={() => setTab("compose")} className="mt-2">
-                    Compor primeiro email →
-                  </Button>
+                  <p>{hasHistoryFilters ? "Nenhum email encontrado para os filtros aplicados." : "Nenhum email enviado ainda."}</p>
+                  <div className="mt-2 flex items-center justify-center gap-2">
+                    {hasHistoryFilters && (
+                      <Button
+                        variant="link"
+                        onClick={() => {
+                          setHistoryStatusFilter("all");
+                          setHistoryDateFrom("");
+                          setHistoryDateTo("");
+                        }}
+                      >
+                        Limpar filtros
+                      </Button>
+                    )}
+                    <Button variant="link" onClick={() => setTab("compose")}>
+                      Compor primeiro email →
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <ScrollArea className="max-h-[60vh]">
