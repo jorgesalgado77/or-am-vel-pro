@@ -1461,10 +1461,10 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       return;
     }
 
-    // If text element is already selected, enter edit mode on single click
+    // If text element is already selected, defer edit mode to mouseup (allow drag first)
     if ((el.type === "text" || el.type === "rect" || el.type === "circle") && selectedIds.has(el.id) && editingTextId !== el.id) {
-      setEditingTextId(el.id);
-      return;
+      pendingEditRef.current = el.id;
+      // Don't return - fall through to set up dragState so element can be dragged
     }
     // If already editing this element, don't start drag
     if (editingTextId === el.id) return;
