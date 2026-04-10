@@ -3953,14 +3953,16 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                             );
                             if (!isFixedSection) return null;
 
-                            // Count continuation pages by following splitFrom chain across all pages
+                            // Count continuation pages and find last page index
                             let continuationCount = 0;
                             let currentId = el.id;
-                            for (const p of pages) {
-                              const cont = p.elements.find(e => e.splitFrom === currentId);
+                            let lastContPageIdx = pageIdx;
+                            for (let pi = 0; pi < pages.length; pi++) {
+                              const cont = pages[pi].elements.find(e => e.splitFrom === currentId);
                               if (cont) {
                                 continuationCount++;
                                 currentId = cont.id;
+                                lastContPageIdx = pi;
                               }
                             }
 
@@ -3974,7 +3976,16 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                                   right: el.x + el.width - 8,
                                   top: el.y - 1,
                                   zIndex: 10,
-                                  pointerEvents: "none",
+                                  pointerEvents: "auto",
+                                  cursor: "pointer",
+                                }}
+                                title={`Ir para última página de continuação (página ${lastContPageIdx + 1})`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const target = pageRefsMap.current.get(lastContPageIdx);
+                                  if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+                                  setCurrentPageIdx(lastContPageIdx);
+                                  setSelectedIds(new Set());
                                 }}
                               >
                                 <span style={{
@@ -3991,7 +4002,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                                   whiteSpace: "nowrap",
                                   boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
                                 }}>
-                                  📄 +{continuationCount} {continuationCount === 1 ? "página" : "páginas"}
+                                  📄 +{continuationCount} {continuationCount === 1 ? "página" : "páginas"} →
                                 </span>
                               </div>
                             );
