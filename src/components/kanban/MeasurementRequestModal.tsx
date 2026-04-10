@@ -1900,6 +1900,27 @@ export function MeasurementRequestModal({
               </Button>
               <Button
                 variant="secondary"
+                onClick={async () => {
+                  await generatePdfPreview();
+                  setTimeout(() => {
+                    const imgs = pdfPreviewImages;
+                    if (imgs.length === 0) return;
+                    const printWin = window.open("", "_blank");
+                    if (!printWin) return;
+                    printWin.document.write(`<html><head><title>Solicitação de Medida</title><style>@media print{img{width:100%;page-break-after:always;page-break-inside:avoid;}img:last-child{page-break-after:auto;}}body{margin:0;padding:0;}</style></head><body>`);
+                    imgs.forEach((src, i) => printWin.document.write(`<img src="${src}" style="width:100%;display:block;" />`));
+                    printWin.document.write(`</body></html>`);
+                    printWin.document.close();
+                    setTimeout(() => printWin.print(), 400);
+                  }, 1500);
+                }}
+                className="gap-2"
+              >
+                <Printer className="h-4 w-4" />
+                Imprimir
+              </Button>
+              <Button
+                variant="secondary"
                 onClick={downloadPdf}
                 className="gap-2"
               >
