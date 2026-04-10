@@ -528,7 +528,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       const heightDelta = targetHeight - changedEl.height;
       const repeatedChrome = buildRepeatedElementFingerprints(prev);
 
-      if (heightDelta <= 0) {
+      if (heightDelta === 0) {
         if (!changedElUpdates || Object.keys(changedElUpdates).length === 0) return prev;
         const nextElements = sourceElements.map(el => el.id === changedElId
           ? {
@@ -543,6 +543,9 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         nextPages[currentPageIdx] = { ...sourcePage, elements: nextElements };
         return nextPages;
       }
+
+      // For both growth (heightDelta > 0) and shrinkage (heightDelta < 0),
+      // reflow all elements below the changed one
 
       const workingPages = [...prev];
 
