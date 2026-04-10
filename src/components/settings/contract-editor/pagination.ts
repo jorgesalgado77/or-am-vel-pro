@@ -81,7 +81,6 @@ export const isLikelyPageChrome = (
   pageHeight = A4_HEIGHT,
 ) => {
   if (repeatedFingerprints.has(fingerprintElement(el))) return true;
-  if (el.text?.includes("{{nome_cliente}}")) return true;
 
   const topZone = el.y <= margins.top + HEADER_ZONE_EXTRA;
   const bottomZone = el.y + el.height >= pageHeight - margins.bottom - FOOTER_ZONE_EXTRA;
@@ -128,5 +127,6 @@ export const createContinuationPageFromTemplate = (
   backgroundOpacity: templatePage.backgroundOpacity,
   elements: templatePage.elements
     .filter((el) => isLikelyPageChrome(el, repeatedFingerprints, margins))
+    .filter((el) => !el.text?.includes("{{nome_cliente}}"))
     .map((el) => ({ ...stripSplitMetadata(el), id: genId() })),
 });
