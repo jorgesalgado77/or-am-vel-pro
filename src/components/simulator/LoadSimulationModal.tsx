@@ -80,13 +80,11 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
       .from("simulations")
       .select("*, clients!inner(nome, numero_orcamento, vendedor, projetista_id)")
       .eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(500);
 
-    if (!isAdminOrManager && currentUser) {
-      query = query.or(
-        `clients.vendedor.eq.${currentUser.nome_completo},clients.projetista_id.eq.${currentUser.id}`
-      );
-    }
+    // Non-admin/manager: filter by vendedor name OR projetista_id after fetch
+    const needsUserFilter = !isAdminOrManager && currentUser;
 
     const { data, error } = await query;
 
@@ -94,7 +92,20 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
       console.error("[LoadSimulationModal] Error:", error);
       setSimulations([]);
     } else {
-      const mapped: SimulationWithClient[] = (data || []).map((s: any) => ({
+      let items = (data || []);
+      
+      // Client-side filter for non-admin users
+      if (needsUserFilter) {
+        const userName = (currentUser.nome_completo || "").toLowerCase();
+        const userId = currentUser.id;
+        items = items.filter((s: any) => {
+          const vendedor = (s.clients?.vendedor || "").toLowerCase();
+          const projetistaId = s.clients?.projetista_id || "";
+          return vendedor === userName || projetistaId === userId;
+        });
+      }
+      
+      const mapped: SimulationWithClient[] = items.map((s: any) => ({
         id: s.id,
         client_id: s.client_id,
         client_name: s.clients?.nome || "Sem nome",
