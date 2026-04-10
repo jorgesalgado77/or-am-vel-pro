@@ -212,7 +212,8 @@ export function ClientsKanban({
           if (!operationalIds.includes(status)) status = "fechado";
         }
         const mr = measurementStatus[client.id];
-        if (mr) {
+        const hasContractRecord = contractClientIds.has(client.id);
+        if (mr && !hasContractRecord) {
           if (status === "fechado") status = "em_medicao";
           else if (status === "em_medicao" && mr.assigned_to) status = "em_liberado";
         }
