@@ -4427,6 +4427,62 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                               <div className="h-px bg-border my-1" />
                             </>
                           )}
+                          {ctxShowReplace && ctxSelectedText && (
+                            <>
+                              <div className="h-px bg-border my-1" />
+                              <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">
+                                Substituir: <span className="font-mono text-foreground">"{ctxSelectedText.length > 20 ? ctxSelectedText.slice(0, 20) + "…" : ctxSelectedText}"</span>
+                              </div>
+                              <div className="px-2 pb-1">
+                                <input
+                                  type="text"
+                                  placeholder="Substituir por..."
+                                  value={ctxReplaceText}
+                                  onChange={e => setCtxReplaceText(e.target.value)}
+                                  className="w-full rounded border border-border bg-muted/30 px-2 py-1 text-xs outline-none"
+                                  onClick={e => e.stopPropagation()}
+                                  onKeyDown={e => { if (e.key === "Enter") handleCtxReplace(ctxReplaceText, false); }}
+                                />
+                              </div>
+                              {ctxReplaceText && (
+                                <div className="flex gap-1 px-2 pb-1">
+                                  <button className="flex-1 px-2 py-1 text-[10px] rounded bg-primary/10 text-primary hover:bg-primary/20" onClick={() => handleCtxReplace(ctxReplaceText, false)}>
+                                    Substituir 1×
+                                  </button>
+                                  <button className="flex-1 px-2 py-1 text-[10px] rounded bg-primary/10 text-primary hover:bg-primary/20" onClick={() => handleCtxReplace(ctxReplaceText, true)}>
+                                    Substituir Todas
+                                  </button>
+                                </div>
+                              )}
+                              <div className="px-2 pb-1">
+                                <input
+                                  type="text"
+                                  placeholder="Ou substituir por variável..."
+                                  value={ctxReplaceVarSearch}
+                                  onChange={e => setCtxReplaceVarSearch(e.target.value)}
+                                  className="w-full rounded border border-border bg-muted/30 px-2 py-1 text-xs outline-none"
+                                  onClick={e => e.stopPropagation()}
+                                />
+                              </div>
+                              <div className="max-h-[120px] overflow-y-auto">
+                                {variables
+                                  .filter(v => !ctxReplaceVarSearch || v.var.toLowerCase().includes(ctxReplaceVarSearch.toLowerCase()) || v.desc.toLowerCase().includes(ctxReplaceVarSearch.toLowerCase()))
+                                  .sort((a, b) => a.var.localeCompare(b.var))
+                                  .slice(0, 20)
+                                  .map(v => (
+                                    <div key={v.var} className="flex items-center gap-1 px-2 py-0.5">
+                                      <button className="flex-1 text-left hover:bg-accent rounded px-1" onClick={() => handleCtxReplace(v.var, false)}>
+                                        <div className="text-[10px] font-mono text-primary">{v.var}</div>
+                                      </button>
+                                      <button className="text-[9px] px-1.5 py-0.5 rounded bg-accent/50 hover:bg-accent text-muted-foreground" onClick={() => handleCtxReplace(v.var, true)} title="Substituir todas">
+                                        Todas
+                                      </button>
+                                    </div>
+                                  ))}
+                              </div>
+                            </>
+                          )}
+                          <div className="h-px bg-border my-1" />
                           <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-popover-foreground flex items-center gap-2" onClick={() => { setContextMenu(null); handleInsertCompanyLogo(); }}>
                             <ImageIcon className="h-3.5 w-3.5" /> Inserir Logo da Empresa
                           </button>
