@@ -43,6 +43,7 @@ interface SaleItemDetail {
 }
 
 interface CloseSaleFormData {
+  tipo_contrato: string;
   numero_contrato: string;
   data_fechamento: string;
   responsavel_venda: string;
@@ -100,6 +101,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   const clientFormKey = `close-sale-form-${client?.id || "new"}`;
 
   const defaultForm: CloseSaleFormData = {
+    tipo_contrato: "",
     numero_contrato: "",
     data_fechamento: format(new Date(), "yyyy-MM-dd"),
     responsavel_venda: "",
