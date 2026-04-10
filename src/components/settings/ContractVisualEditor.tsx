@@ -576,14 +576,15 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           : A4_HEIGHT - margins.bottom;
         const pageStartY = Math.max(flowBounds.startY, reservedHeaderBottom);
         const pageBottomY = Math.max(pageStartY + 40, Math.min(flowBounds.endY, reservedFooterTop));
-        const fixedFragmentX = Math.max(GENERAL_CONDITIONS_BOX.x, margins.left);
-        const fixedFragmentY = Math.max(GENERAL_CONDITIONS_BOX.y, pageStartY);
-        const fixedFragmentWidth = Math.max(160, Math.min(GENERAL_CONDITIONS_BOX.width, A4_WIDTH - fixedFragmentX - margins.right));
-        const fixedFragmentHeight = Math.max(120, pageBottomY - fixedFragmentY);
+        // Fixed section frames always use the standardized 714x966 box
+        const fixedFragmentX = FIXED_SECTION_BOX.x;
+        const fixedFragmentY = Math.max(FIXED_SECTION_BOX.y, pageStartY);
+        const fixedFragmentWidth = FIXED_SECTION_BOX.width;
+        const fixedFragmentHeight = FIXED_SECTION_BOX.height;
         const pageStatic = pageIdx === currentPageIdx
           ? staticElements
           : (isGeneralConditionsBox
-              ? cloneRepeatedContext()
+              ? cloneRepeatedContext().filter(el => !el.text?.includes("{{nome_cliente}}"))
               : page.elements.filter(el => isLikelyPageChrome(el, repeatedChrome, margins)).map(stripSplitMetadata));
 
         const pageFlow: CanvasElement[] = [];
@@ -676,7 +677,10 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
           if (isConditionsFragment && isTextual) {
             const { contentWidth, paddingY } = getTextContentMetrics(candidate);
-            const availableHeight = Math.max(24, fixedFragmentHeight - paddingY);
+            // Use the actual available space on this page for the fixed frame
+            const frameBottomOnPage = fixedFragmentY + fixedFragmentHeight;
+            const effectiveBottom = Math.min(frameBottomOnPage, pageBottomY);
+            const availableHeight = Math.max(24, effectiveBottom - fixedFragmentY - paddingY);
             const [fitHtml, remHtml] = splitHtmlAtHeight(
               candidate.text,
               contentWidth,
@@ -705,14 +709,17 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
             if (canPlaceHere) {
               const continuationId = needsContinuation ? genId() : undefined;
+              const placedFrameHeight = Math.min(fixedFragmentHeight, effectiveBottom - fixedFragmentY);
               pageFlow.push({
                 ...candidate,
                 text: fitHtml,
-                height: fixedFragmentHeight,
+                height: placedFrameHeight,
+                width: fixedFragmentWidth,
+                x: fixedFragmentX,
                 splitContinuationId: continuationId,
               });
               pageHasFixedFragment = true;
-              cursorY = fixedFragmentY + fixedFragmentHeight + 10;
+              cursorY = fixedFragmentY + placedFrameHeight + 10;
 
               if (needsContinuation) {
                 nextPending.push({
@@ -2571,7 +2578,9 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
   // Helper: insert {{nome_cliente}} on all pages below header area
   const insertNomeClienteOnPages = (pagesData: PageData[]): PageData[] => {
-    return pagesData.map(p => {
+    // Only insert on the first page — continuation pages get it from chrome replication
+    return pagesData.map((p, idx) => {
+      if (idx > 0) return p; // Don't add to continuation/subsequent pages
       const hasClienteVar = p.elements.some(el => el.text?.includes("{{nome_cliente}}"));
       if (hasClienteVar) return p;
       const clienteEl = createDefaultElement("text", margins.left, margins.top + 90);
