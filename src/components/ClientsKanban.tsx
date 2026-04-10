@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect, useRef, lazy, Suspens
 import { DragDropContext, type DropResult } from "@hello-pangea/dnd";
 import { ChevronRight } from "lucide-react";
 import { addDays, isPast, format, endOfDay, startOfDay, startOfMonth, subMonths, subDays, isAfter, isBefore, differenceInDays, differenceInHours } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { supabase } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
