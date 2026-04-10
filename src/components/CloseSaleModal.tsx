@@ -10,7 +10,8 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/c
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
 import {Checkbox} from "@/components/ui/checkbox";
-import {Plus, Trash2, Save, Handshake, Loader2} from "lucide-react";
+import {Plus, Trash2, Save, Handshake, Loader2, Flame, PackageX} from "lucide-react";
+import {Badge} from "@/components/ui/badge";
 import {maskCpfCnpj, maskPhone, maskCurrency, unmaskCurrency, validateCpfCnpj, maskRgIe, maskCep, isCnpj} from "@/lib/masks";
 import {formatCurrency} from "@/lib/financing";
 import {FORMAS_PAGAMENTO_LABELS} from "@/services/financialService";
@@ -84,7 +85,7 @@ interface CloseSaleModalProps {
     vendedor?: string;
     numeroOrcamento?: string;
     ambientes?: { nome: string; fornecedor?: string; corpo?: string; porta?: string; puxador?: string; complemento?: string; modelo?: string; valor?: number }[];
-    catalogProducts?: Array<{ name: string; internal_code: string; quantity: number; sale_price: number }>;
+    catalogProducts?: Array<{ name: string; internal_code: string; quantity: number; sale_price: number; promo_price?: number | null; original_price?: number | null; stock_status?: string }>;
   };
   saving?: boolean;
   savedFormData?: { form: CloseSaleFormData; items: SaleItem[]; itemDetails: SaleItemDetail[] } | null;
@@ -716,16 +717,42 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {simulationData.catalogProducts.map((cp, idx) => (
-                          <TableRow key={idx}>
-                            <TableCell className="text-xs font-medium text-center">{idx + 1}</TableCell>
-                            <TableCell className="text-xs text-muted-foreground">{cp.internal_code || "—"}</TableCell>
-                            <TableCell className="text-xs font-medium">{cp.name}</TableCell>
-                            <TableCell className="text-xs text-center">{cp.quantity}</TableCell>
-                            <TableCell className="text-xs text-right">{formatCurrency(cp.sale_price)}</TableCell>
-                            <TableCell className="text-xs text-right font-medium">{formatCurrency(cp.sale_price * cp.quantity)}</TableCell>
-                          </TableRow>
-                        ))}
+                        {simulationData.catalogProducts.map((cp, idx) => {
+                          const isPromo = cp.promo_price != null && cp.promo_price > 0;
+                          const isOutOfStock = cp.stock_status === "out_of_stock" || cp.stock_status === "encomenda";
+                          return (
+                            <TableRow key={idx} className={isOutOfStock ? "bg-amber-50 dark:bg-amber-950/20" : ""}>
+                              <TableCell className="text-xs font-medium text-center">{idx + 1}</TableCell>
+                              <TableCell className="text-xs text-muted-foreground">{cp.internal_code || "—"}</TableCell>
+                              <TableCell className="text-xs font-medium">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span>{cp.name}</span>
+                                  {isPromo && (
+                                    <Badge variant="destructive" className="text-[10px] px-1.5 py-0 gap-0.5">
+                                      <Flame className="h-3 w-3" /> PROMOÇÃO
+                                    </Badge>
+                                  )}
+                                  {isOutOfStock && (
+                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-0.5 border-amber-500 text-amber-600">
+                                      <PackageX className="h-3 w-3" /> Encomenda
+                                    </Badge>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-xs text-center">{cp.quantity}</TableCell>
+                              <TableCell className="text-xs text-right">
+                                {isPromo && cp.original_price ? (
+                                  <div>
+                                    <span className="line-through text-muted-foreground text-[10px]">{formatCurrency(cp.original_price)}</span>
+                                    <br />
+                                    <span className="text-green-600 font-semibold">{formatCurrency(cp.sale_price)}</span>
+                                  </div>
+                                ) : formatCurrency(cp.sale_price)}
+                              </TableCell>
+                              <TableCell className="text-xs text-right font-medium">{formatCurrency(cp.sale_price * cp.quantity)}</TableCell>
+                            </TableRow>
+                          );
+                        })}
                         <TableRow>
                           <TableCell colSpan={5} className="text-xs font-medium text-right">Total Catálogo</TableCell>
                           <TableCell className="text-xs font-bold text-right text-primary">
