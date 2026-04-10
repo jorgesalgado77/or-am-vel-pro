@@ -305,22 +305,64 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   }, []);
 
   const sanitizeClipboard = useCallback((htmlData: string, textData: string) => {
-    const raw = (textData || (() => {
-      if (!htmlData) return "";
-      const t = document.createElement("div");
-      t.innerHTML = htmlData;
-      t.querySelectorAll("script,style,meta,link").forEach(n => n.remove());
-      return t.innerText || t.textContent || "";
-    })()).replace(/\r\n/g, "\n");
-    if (!raw) return "";
-    return raw
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;")
-      .split("\n")
-      .map((line) => `<span style="color:#000000 !important;background:transparent !important;opacity:1 !important;-webkit-text-fill-color:#000000 !important;filter:none !important;mix-blend-mode:normal !important;">${line || "&nbsp;"}</span>`)
+    // If we have HTML data, preserve formatting (bold, italic, underline, lists, etc.)
+    if (htmlData) {
+      const wrapper = document.createElement("div");
+      wrapper.innerHTML = htmlData;
+
+      // Remove dangerous/unwanted elements
+      wrapper.querySelectorAll("script,style,meta,link,iframe,object,embed,form,input,button,select,textarea,svg,canvas,video,audio,noscript").forEach(n => n.remove());
+
+      // Remove all class/id attributes and problematic inline styles, but keep structural formatting
+      const walkAndClean = (node: Element) => {
+        node.removeAttribute("class");
+        node.removeAttribute("id");
+        node.removeAttribute("data-ccp-props");
+        node.removeAttribute("data-ccp-parastyle");
+
+        // Clean inline styles: keep only font-weight, font-style, text-decoration, text-align, font-size
+        const existingStyle = node.getAttribute("style") || "";
+        const keepProps: string[] = [];
+
+        const fwMatch = existingStyle.match(/font-weight\s*:\s*([^;]+)/i);
+        if (fwMatch) keepProps.push(`font-weight:${fwMatch[1].trim()}`);
+
+        const fsMatch = existingStyle.match(/font-style\s*:\s*([^;]+)/i);
+        if (fsMatch) keepProps.push(`font-style:${fsMatch[1].trim()}`);
+
+        const tdMatch = existingStyle.match(/text-decoration\s*:\s*([^;]+)/i);
+        if (tdMatch) keepProps.push(`text-decoration:${tdMatch[1].trim()}`);
+
+        const taMatch = existingStyle.match(/text-align\s*:\s*([^;]+)/i);
+        if (taMatch) keepProps.push(`text-align:${taMatch[1].trim()}`);
+
+        const fszMatch = existingStyle.match(/font-size\s*:\s*([^;]+)/i);
+        if (fszMatch) keepProps.push(`font-size:${fszMatch[1].trim()}`);
+
+        // Force visibility
+        keepProps.push("color:#000000 !important");
+        keepProps.push("background:transparent !important");
+        keepProps.push("-webkit-text-fill-color:#000000 !important");
+
+        node.setAttribute("style", keepProps.join(";"));
+
+        // Recurse into children
+        Array.from(node.children).forEach(walkAndClean);
+      };
+
+      walkAndClean(wrapper);
+
+      const result = wrapper.innerHTML.trim();
+      if (result && result !== "&nbsp;" && result.replace(/<[^>]*>/g, "").trim()) {
+        return result;
+      }
+    }
+
+    // Fallback to plain text
+    const raw = (textData || "").replace(/\r\n/g, "\n");
+    if (!raw.trim()) return "";
+    return raw.split("\n")
+      .map((line) => `<span style="color:#000000 !important;background:transparent !important;-webkit-text-fill-color:#000000 !important;">${line ? line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") : "&nbsp;"}</span>`)
       .join("<br>");
   }, []);
 
