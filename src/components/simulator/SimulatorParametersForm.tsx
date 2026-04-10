@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Lock, LockOpen, Upload, EyeOff, Eye, FolderOpen, Cpu, Package, X, CircleDollarSign } from "lucide-react";
+import { Lock, LockOpen, Upload, EyeOff, Eye, FolderOpen, Cpu, Package, X, CircleDollarSign, RefreshCw } from "lucide-react";
 import { SimulatorEnvironmentsTable, type ImportedEnvironment } from "@/components/simulator/SimulatorEnvironmentsTable";
 import { formatCurrency, type FormaPagamento } from "@/lib/financing";
 import { maskCurrency, unmaskCurrency } from "@/lib/masks";
@@ -76,6 +76,7 @@ interface SimulatorParametersFormProps {
   onUpdateCatalogProductQty: (productId: string, qty: number) => void;
   onRemoveCatalogProduct: (productId: string) => void;
   stockWarnings?: Record<string, string>;
+  onSyncPromotions?: () => Promise<void>;
 }
 
 export const SimulatorParametersForm = React.memo(function SimulatorParametersForm({
@@ -101,7 +102,9 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
   onLoadSimulation, onProductPicker,
   VALOR_TELA_MAX, VALOR_ENTRADA_MAX,
   catalogProducts, onUpdateCatalogProductQty, onRemoveCatalogProduct, stockWarnings,
+  onSyncPromotions,
 }: SimulatorParametersFormProps) {
+  const [syncing, setSyncing] = useReactState(false);
   // Cache of registered fornecedores
   const fornecedoresMapRef = useRef<Record<string, string> | null>(null);
   const [fornecedoresList, setFornecedoresList] = useReactState<Array<{ nome: string; prazo_entrega?: string }>>([]);
@@ -228,7 +231,24 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
             <div className="mt-2 border border-emerald-200 dark:border-emerald-800 rounded-md overflow-hidden">
               <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5">
                 <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Produtos do Catálogo</span>
-                <span className="text-xs text-emerald-600/70 dark:text-emerald-400/70">{catalogProducts.length} produto(s)</span>
+                <div className="flex items-center gap-2">
+                  {onSyncPromotions && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-[10px] gap-1 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
+                      disabled={syncing}
+                      onClick={async () => {
+                        setSyncing(true);
+                        try { await onSyncPromotions(); } finally { setSyncing(false); }
+                      }}
+                    >
+                      <RefreshCw className={`h-3 w-3 ${syncing ? "animate-spin" : ""}`} />
+                      {syncing ? "Sincronizando..." : "Sincronizar promoções"}
+                    </Button>
+                  )}
+                  <span className="text-xs text-emerald-600/70 dark:text-emerald-400/70">{catalogProducts.length} produto(s)</span>
+                </div>
               </div>
               <Table>
                 <TableHeader>
