@@ -31,15 +31,13 @@ const DEFAULT_CONTRACT_TEMPLATE_HTML = `
   <p><strong>Telefone:</strong> {{telefone_cliente}}</p>
   <p><strong>Email:</strong> {{email_cliente}}</p>
   <p><strong>Profissão:</strong> {{profissao}}</p>
+  <p><strong>Tipo de Contrato:</strong> {{tipo_contrato}}</p>
 
   <h2>Endereço</h2>
   <p>{{endereco}}, {{bairro}} - {{cidade}}/{{uf}} - {{cep}}</p>
 
   <h2>Endereço de Entrega</h2>
   <p>{{endereco_entrega_completo}}</p>
-
-  <h2>Tipo de Contrato</h2>
-  <p><strong>Tipo:</strong> {{tipo_contrato}}</p>
   <p><strong>Prazo de Entrega:</strong> {{prazo_entrega}}</p>
 
   <h2>Ambientes e Valores</h2>
