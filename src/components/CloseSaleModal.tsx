@@ -176,7 +176,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
       });
   }, [open]);
 
-  // Prefill from savedFormData (existing contract), client, and simulation data
+  // Prefill from savedFormData (existing contract), client, briefing, and simulation data
   useEffect(() => {
     if (!open) return;
 
@@ -188,62 +188,88 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
       return;
     }
 
-    const prefill: Partial<CloseSaleFormData> = {
-      nome_completo: client?.nome || "",
-      cpf_cnpj: client?.cpf ? maskCpfCnpj(client.cpf) : "",
-      rg_insc_estadual: (client as any)?.rg ? maskRgIe((client as any).rg) : "",
-      profissao: (client as any)?.profissao || "",
-      telefone: client?.telefone1 ? maskPhone(client.telefone1) : "",
-      email: client?.email || "",
-      endereco: (client as any)?.endereco || "",
-      bairro: (client as any)?.bairro || "",
-      cidade: (client as any)?.cidade || "",
-      uf: (client as any)?.uf || "",
-      cep: (client as any)?.cep ? maskCep((client as any).cep) : "",
-      data_nascimento: (client as any)?.data_nascimento || "",
-      responsavel_venda: simulationData?.vendedor || client?.vendedor || "",
-      numero_contrato: simulationData?.numeroOrcamento || client?.numero_orcamento || "",
-      valor_entrada: simulationData?.valorEntrada ? maskCurrency(String(Math.round(simulationData.valorEntrada * 100))) : "",
-      qtd_parcelas: simulationData?.parcelas || 1,
-      valor_parcelas: simulationData?.valorParcela ? maskCurrency(String(Math.round(simulationData.valorParcela * 100))) : "",
-      data_fechamento: format(new Date(), "yyyy-MM-dd"),
-    };
-    const filtered = Object.fromEntries(
-      Object.entries(prefill).filter(([_, v]) => v !== "" && v !== 0 && v !== undefined)
-    ) as Partial<CloseSaleFormData>;
-    if (Object.keys(filtered).length > 0) updateForm(filtered);
-
-    // Load environments from simulation data
-    if (simulationData?.ambientes && simulationData.ambientes.length > 0) {
-      const simItems: SaleItem[] = simulationData.ambientes.map((amb, idx) => {
-        const matchedFornecedor = fornecedores.find(f => f.nome === amb.fornecedor);
-        return {
-          id: crypto.randomUUID(),
-          quantidade: 1,
-          descricao_ambiente: amb.nome || `Ambiente ${idx + 1}`,
-          fornecedor: amb.fornecedor || "",
-          prazo: matchedFornecedor?.prazo_entrega || "",
-          valor_ambiente: amb.valor || 0,
-        };
-      });
-      const simDetails: SaleItemDetail[] = simulationData.ambientes.map((amb, idx) => ({
-        item_num: idx + 1,
-        titulos: amb.nome || "",
-        corpo: amb.corpo || "",
-        porta: amb.porta || "",
-        puxador: amb.puxador || "",
-        complemento: amb.complemento || "",
-        modelo: amb.modelo || "",
-      }));
-      setItems(simItems);
-      setItemDetails(simDetails);
-
-      // Auto-fill prazo_entrega from first item's fornecedor
-      const firstMatch = simItems.find(i => i.prazo);
-      if (firstMatch?.prazo && !form.prazo_entrega) {
-        updateField("prazo_entrega", firstMatch.prazo);
+    // Try to load briefing data for additional auto-fill
+    const loadBriefingAndPrefill = async () => {
+      let briefingResponses: Record<string, any> = {};
+      if (client?.id) {
+        const { data: briefingData } = await supabase
+          .from("client_briefings" as any)
+          .select("responses")
+          .eq("client_id", client.id)
+          .maybeSingle();
+        if (briefingData && (briefingData as any).responses) {
+          briefingResponses = (briefingData as any).responses;
+        }
       }
-    }
+
+      const prefill: Partial<CloseSaleFormData> = {
+        nome_completo: briefingResponses.client_1_name || client?.nome || "",
+        cpf_cnpj: client?.cpf ? maskCpfCnpj(client.cpf) : "",
+        rg_insc_estadual: (client as any)?.rg ? maskRgIe((client as any).rg) : "",
+        profissao: briefingResponses.client_1_profession || (client as any)?.profissao || "",
+        telefone: briefingResponses.client_1_phone ? maskPhone(briefingResponses.client_1_phone) : client?.telefone1 ? maskPhone(client.telefone1) : "",
+        email: briefingResponses.client_1_email || client?.email || "",
+        endereco: briefingResponses.delivery_address || (client as any)?.endereco || "",
+        bairro: briefingResponses.delivery_bairro || (client as any)?.bairro || "",
+        cidade: briefingResponses.delivery_cidade || (client as any)?.cidade || "",
+        uf: briefingResponses.delivery_uf || (client as any)?.uf || "",
+        cep: briefingResponses.delivery_cep ? maskCep(briefingResponses.delivery_cep) : (client as any)?.cep ? maskCep((client as any).cep) : "",
+        data_nascimento: briefingResponses.client_1_birthdate || (client as any)?.data_nascimento || "",
+        responsavel_venda: briefingResponses.seller_name || simulationData?.vendedor || client?.vendedor || "",
+        numero_contrato: simulationData?.numeroOrcamento || client?.numero_orcamento || "",
+        valor_entrada: simulationData?.valorEntrada ? maskCurrency(String(Math.round(simulationData.valorEntrada * 100))) : "",
+        qtd_parcelas: simulationData?.parcelas || 1,
+        valor_parcelas: simulationData?.valorParcela ? maskCurrency(String(Math.round(simulationData.valorParcela * 100))) : "",
+        data_fechamento: format(new Date(), "yyyy-MM-dd"),
+      };
+      // Auto-fill delivery address from briefing if available
+      if (briefingResponses.delivery_address) {
+        prefill.endereco_entrega = briefingResponses.delivery_address;
+        prefill.bairro_entrega = briefingResponses.delivery_bairro || "";
+        prefill.cidade_entrega = briefingResponses.delivery_cidade || "";
+        prefill.uf_entrega = briefingResponses.delivery_uf || "";
+        prefill.cep_entrega = briefingResponses.delivery_cep ? maskCep(briefingResponses.delivery_cep) : "";
+      }
+
+      const filtered = Object.fromEntries(
+        Object.entries(prefill).filter(([_, v]) => v !== "" && v !== 0 && v !== undefined)
+      ) as Partial<CloseSaleFormData>;
+      if (Object.keys(filtered).length > 0) updateForm(filtered);
+
+      // Load environments from simulation data
+      if (simulationData?.ambientes && simulationData.ambientes.length > 0) {
+        const simItems: SaleItem[] = simulationData.ambientes.map((amb, idx) => {
+          const matchedFornecedor = fornecedores.find(f => f.nome === amb.fornecedor);
+          return {
+            id: crypto.randomUUID(),
+            quantidade: 1,
+            descricao_ambiente: amb.nome || `Ambiente ${idx + 1}`,
+            fornecedor: amb.fornecedor || "",
+            prazo: matchedFornecedor?.prazo_entrega || "",
+            valor_ambiente: amb.valor || 0,
+          };
+        });
+        const simDetails: SaleItemDetail[] = simulationData.ambientes.map((amb, idx) => ({
+          item_num: idx + 1,
+          titulos: amb.nome || "",
+          corpo: amb.corpo || "",
+          porta: amb.porta || "",
+          puxador: amb.puxador || "",
+          complemento: amb.complemento || "",
+          modelo: amb.modelo || "",
+        }));
+        setItems(simItems);
+        setItemDetails(simDetails);
+
+        // Auto-fill prazo_entrega from first item's fornecedor
+        const firstMatch = simItems.find(i => i.prazo);
+        if (firstMatch?.prazo && !form.prazo_entrega) {
+          updateField("prazo_entrega", firstMatch.prazo);
+        }
+      }
+    };
+
+    loadBriefingAndPrefill();
   }, [open, client, simulationData, fornecedores, savedFormData]);
 
   // Same address checkbox handler
