@@ -239,6 +239,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const [draggingGuide, setDraggingGuide] = useState<{ id: string; axis: "x" | "y"; startMouse: number; startPos: number } | null>(null);
   const [visiblePageIdx, setVisiblePageIdx] = useState(0);
   const pageRefsMap = useRef<Map<number, HTMLDivElement>>(new Map());
+  const pendingEditRef = useRef<string | null>(null);
 
   // Persist editor preferences to localStorage
   useEffect(() => { try { localStorage.setItem("ce_zoom", String(zoom)); } catch {} }, [zoom]);
