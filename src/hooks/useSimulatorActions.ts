@@ -543,7 +543,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
         comissaoPercentual,
         items,
         itemDetails,
-        catalogProducts: catalogProducts.map(cp => ({ name: cp.product.name, internal_code: cp.product.internal_code, quantity: cp.quantity, sale_price: cp.product.sale_price })),
+        catalogProducts: catalogProducts.map(cp => ({ name: cp.product.name, internal_code: cp.product.internal_code, quantity: cp.quantity, sale_price: (cp as any).promoPrice ?? cp.product.sale_price })),
         companyPhones: (companyPhones as any[]) || [],
       });
 
