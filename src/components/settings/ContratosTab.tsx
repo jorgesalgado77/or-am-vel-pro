@@ -117,6 +117,17 @@ const AVAILABLE_VARIABLES = [
   { var: "{{ambientes_valores_tabela}}", desc: "Tabela automática: ambientes com valores" },
   { var: "{{ambientes_cores_tabela}}", desc: "Tabela automática: ambientes com cores e materiais" },
   { var: "{{produtos_catalogo_completo}}", desc: "Tabela completa de produtos do catálogo" },
+  { var: "{{endereco_entrega_completo}}", desc: "Endereço de entrega completo (formatado)" },
+  { var: "{{quantidade_produtos_catalogo}}", desc: "Quantidade de produtos do catálogo" },
+  { var: "{{produto_catalogo_nome_N}}", desc: "Nome do produto do catálogo N (ex: _1, _2...)" },
+  { var: "{{produto_catalogo_codigo_N}}", desc: "Código do produto do catálogo N" },
+  { var: "{{produto_catalogo_qtd_N}}", desc: "Quantidade do produto do catálogo N" },
+  { var: "{{produto_catalogo_valor_N}}", desc: "Valor unitário do produto do catálogo N" },
+  { var: "{{produto_catalogo_subtotal_N}}", desc: "Subtotal do produto do catálogo N" },
+  { var: "{{titulos_ambiente_N}}", desc: "Título/descrição do ambiente N" },
+  { var: "{{quantidade_ambiente_N}}", desc: "Quantidade do ambiente N" },
+  { var: "{{descricao_ambiente_N}}", desc: "Descrição do ambiente N" },
+  { var: "{{logo_empresa_url}}", desc: "URL da logo da empresa" },
 ];
 
 export function ContratosTab() {

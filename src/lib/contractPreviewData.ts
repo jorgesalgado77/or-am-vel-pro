@@ -111,6 +111,35 @@ export const SAMPLE_PREVIEW_DATA: Record<string, string> = {
   "{{modelo_ambiente_2}}": "Classic Plus",
   "{{modelo_ambiente_3}}": "Compact Pro",
 
+  // Per-environment extra fields
+  "{{titulos_ambiente_1}}": "Cozinha",
+  "{{titulos_ambiente_2}}": "Quarto Casal",
+  "{{titulos_ambiente_3}}": "Home Office",
+  "{{quantidade_ambiente_1}}": "1",
+  "{{quantidade_ambiente_2}}": "1",
+  "{{quantidade_ambiente_3}}": "1",
+  "{{descricao_ambiente_1}}": "Cozinha",
+  "{{descricao_ambiente_2}}": "Quarto Casal",
+  "{{descricao_ambiente_3}}": "Home Office",
+
+  // Per-catalog-product
+  "{{quantidade_produtos_catalogo}}": "3",
+  "{{produto_catalogo_nome_1}}": "Puxador Gola",
+  "{{produto_catalogo_codigo_1}}": "PUX-001",
+  "{{produto_catalogo_qtd_1}}": "6",
+  "{{produto_catalogo_valor_1}}": "R$ 450,00",
+  "{{produto_catalogo_subtotal_1}}": "R$ 2.700,00",
+  "{{produto_catalogo_nome_2}}": "Fita LED",
+  "{{produto_catalogo_codigo_2}}": "LED-003",
+  "{{produto_catalogo_qtd_2}}": "3",
+  "{{produto_catalogo_valor_2}}": "R$ 280,00",
+  "{{produto_catalogo_subtotal_2}}": "R$ 840,00",
+  "{{produto_catalogo_nome_3}}": "Dobradiça Slow",
+  "{{produto_catalogo_codigo_3}}": "DOB-010",
+  "{{produto_catalogo_qtd_3}}": "8",
+  "{{produto_catalogo_valor_3}}": "R$ 180,00",
+  "{{produto_catalogo_subtotal_3}}": "R$ 1.440,00",
+
   // Template-specific (old format)
   "{{cliente_nome}}": "Maria Fernanda da Silva",
   "{{cliente_cpf}}": "123.456.789-00",

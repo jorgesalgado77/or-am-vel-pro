@@ -265,20 +265,43 @@ export function buildContractHtml(templateHtml: string, data: ContractData): str
   // Dynamic per-environment variables: {{prazo_entrega_ambiente_1}}, {{nome_ambiente_1}}, etc.
   items.forEach((it: any, i: number) => {
     const n = i + 1;
+    const d = itemDetails[i] || {};
     replacements[`{{prazo_entrega_ambiente_${n}}}`] = it.prazo || "";
     replacements[`{{nome_ambiente_${n}}}`] = it.descricao_ambiente || "";
     replacements[`{{fornecedor_ambiente_${n}}}`] = it.fornecedor || "";
     replacements[`{{valor_ambiente_${n}}}`] = formatCurrency(it.valor_ambiente || 0);
-  });
-  // Also add detail fields per environment
-  itemDetails.forEach((d: any) => {
-    const n = d.item_num;
+    replacements[`{{quantidade_ambiente_${n}}}`] = String(it.quantidade || 1);
+    replacements[`{{descricao_ambiente_${n}}}`] = it.descricao_ambiente || "";
+    // Also include detail fields per environment (merged from itemDetails)
+    replacements[`{{titulos_ambiente_${n}}}`] = d.titulos || it.descricao_ambiente || "";
     replacements[`{{corpo_ambiente_${n}}}`] = d.corpo || "";
     replacements[`{{porta_ambiente_${n}}}`] = d.porta || "";
     replacements[`{{puxador_ambiente_${n}}}`] = d.puxador || "";
     replacements[`{{complemento_ambiente_${n}}}`] = d.complemento || "";
     replacements[`{{modelo_ambiente_${n}}}`] = d.modelo || "";
   });
+  // Legacy: Also add detail fields per environment (for templates using item_num)
+  itemDetails.forEach((d: any) => {
+    const n = d.item_num;
+    if (!replacements[`{{corpo_ambiente_${n}}}`]) replacements[`{{corpo_ambiente_${n}}}`] = d.corpo || "";
+    if (!replacements[`{{porta_ambiente_${n}}}`]) replacements[`{{porta_ambiente_${n}}}`] = d.porta || "";
+    if (!replacements[`{{puxador_ambiente_${n}}}`]) replacements[`{{puxador_ambiente_${n}}}`] = d.puxador || "";
+    if (!replacements[`{{complemento_ambiente_${n}}}`]) replacements[`{{complemento_ambiente_${n}}}`] = d.complemento || "";
+    if (!replacements[`{{modelo_ambiente_${n}}}`]) replacements[`{{modelo_ambiente_${n}}}`] = d.modelo || "";
+  });
+
+  // Dynamic per-catalog-product variables: {{produto_catalogo_nome_1}}, etc.
+  if (catalogProducts) {
+    catalogProducts.forEach((p, i) => {
+      const n = i + 1;
+      replacements[`{{produto_catalogo_nome_${n}}}`] = p.name;
+      replacements[`{{produto_catalogo_codigo_${n}}}`] = p.internal_code;
+      replacements[`{{produto_catalogo_qtd_${n}}}`] = String(p.quantity);
+      replacements[`{{produto_catalogo_valor_${n}}}`] = formatCurrency(p.sale_price);
+      replacements[`{{produto_catalogo_subtotal_${n}}}`] = formatCurrency(p.sale_price * p.quantity);
+    });
+    replacements["{{quantidade_produtos_catalogo}}"] = String(catalogProducts.length);
+  }
 
   // Dynamic company phone variables
   const phones = companyPhones || [];
