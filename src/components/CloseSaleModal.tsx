@@ -43,6 +43,7 @@ interface SaleItemDetail {
 }
 
 interface CloseSaleFormData {
+  tipo_contrato: string;
   numero_contrato: string;
   data_fechamento: string;
   responsavel_venda: string;
@@ -100,6 +101,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   const clientFormKey = `close-sale-form-${client?.id || "new"}`;
 
   const defaultForm: CloseSaleFormData = {
+    tipo_contrato: "",
     numero_contrato: "",
     data_fechamento: format(new Date(), "yyyy-MM-dd"),
     responsavel_venda: "",
@@ -138,6 +140,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   const [sameAddress, setSameAddress] = useState(false);
   // deliveryDeadlines now handled by PrazoEntregaSelect
   const [fornecedores, setFornecedores] = useState<{id: string; nome: string; prazo_entrega?: string}[]>([]);
+  const [contractTypes, setContractTypes] = useState<{id: string; nome: string; prazo_entrega: string}[]>([]);
 
   const REQUIRED_FIELDS: { key: keyof CloseSaleFormData; label: string }[] = [
     { key: "nome_completo", label: "Nome Completo" },
@@ -175,6 +178,21 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
             const parsed = JSON.parse((data as any).valor);
             setFornecedores(parsed.filter((f: any) => f.ativo !== false).map((f: any) => ({ id: f.id, nome: f.nome, prazo_entrega: f.prazo_entrega || "" })));
           } catch {}
+        }
+      });
+    // Load contract types
+    supabase.from("contract_types" as any)
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .eq("ativo", true)
+      .order("created_at" as any)
+      .then(({ data }) => {
+        if (data) {
+          setContractTypes((data as any[]).map((d: any) => ({
+            id: d.id,
+            nome: d.nome,
+            prazo_entrega: d.prazo_entrega || "",
+          })));
         }
       });
   }, [open]);
@@ -428,7 +446,31 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
             <Card>
               <CardHeader className="pb-3"><CardTitle className="text-sm">Dados do Contrato</CardTitle></CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                  <div>
+                    <Label className="text-xs">Tipo de Contrato</Label>
+                    <Select
+                      value={form.tipo_contrato}
+                      onValueChange={v => {
+                        updateField("tipo_contrato", v);
+                        const ct = contractTypes.find(t => t.nome === v);
+                        if (ct?.prazo_entrega) {
+                          updateField("prazo_entrega", ct.prazo_entrega);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="mt-1 h-9 text-sm">
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {contractTypes.map(ct => (
+                          <SelectItem key={ct.id} value={ct.nome}>
+                            {ct.nome}{ct.prazo_entrega ? ` (${ct.prazo_entrega})` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div>
                     <Label className="text-xs">Nº do Contrato</Label>
                     <Input value={form.numero_contrato} onChange={e => updateField("numero_contrato", e.target.value)} className="mt-1 h-9 text-sm" />

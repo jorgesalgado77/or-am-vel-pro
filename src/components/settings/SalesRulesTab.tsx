@@ -9,6 +9,7 @@ import { Shield, Save, AlertTriangle } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { toast } from "sonner";
+import { ContractTypesSection } from "./ContractTypesSection";
 
 interface SalesRulesData {
   id?: string;
@@ -105,6 +106,7 @@ export function SalesRulesTab() {
 
   return (
     <div className="space-y-6">
+      <ContractTypesSection />
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
