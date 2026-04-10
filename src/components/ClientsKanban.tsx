@@ -440,24 +440,65 @@ export function ClientsKanban({
       }
       setSavingCardId(null);
     } else {
+      const operationalIds = KANBAN_COLUMNS_OPERACIONAL.map(c => c.id);
+      const isOperationalMove = operationalIds.includes(newStatus);
+      
       // Standard flow: update clients table
       setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: newStatus, ...(newStatus === "fechado" ? { data_contrato: new Date().toISOString() } : {}) } as any : c));
-      const updatePayload: any = { status: newStatus };
-      if (newStatus === "fechado") {
-        updatePayload.data_contrato = new Date().toISOString();
-      }
-      const { error } = await supabase.from("clients").update(updatePayload).eq("id", draggableId);
-      if (error) {
-        setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: oldStatus } as any : c));
-        toast.error("Erro ao mover cliente");
+      
+      if (isOperationalMove) {
+        // Admin/gerente moving card in operational columns — update measurement_requests
+        const opToMrStatus: Record<string, string> = {
+          em_medicao: "em_andamento",
+          em_liberado: "em_liberacao",
+          em_compras: "enviado_compras",
+          para_entrega: "para_entrega",
+          para_montagem: "para_montagem",
+          assistencia: "assistencia",
+          finalizado: "finalizado",
+        };
+        const mrStatus = opToMrStatus[newStatus] || newStatus;
+        setMeasurementStatus(prev => ({
+          ...prev,
+          [draggableId]: { ...prev[draggableId], status: mrStatus, updated_at: new Date().toISOString() },
+        }));
+        
+        const { error } = await supabase
+          .from("measurement_requests" as any)
+          .update({ status: mrStatus, updated_at: new Date().toISOString() } as any)
+          .eq("client_id", draggableId)
+          .eq("tenant_id", tenantId);
+        
+        if (error) {
+          setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: oldStatus } as any : c));
+          toast.error("Erro ao mover solicitação");
+        } else {
+          const colLabel = KANBAN_ALL_COLUMNS.find(c => c.id === newStatus)?.label;
+          toast.success(`${client.nome} movido para "${colLabel}"`);
+          supabase.from("client_movements" as any).insert({
+            tenant_id: tenantId, client_id: draggableId,
+            from_column: source.droppableId, to_column: newStatus,
+            moved_by: currentUser?.nome_completo || "Sistema",
+          }).then(() => {});
+        }
       } else {
-        const colLabel = KANBAN_ALL_COLUMNS.find(c => c.id === newStatus)?.label;
-        toast.success(`${client.nome} movido para "${colLabel}"`);
-        supabase.from("client_movements" as any).insert({
-          tenant_id: tenantId, client_id: draggableId,
-          from_column: source.droppableId, to_column: newStatus,
-          moved_by: currentUser?.nome_completo || "Sistema",
-        }).then(() => {});
+        const updatePayload: any = { status: newStatus };
+        if (newStatus === "fechado") {
+          updatePayload.data_contrato = new Date().toISOString();
+        }
+        const { error } = await supabase.from("clients").update(updatePayload).eq("id", draggableId);
+        if (error) {
+          setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: oldStatus } as any : c));
+          toast.error("Erro ao mover cliente");
+        } else {
+          const colLabel = KANBAN_ALL_COLUMNS.find(c => c.id === newStatus)?.label;
+          toast.success(`${client.nome} movido para "${colLabel}"`);
+          supabase.from("client_movements" as any).insert({
+            tenant_id: tenantId, client_id: draggableId,
+            from_column: source.droppableId, to_column: newStatus,
+            moved_by: currentUser?.nome_completo || "Sistema",
+          }).then(() => {});
+        }
       }
       setSavingCardId(null);
     }
