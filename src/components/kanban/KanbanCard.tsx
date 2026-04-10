@@ -141,6 +141,21 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                     </Badge>
                   );
                 })()}
+                {/* Days stuck in current operational stage */}
+                {isOperationalCard && (
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "text-[9px] h-4 px-1.5 font-bold gap-0.5 animate-pulse",
+                      daysInStage <= 2 && "border-success/50 text-success bg-success/10",
+                      daysInStage > 2 && daysInStage <= 5 && "border-warning/50 text-warning bg-warning/10",
+                      daysInStage > 5 && "border-destructive/50 text-destructive bg-destructive/10",
+                    )}
+                  >
+                    <Clock className="h-2.5 w-2.5" />
+                    {daysInStage === 0 ? "hoje" : `${daysInStage}d nesta etapa`}
+                  </Badge>
+                )}
               </div>
             )}
             {/* Badge de tipo na coluna Novo */}
