@@ -564,7 +564,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
             })),
             catalogProducts: catalogProducts.map(cp => ({
               name: cp.product.name, internal_code: cp.product.internal_code,
-              quantity: cp.quantity, sale_price: (cp as any).promoPrice ?? cp.product.sale_price,
+              quantity: cp.quantity, sale_price: cp.product.sale_price,
             })),
           }}
           savedContractFormData={actions.savedContractFormData}
