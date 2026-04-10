@@ -129,14 +129,14 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
   };
 
   useEffect(() => {
-    if (open) {
+    if (open && currentUser) {
       loadSimulations();
       setSearchName("");
       setSearchOrcamento("");
       setDateFilter("all");
       setCurrentPage(1);
     }
-  }, [open]);
+  }, [open, currentUser?.id]);
 
   const filtered = useMemo(() => {
     let list = simulations;
