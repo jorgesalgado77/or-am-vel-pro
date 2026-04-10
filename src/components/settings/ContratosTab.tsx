@@ -1176,10 +1176,10 @@ const DEFAULT_CONTRACT_HTML = `
     <h2>CLÁUSULA 5ª — DO INDICADOR</h2>
     <p>Indicador: {{indicador_nome}} — Comissão: {{indicador_comissao}}%</p>
 
-    <h2>CLÁUSULA 7ª — OBSERVAÇÕES</h2>
+    <h2>CLÁUSULA 6ª — OBSERVAÇÕES</h2>
     <p>{{observacoes}}</p>
 
-    <h2>CLÁUSULA 8ª — DAS DISPOSIÇÕES GERAIS</h2>
+    <h2>CLÁUSULA 7ª — DAS DISPOSIÇÕES GERAIS</h2>
     <p>As partes elegem o foro da comarca de {{cidade_loja}}/{{uf_loja}} para dirimir quaisquer dúvidas oriundas do presente contrato.</p>
     <br/>
     <p>{{cidade_loja}}, {{data_atual}}</p>
