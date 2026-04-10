@@ -556,6 +556,10 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       const rewrittenPages = [...workingPages];
       const cloneRepeatedContext = () => staticElements.map((el) => ({ ...stripSplitMetadata(el), id: genId() }));
 
+      // Track all IDs in the conditions continuation chain so multi-page splits work
+      const conditionsChainIds = new Set<string>();
+      if (isGeneralConditionsBox) conditionsChainIds.add(changedElId);
+
       while (pending.length > 0) {
         const page = pageIdx === currentPageIdx
           ? sourcePage
@@ -627,7 +631,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
         for (let pendingIdx = 0; pendingIdx < pending.length; pendingIdx += 1) {
           const original = pending[pendingIdx];
-          const isConditionsFragment = isGeneralConditionsBox && (original.id === changedElId || original.splitFrom === changedElId);
+          const isConditionsFragment = isGeneralConditionsBox && (conditionsChainIds.has(original.id) || (original.splitFrom && conditionsChainIds.has(original.splitFrom)) || false);
           const normalizedBase = stripSplitMetadata(original);
           const sectionGroup = !isConditionsFragment ? getSectionGroup(pending, pendingIdx) : null;
 
