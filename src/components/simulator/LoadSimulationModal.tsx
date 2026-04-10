@@ -81,12 +81,11 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
 
     const activeStatuses = ["novo", "em_negociacao", "proposta_enviada"];
     const normalize = (value: string | null | undefined) => (value || "").toString().trim().toLowerCase();
-    const userName = normalize(currentUser.nome_completo || currentUser.apelido);
-    const userId = currentUser.id;
+    const userNames = [currentUser.nome_completo, currentUser.apelido].map(normalize).filter(Boolean);
 
     const { data, error } = await supabase
       .from("simulations")
-      .select("*, clients!inner(nome, numero_orcamento, vendedor, responsavel_id, status)")
+      .select("*, clients!inner(nome, numero_orcamento, vendedor, status)")
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(500);
@@ -103,9 +102,7 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
     if (!isAdminOrManager) {
       items = items.filter((s: any) => {
         const vendedor = normalize(s.clients?.vendedor);
-        const responsavelId = s.clients?.responsavel_id || "";
-        const sameSeller = !!userName && (vendedor === userName || vendedor.includes(userName) || userName.includes(vendedor));
-        return sameSeller || responsavelId === userId;
+        return userNames.some((name) => vendedor === name || vendedor.includes(name) || name.includes(vendedor));
       });
     }
 
@@ -141,7 +138,7 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
       setDateFilter("all");
       setCurrentPage(1);
     }
-  }, [open, currentUser?.id, currentUser?.cargo_nome]);
+  }, [open, currentUser?.id, currentUser?.cargo_nome, currentUser?.nome_completo, currentUser?.apelido]);
 
   const filtered = useMemo(() => {
     let list = simulations;
