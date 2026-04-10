@@ -565,6 +565,9 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
             catalogProducts: catalogProducts.map(cp => ({
               name: cp.product.name, internal_code: cp.product.internal_code,
               quantity: cp.quantity, sale_price: cp.product.sale_price,
+              promo_price: (cp as any)._promo_price || null,
+              original_price: (cp as any)._original_price || null,
+              stock_status: cp.product.stock_status,
             })),
           }}
           savedContractFormData={actions.savedContractFormData}
@@ -607,7 +610,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
                 })));
               }
               if (catProds.length > 0) {
-                setCatalogProducts(catProds.map((cp: any) => ({
+                const loadedProducts = catProds.map((cp: any) => ({
                   product: {
                     id: cp.product_id, internal_code: cp.internal_code || "", name: cp.name || "",
                     sale_price: cp.sale_price || 0, category: cp.category || "", stock_status: cp.stock_status || "in_stock",
@@ -616,7 +619,66 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
                     environment: cp.environment || "", manufacturer_code: cp.manufacturer_code || "",
                   },
                   quantity: cp.quantity,
-                })));
+                }));
+
+                // Check promotions & stock for loaded catalog products
+                const productIds = loadedProducts.map((p: any) => p.product.id).filter(Boolean);
+                if (productIds.length > 0 && resolvedTenantId) {
+                  Promise.all([
+                    supabase.from("product_promotions").select("product_id, valor_promocional, valor_original, desconto_percentual, validade").eq("tenant_id", resolvedTenantId).eq("ativo", true).in("product_id", productIds),
+                    supabase.from("catalog_products").select("id, stock_status, stock_quantity, sale_price").in("id", productIds),
+                  ]).then(([promoRes, stockRes]) => {
+                    const promoMap = new Map<string, any>();
+                    (promoRes.data || []).forEach((p: any) => {
+                      if (new Date(p.validade) > new Date()) promoMap.set(p.product_id, p);
+                    });
+                    const stockMap = new Map<string, any>();
+                    (stockRes.data || []).forEach((s: any) => stockMap.set(s.id, s));
+
+                    const notifications: string[] = [];
+                    const updated = loadedProducts.map((item: any) => {
+                      const promo = promoMap.get(item.product.id);
+                      const currentStock = stockMap.get(item.product.id);
+                      const updatedItem = { ...item, product: { ...item.product } };
+
+                      // Update stock info
+                      if (currentStock) {
+                        updatedItem.product.stock_status = currentStock.stock_status;
+                        updatedItem.product.stock_quantity = currentStock.stock_quantity;
+                        updatedItem.product.sale_price = currentStock.sale_price;
+
+                        if (currentStock.stock_status === "out_of_stock" || (currentStock.stock_quantity ?? 0) < item.quantity) {
+                          notifications.push(`📦 "${item.product.name}" sem estoque para entrega imediata — será encomendado ao fornecedor.`);
+                          updatedItem.product.stock_status = "out_of_stock";
+                        }
+                      }
+
+                      // Apply or remove promotion
+                      if (promo) {
+                        const oldPrice = item.product.sale_price;
+                        updatedItem.product.sale_price = promo.valor_promocional;
+                        (updatedItem as any)._promo_price = promo.valor_promocional;
+                        (updatedItem as any)._original_price = promo.valor_original;
+                        if (oldPrice !== promo.valor_promocional) {
+                          notifications.push(`🔥 "${item.product.name}" em promoção! De ${formatCurrency(promo.valor_original)} por ${formatCurrency(promo.valor_promocional)} (-${promo.desconto_percentual}%)`);
+                        }
+                      } else if (item.product.sale_price !== (currentStock?.sale_price || item.product.sale_price)) {
+                        notifications.push(`💰 "${item.product.name}" saiu da promoção. Valor atualizado para ${formatCurrency(currentStock?.sale_price || item.product.sale_price)}.`);
+                      }
+
+                      return updatedItem;
+                    });
+
+                    setCatalogProducts(updated);
+                    notifications.forEach(msg => {
+                      if (msg.startsWith("🔥")) toast.success(msg, { duration: 6000 });
+                      else if (msg.startsWith("📦")) toast.warning(msg, { duration: 6000 });
+                      else toast.info(msg, { duration: 6000 });
+                    });
+                  });
+                } else {
+                  setCatalogProducts(loadedProducts);
+                }
               }
             }
             toast.success(`Simulação de ${sim.client_name} carregada!`);
