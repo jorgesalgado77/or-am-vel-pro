@@ -16,7 +16,7 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/c
 import {ScrollArea, ScrollBar} from "@/components/ui/scroll-area";
 import {
   Shield, Store, CreditCard, LogOut, Users, Crown, Zap, Eye, EyeOff,
-  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, MessageCircle, Globe, Handshake, Bot, Mail, Activity, Palette, Gift, Film, StoreIcon, XCircle, Box, KeyRound, Server, TrendingUp,
+  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, MessageCircle, Globe, Handshake, Bot, Mail, Activity, Palette, Gift, Film, StoreIcon, XCircle, Box, KeyRound, Server, TrendingUp, ShieldAlert,
   Sun, Moon, Monitor, ClipboardList, CalendarSync, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import {AdminUsersModal} from "@/components/admin/AdminUsersModal";
@@ -38,6 +38,7 @@ import {AdminSystemDiagnostics} from "@/components/admin/AdminSystemDiagnostics"
 import {AdminCanvaConfig} from "@/components/admin/AdminCanvaConfig";
 import {AdminAffiliates} from "@/components/admin/AdminAffiliates";
 import {AdminTutorials} from "@/components/admin/AdminTutorials";
+import {AdminSecurityAudit} from "@/components/admin/AdminSecurityAudit";
 import {Admin3DSmartImport} from "@/components/admin/Admin3DSmartImport";
 import {AdminApiKeys} from "@/components/admin/AdminApiKeys";
 import {AdminSharedApiUsageList} from "@/components/admin/AdminSharedApiUsageList";
@@ -1085,6 +1086,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                 <TabsTrigger value="apikeys" className="gap-2 data-[state=active]:bg-[hsl(25,80%,50%)] data-[state=active]:text-white"><KeyRound className="h-4 w-4" />APIs</TabsTrigger>
                 <TabsTrigger value="usage-billing" className="gap-2 data-[state=active]:bg-[hsl(260,60%,50%)] data-[state=active]:text-white"><TrendingUp className="h-4 w-4" />Consumo</TabsTrigger>
                 <TabsTrigger value="wa-funnel" className="gap-2 data-[state=active]:bg-[hsl(142,70%,40%)] data-[state=active]:text-white"><MessageCircle className="h-4 w-4" />Funil WA</TabsTrigger>
+                <TabsTrigger value="security-audit" className="gap-2 data-[state=active]:bg-[hsl(0,70%,45%)] data-[state=active]:text-white"><ShieldAlert className="h-4 w-4" />Auditoria</TabsTrigger>
               </TabsList>
             </div>
             <Button
@@ -1431,6 +1433,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           {/* TAB: Funil WhatsApp */}
           <TabsContent value="wa-funnel">
             <AdminWhatsAppFunnel />
+          </TabsContent>
+
+          {/* TAB: Auditoria de Segurança */}
+          <TabsContent value="security-audit">
+            <AdminSecurityAudit />
           </TabsContent>
 
           
