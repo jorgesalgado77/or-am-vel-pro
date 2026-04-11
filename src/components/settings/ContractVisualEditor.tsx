@@ -264,6 +264,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const editableRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const reflowDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const editingBlurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentPage = pages[currentPageIdx];
   const elements = currentPage?.elements || [];
