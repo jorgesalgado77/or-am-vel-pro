@@ -265,11 +265,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return { user: null, error: "Usuário autenticado, mas não encontrado na sessão" };
         }
 
-        const metaTenantId = (authData.user.user_metadata as any)?.tenant_id as string | undefined;
-        if (!resolvedTenantId && metaTenantId) {
-          resolvedTenantId = metaTenantId;
-        }
-
+        // Resolve tenant from store code first — do NOT use metadata as fallback
+        // when a store code was explicitly provided (prevents cross-store access)
         if (normalizedStoreCode.length === 6 && !resolvedTenantId) {
           resolvedTenantId = await withTimeout(tenantResolutionPromise, 1400, null);
 
