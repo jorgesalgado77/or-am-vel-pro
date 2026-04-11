@@ -364,11 +364,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (!appUser) {
           logLoginDiagnostic({ email: normalizedEmail_, codigo_loja: normalizedStoreCode, tenant_id: resolvedTenantId, auth_user_id: authData.user.id, resultado: "falha_vinculo", detalhes: { motivo: "Perfil não encontrado na tabela usuarios" } });
+          await supabase.auth.signOut().catch(() => {});
           return { user: null, error: "Usuário autenticado, mas não encontrado na tabela usuarios" };
         }
 
         if (resolvedTenantId && appUser.tenant_id && appUser.tenant_id !== resolvedTenantId) {
           logLoginDiagnostic({ email: normalizedEmail_, codigo_loja: normalizedStoreCode, tenant_id: resolvedTenantId, usuario_id: appUser.id, cargo_nome: appUser.cargo_nome, resultado: "falha_tenant", detalhes: { tenant_usuario: appUser.tenant_id, tenant_esperado: resolvedTenantId } });
+          await supabase.auth.signOut().catch(() => {});
           return { user: null, error: "Este email não está vinculado ao código da loja informado." };
         }
 
