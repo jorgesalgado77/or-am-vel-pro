@@ -2052,9 +2052,35 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       reflowElements(elId, newHeight, changedElUpdates);
     };
 
+    const syncEditedElementLayout = (elementId: string) => {
+      requestAnimationFrame(() => {
+        const target = editableRefs.current[elementId];
+        if (!target) return;
+        autoResizeElement(elementId, target, { text: target.innerHTML });
+      });
+    };
+
+    const insertManualLineBreak = () => {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) return false;
+
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+
+      const br = document.createElement("br");
+      range.insertNode(br);
+      range.setStartAfter(br);
+      range.collapse(true);
+
+      selection.removeAllRanges();
+      selection.addRange(range);
+      return true;
+    };
+
     // Rich-text exec command helper
     const execRichCmd = (command: string, value?: string) => {
       document.execCommand(command, false, value);
+      syncEditedElementLayout(el.id);
     };
 
     const handleConvertToVariable = () => {
@@ -2100,10 +2126,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       } else {
         target.innerHTML += coloredHtml;
       }
-      requestAnimationFrame(() => {
-        const newText = target.innerHTML;
-        autoResizeElement(el.id, target, { text: newText });
-      });
+      syncEditedElementLayout(el.id);
     };
 
     const textContent = isEditing ? (
@@ -2368,15 +2391,18 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
               setEditingTextId(null);
               return;
             }
-            if (e.key === "Enter" || e.key === "Backspace" || e.key === "Delete") {
+            if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+              e.preventDefault();
+              const inserted = document.execCommand("insertLineBreak");
+              if (!inserted) {
+                insertManualLineBreak();
+              }
+              syncEditedElementLayout(el.id);
+              return;
+            }
+            if (e.key === "Backspace" || e.key === "Delete") {
               // For structural keys, do an immediate resize after browser processes the key
-              requestAnimationFrame(() => {
-                const target = editableRefs.current[el.id];
-                if (target) {
-                  const newText = target.innerHTML;
-                  autoResizeElement(el.id, target, { text: newText });
-                }
-              });
+              syncEditedElementLayout(el.id);
             }
           }}
           style={{
