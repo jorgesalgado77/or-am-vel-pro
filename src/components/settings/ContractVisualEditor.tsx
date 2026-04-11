@@ -2326,18 +2326,48 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             }
           }}
           onInput={(e) => {
-            const newText = (e.currentTarget as HTMLElement).innerHTML;
-            autoResizeElement(el.id, e.currentTarget as HTMLElement, { text: newText });
+            // Debounce reflow during typing to avoid excessive re-renders
+            const target = e.currentTarget as HTMLElement;
+            const elId = el.id;
+            if (reflowDebounceRef.current) clearTimeout(reflowDebounceRef.current);
+            reflowDebounceRef.current = setTimeout(() => {
+              const ref = editableRefs.current[elId];
+              if (ref) {
+                const newText = ref.innerHTML;
+                autoResizeElement(elId, ref, { text: newText });
+              }
+            }, 250);
           }}
           onPaste={handlePaste}
-          onBlur={() => setEditingTextId(null)}
+          onBlur={(e) => {
+            // Don't exit editing if focus moves to the toolbar or within the same element
+            const related = e.relatedTarget as HTMLElement | null;
+            if (related && (e.currentTarget.contains(related) || e.currentTarget.parentElement?.contains(related))) {
+              return;
+            }
+            // Delay to allow click handlers on toolbar buttons to fire first
+            if (editingBlurTimeoutRef.current) clearTimeout(editingBlurTimeoutRef.current);
+            editingBlurTimeoutRef.current = setTimeout(() => {
+              // Flush any pending debounced reflow
+              if (reflowDebounceRef.current) {
+                clearTimeout(reflowDebounceRef.current);
+                reflowDebounceRef.current = null;
+                const ref = editableRefs.current[el.id];
+                if (ref) {
+                  autoResizeElement(el.id, ref, { text: ref.innerHTML });
+                }
+              }
+              setEditingTextId(null);
+            }, 150);
+          }}
           onKeyDown={(e) => {
             e.stopPropagation();
             if (e.key === "Escape") {
               setEditingTextId(null);
               return;
             }
-            if (e.key === "Enter") {
+            if (e.key === "Enter" || e.key === "Backspace" || e.key === "Delete") {
+              // For structural keys, do an immediate resize after browser processes the key
               requestAnimationFrame(() => {
                 const target = editableRefs.current[el.id];
                 if (target) {
