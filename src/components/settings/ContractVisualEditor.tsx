@@ -264,6 +264,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const editableRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const reflowDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const editingBlurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentPage = pages[currentPageIdx];
   const elements = currentPage?.elements || [];
@@ -867,10 +869,14 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         return hasFlowContent;
       });
 
-      toast.info("Contrato reorganizado mantendo margens e continuidade.", { id: "auto-reflow" });
+      // toast is fired outside setPages to avoid side effects in setState
       return trimmedPages.length > 0 ? trimmedPages : prev;
     });
-  }, [currentPageIdx, footerSettings.enabled, footerSettings.height, headerSettings.enabled, headerSettings.height, isGeneralConditionsElement, margins, measureHtmlHeight, splitHtmlAtHeight]);
+    // Only show toast when not actively editing text (to avoid spamming during typing)
+    if (!editingTextId) {
+      toast.info("Contrato reorganizado mantendo margens e continuidade.", { id: "auto-reflow" });
+    }
+  }, [currentPageIdx, editingTextId, footerSettings.enabled, footerSettings.height, headerSettings.enabled, headerSettings.height, isGeneralConditionsElement, margins, measureHtmlHeight, splitHtmlAtHeight]);
 
   // --- Find & Replace ---
   const handleFind = useCallback(() => {
@@ -2016,6 +2022,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
     const handleDoubleClick = (e: React.MouseEvent) => {
       e.stopPropagation();
+      if (editingBlurTimeoutRef.current) { clearTimeout(editingBlurTimeoutRef.current); editingBlurTimeoutRef.current = null; }
       if (el.type === "text" || el.type === "rect" || el.type === "circle") setEditingTextId(el.id);
     };
 
@@ -2314,24 +2321,55 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             }
           }}
           onFocus={(e) => {
-            const target = e.currentTarget;
-            if (target.innerHTML !== el.text) {
-              target.innerHTML = el.text;
+            // Cancel any pending blur timeout when focus returns
+            if (editingBlurTimeoutRef.current) {
+              clearTimeout(editingBlurTimeoutRef.current);
+              editingBlurTimeoutRef.current = null;
             }
           }}
           onInput={(e) => {
-            const newText = (e.currentTarget as HTMLElement).innerHTML;
-            autoResizeElement(el.id, e.currentTarget as HTMLElement, { text: newText });
+            // Debounce reflow during typing to avoid excessive re-renders
+            const target = e.currentTarget as HTMLElement;
+            const elId = el.id;
+            if (reflowDebounceRef.current) clearTimeout(reflowDebounceRef.current);
+            reflowDebounceRef.current = setTimeout(() => {
+              const ref = editableRefs.current[elId];
+              if (ref) {
+                const newText = ref.innerHTML;
+                autoResizeElement(elId, ref, { text: newText });
+              }
+            }, 250);
           }}
           onPaste={handlePaste}
-          onBlur={() => setEditingTextId(null)}
+          onBlur={(e) => {
+            // Don't exit editing if focus moves to the toolbar or within the same element
+            const related = e.relatedTarget as HTMLElement | null;
+            if (related && (e.currentTarget.contains(related) || e.currentTarget.parentElement?.contains(related))) {
+              return;
+            }
+            // Delay to allow click handlers on toolbar buttons to fire first
+            if (editingBlurTimeoutRef.current) clearTimeout(editingBlurTimeoutRef.current);
+            editingBlurTimeoutRef.current = setTimeout(() => {
+              // Flush any pending debounced reflow
+              if (reflowDebounceRef.current) {
+                clearTimeout(reflowDebounceRef.current);
+                reflowDebounceRef.current = null;
+                const ref = editableRefs.current[el.id];
+                if (ref) {
+                  autoResizeElement(el.id, ref, { text: ref.innerHTML });
+                }
+              }
+              setEditingTextId(null);
+            }, 150);
+          }}
           onKeyDown={(e) => {
             e.stopPropagation();
             if (e.key === "Escape") {
               setEditingTextId(null);
               return;
             }
-            if (e.key === "Enter") {
+            if (e.key === "Enter" || e.key === "Backspace" || e.key === "Delete") {
+              // For structural keys, do an immediate resize after browser processes the key
               requestAnimationFrame(() => {
                 const target = editableRefs.current[el.id];
                 if (target) {
