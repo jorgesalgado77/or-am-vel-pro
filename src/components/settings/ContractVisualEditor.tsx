@@ -2022,6 +2022,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
     const handleDoubleClick = (e: React.MouseEvent) => {
       e.stopPropagation();
+      if (editingBlurTimeoutRef.current) { clearTimeout(editingBlurTimeoutRef.current); editingBlurTimeoutRef.current = null; }
       if (el.type === "text" || el.type === "rect" || el.type === "circle") setEditingTextId(el.id);
     };
 
