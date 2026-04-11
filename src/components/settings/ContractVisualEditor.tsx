@@ -2054,22 +2054,34 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
     const syncEditedElementLayout = (elementId: string) => {
       requestAnimationFrame(() => {
-        const target = editableRefs.current[elementId];
-        if (!target) return;
-        autoResizeElement(elementId, target, { text: target.innerHTML });
+        requestAnimationFrame(() => {
+          const target = editableRefs.current[elementId];
+          if (!target) return;
+          autoResizeElement(elementId, target, { text: target.innerHTML });
+        });
       });
     };
 
-    const insertManualLineBreak = () => {
+    const insertManualBreak = (mode: "paragraph" | "line") => {
       const selection = window.getSelection();
       if (!selection || selection.rangeCount === 0) return false;
 
       const range = selection.getRangeAt(0);
       range.deleteContents();
 
-      const br = document.createElement("br");
-      range.insertNode(br);
-      range.setStartAfter(br);
+      if (mode === "paragraph") {
+        const wrapper = document.createElement("div");
+        wrapper.appendChild(document.createElement("br"));
+        range.insertNode(wrapper);
+        range.setStart(wrapper, 0);
+        range.collapse(true);
+      } else {
+        const br = document.createElement("br");
+        range.insertNode(br);
+        range.setStartAfter(br);
+        range.collapse(true);
+      }
+
       range.collapse(true);
 
       selection.removeAllRanges();
@@ -2391,11 +2403,13 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
               setEditingTextId(null);
               return;
             }
-            if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            if (e.key === "Enter" && !e.ctrlKey && !e.metaKey && !e.altKey) {
               e.preventDefault();
-              const inserted = document.execCommand("insertLineBreak");
+              const inserted = e.shiftKey
+                ? document.execCommand("insertLineBreak")
+                : document.execCommand("insertParagraph");
               if (!inserted) {
-                insertManualLineBreak();
+                insertManualBreak(e.shiftKey ? "line" : "paragraph");
               }
               syncEditedElementLayout(el.id);
               return;
