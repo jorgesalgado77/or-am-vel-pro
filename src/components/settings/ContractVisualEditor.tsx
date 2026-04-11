@@ -869,10 +869,14 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         return hasFlowContent;
       });
 
-      toast.info("Contrato reorganizado mantendo margens e continuidade.", { id: "auto-reflow" });
+      // toast is fired outside setPages to avoid side effects in setState
       return trimmedPages.length > 0 ? trimmedPages : prev;
     });
-  }, [currentPageIdx, footerSettings.enabled, footerSettings.height, headerSettings.enabled, headerSettings.height, isGeneralConditionsElement, margins, measureHtmlHeight, splitHtmlAtHeight]);
+    // Only show toast when not actively editing text (to avoid spamming during typing)
+    if (!editingTextId) {
+      toast.info("Contrato reorganizado mantendo margens e continuidade.", { id: "auto-reflow" });
+    }
+  }, [currentPageIdx, editingTextId, footerSettings.enabled, footerSettings.height, headerSettings.enabled, headerSettings.height, isGeneralConditionsElement, margins, measureHtmlHeight, splitHtmlAtHeight]);
 
   // --- Find & Replace ---
   const handleFind = useCallback(() => {
