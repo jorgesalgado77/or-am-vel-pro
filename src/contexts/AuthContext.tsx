@@ -261,6 +261,83 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       let resolvedTenantId: string | null = null;
 
+      const prevalidateStoreMembership = async (): Promise<string | null> => {
+        if (normalizedStoreCode.length !== 6) return null;
+
+        resolvedTenantId = resolvedTenantId ?? await withTimeout(tenantResolutionPromise, 2000, null);
+
+        if (!resolvedTenantId) {
+          await supabase.auth.signOut().catch(() => {});
+          return "Código da loja não encontrado. Verifique o código informado.";
+        }
+
+        const { data: storeCandidates, error: storeCandidatesError } = await withTimeout(
+          (supabase as any)
+            .from("usuarios")
+            .select("id, tenant_id, ativo, auth_user_id, nome_completo, email")
+            .ilike("email", normalizedEmail_)
+            .limit(20),
+          2500,
+          { data: null, error: createTimeoutError("store_membership_precheck") } as any,
+        );
+
+        if (storeCandidatesError) {
+          console.warn("[Auth] Falha ao validar vínculo pré-login:", storeCandidatesError.message);
+          return "Não foi possível validar o vínculo com a loja informada. Tente novamente.";
+        }
+
+        const candidateRows = Array.isArray(storeCandidates) ? storeCandidates : storeCandidates ? [storeCandidates] : [];
+        const storeMatches = candidateRows.filter((candidate: any) => candidate.tenant_id === resolvedTenantId);
+        const tenantIdsEncontrados = [...new Set(candidateRows.map((candidate: any) => candidate?.tenant_id).filter(Boolean))];
+
+        if (storeMatches.length === 0) {
+          logLoginDiagnostic({
+            email: normalizedEmail_,
+            codigo_loja: normalizedStoreCode,
+            tenant_id: resolvedTenantId,
+            resultado: "falha_vinculo",
+            detalhes: {
+              fase: "pre_validacao",
+              motivo: "Email não cadastrado na loja informada",
+              tenant_ids_encontrados: tenantIdsEncontrados,
+            },
+          });
+          logAudit({
+            acao: "usuario_login",
+            entidade: "security",
+            detalhes: {
+              tipo: "acesso_cross_tenant_bloqueado",
+              fase: "pre_validacao",
+              email: normalizedEmail_,
+              codigo_loja_digitado: normalizedStoreCode,
+              tenant_id_tentado: resolvedTenantId,
+              tenant_ids_encontrados: tenantIdsEncontrados,
+              motivo: "Pré-validação bloqueou login sem vínculo com a loja informada",
+              timestamp: new Date().toISOString(),
+            },
+            tenant_id: resolvedTenantId,
+          });
+          await supabase.auth.signOut().catch(() => {});
+          return "Este email não está vinculado ao código da loja informado. Verifique o código da loja.";
+        }
+
+        const activeStoreMatch = storeMatches.find((candidate: any) => candidate.ativo !== false);
+        if (!activeStoreMatch) {
+          logLoginDiagnostic({
+            email: normalizedEmail_,
+            codigo_loja: normalizedStoreCode,
+            tenant_id: resolvedTenantId,
+            usuario_id: storeMatches[0]?.id,
+            resultado: "falha_inativo",
+            detalhes: { fase: "pre_validacao", motivo: "Usuário inativo na loja" },
+          });
+          await supabase.auth.signOut().catch(() => {});
+          return "Sua conta está inativa nesta loja. Entre em contato com o administrador.";
+        }
+
+        return null;
+      };
+
       const finalizeLogin = async (authData: { user: SupabaseAuthUser | null; session: Session | null }) => {
         if (!authData.user) {
           return { user: null, error: "Usuário autenticado, mas não encontrado na sessão" };
@@ -286,37 +363,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        // CRITICAL SECURITY CHECK: When a store code was provided, verify the user
-        // actually exists in that store's usuarios table BEFORE syncing metadata.
-        // This prevents users from accessing stores they don't belong to.
+        // CRITICAL SECURITY CHECK: When a store code was provided, verify the auth user
+        // is really bound to the informed tenant and never allow cross-store reuse.
         if (normalizedStoreCode.length === 6 && resolvedTenantId) {
           const normalizedLoginEmail = normalizeEmail(authData.user.email);
-          const { data: storeUsers } = await withTimeout(
+          const { data: authLinkedUsers } = await withTimeout(
             (supabase as any)
               .from("usuarios")
-              .select("id, tenant_id, ativo")
-              .or(`auth_user_id.eq.${authData.user.id}${normalizedLoginEmail ? `,email.ilike.${normalizedLoginEmail}` : ""}`)
-              .eq("tenant_id", resolvedTenantId)
-              .limit(5),
+              .select("id, tenant_id, ativo, auth_user_id, email")
+              .eq("auth_user_id", authData.user.id)
+              .limit(10),
             2500,
             { data: null } as any,
           );
 
-          const matchingUsers = Array.isArray(storeUsers) ? storeUsers : storeUsers ? [storeUsers] : [];
+          const linkedUsers = Array.isArray(authLinkedUsers) ? authLinkedUsers : authLinkedUsers ? [authLinkedUsers] : [];
+          const linkedTenantIds = [...new Set(linkedUsers.map((u: any) => u?.tenant_id).filter(Boolean))];
 
-          if (matchingUsers.length === 0) {
-            logLoginDiagnostic({ email: normalizedEmail_, codigo_loja: normalizedStoreCode, tenant_id: resolvedTenantId, auth_user_id: authData.user.id, resultado: "falha_vinculo", detalhes: { motivo: "Usuário não pertence à loja informada" } });
+          if (linkedUsers.length > 0 && !linkedUsers.some((u: any) => u.tenant_id === resolvedTenantId)) {
+            logLoginDiagnostic({
+              email: normalizedEmail_,
+              codigo_loja: normalizedStoreCode,
+              tenant_id: resolvedTenantId,
+              auth_user_id: authData.user.id,
+              resultado: "falha_tenant",
+              detalhes: {
+                fase: "pos_auth",
+                tenant_ids_auth_vinculados: linkedTenantIds,
+                tenant_esperado: resolvedTenantId,
+                motivo: "Usuário autenticado já está vinculado a outra loja",
+              },
+            });
             logAudit({
               acao: "usuario_login",
               entidade: "security",
               detalhes: {
                 tipo: "acesso_cross_tenant_bloqueado",
+                fase: "pos_auth",
                 email: normalizedEmail_,
                 codigo_loja_digitado: normalizedStoreCode,
                 tenant_id_tentado: resolvedTenantId,
+                tenant_ids_auth_vinculados: linkedTenantIds,
                 auth_user_id: authData.user.id,
-                motivo: "Usuário tentou acessar loja à qual não está vinculado",
-                ip: navigator?.userAgent || "unknown",
+                motivo: "Auth user já possui vínculo com outra loja e tentou acessar uma diferente",
                 timestamp: new Date().toISOString(),
               },
               tenant_id: resolvedTenantId,
@@ -325,9 +414,76 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return { user: null, error: "Este email não está vinculado ao código da loja informado. Verifique o código da loja." };
           }
 
-          const activeUser = matchingUsers.find((u: any) => u.ativo !== false);
+          const { data: storeUsers } = await withTimeout(
+            (supabase as any)
+              .from("usuarios")
+              .select("id, tenant_id, ativo, auth_user_id, email")
+              .or(`auth_user_id.eq.${authData.user.id}${normalizedLoginEmail ? `,email.ilike.${normalizedLoginEmail}` : ""}`)
+              .eq("tenant_id", resolvedTenantId)
+              .limit(10),
+            2500,
+            { data: null } as any,
+          );
+
+          const matchingUsers = Array.isArray(storeUsers) ? storeUsers : storeUsers ? [storeUsers] : [];
+          const authorizedUsers = matchingUsers.filter((u: any) => !u.auth_user_id || u.auth_user_id === authData.user.id);
+
+          if (matchingUsers.length === 0) {
+            logLoginDiagnostic({ email: normalizedEmail_, codigo_loja: normalizedStoreCode, tenant_id: resolvedTenantId, auth_user_id: authData.user.id, resultado: "falha_vinculo", detalhes: { fase: "pos_auth", motivo: "Usuário não pertence à loja informada" } });
+            logAudit({
+              acao: "usuario_login",
+              entidade: "security",
+              detalhes: {
+                tipo: "acesso_cross_tenant_bloqueado",
+                fase: "pos_auth",
+                email: normalizedEmail_,
+                codigo_loja_digitado: normalizedStoreCode,
+                tenant_id_tentado: resolvedTenantId,
+                auth_user_id: authData.user.id,
+                motivo: "Usuário tentou acessar loja à qual não está vinculado",
+                user_agent: navigator?.userAgent || "unknown",
+                timestamp: new Date().toISOString(),
+              },
+              tenant_id: resolvedTenantId,
+            });
+            await supabase.auth.signOut().catch(() => {});
+            return { user: null, error: "Este email não está vinculado ao código da loja informado. Verifique o código da loja." };
+          }
+
+          if (authorizedUsers.length === 0) {
+            logLoginDiagnostic({
+              email: normalizedEmail_,
+              codigo_loja: normalizedStoreCode,
+              tenant_id: resolvedTenantId,
+              auth_user_id: authData.user.id,
+              resultado: "falha_vinculo",
+              detalhes: {
+                fase: "pos_auth",
+                motivo: "Registro da loja já vinculado a outro auth_user_id",
+              },
+            });
+            logAudit({
+              acao: "usuario_login",
+              entidade: "security",
+              detalhes: {
+                tipo: "acesso_cross_tenant_bloqueado",
+                fase: "pos_auth",
+                email: normalizedEmail_,
+                codigo_loja_digitado: normalizedStoreCode,
+                tenant_id_tentado: resolvedTenantId,
+                auth_user_id: authData.user.id,
+                motivo: "Email encontrado na loja, mas o cadastro já está vinculado a outro acesso",
+                timestamp: new Date().toISOString(),
+              },
+              tenant_id: resolvedTenantId,
+            });
+            await supabase.auth.signOut().catch(() => {});
+            return { user: null, error: "Este email não está vinculado ao código da loja informado. Verifique o código da loja." };
+          }
+
+          const activeUser = authorizedUsers.find((u: any) => u.ativo !== false);
           if (!activeUser) {
-            logLoginDiagnostic({ email: normalizedEmail_, codigo_loja: normalizedStoreCode, tenant_id: resolvedTenantId, auth_user_id: authData.user.id, resultado: "falha_inativo", detalhes: { motivo: "Usuário inativo na loja" } });
+            logLoginDiagnostic({ email: normalizedEmail_, codigo_loja: normalizedStoreCode, tenant_id: resolvedTenantId, auth_user_id: authData.user.id, resultado: "falha_inativo", detalhes: { fase: "pos_auth", motivo: "Usuário inativo na loja" } });
             await supabase.auth.signOut().catch(() => {});
             return { user: null, error: "Sua conta está inativa nesta loja. Entre em contato com o administrador." };
           }
@@ -433,11 +589,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { user: appUser, error: null };
       };
 
-      // Start tenant resolution from store code early
       if (normalizedStoreCode.length === 6) {
-        const tenantFromCode = await withTimeout(tenantResolutionPromise, 2000, null);
-        if (tenantFromCode) {
-          resolvedTenantId = tenantFromCode;
+        const preValidationError = await prevalidateStoreMembership();
+        if (preValidationError) {
+          return { user: null, error: preValidationError };
         }
       }
 

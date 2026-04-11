@@ -291,6 +291,12 @@ export async function loadAppUser(authUser: Pick<SupabaseAuthUser, "id" | "email
         continue;
       }
 
+      const linkedToDifferentAuthUser = Boolean(userRow.auth_user_id && userRow.auth_user_id !== authUser.id);
+      if (linkedToDifferentAuthUser) {
+        console.warn(`[Auth] Found user by ${strategy.label} but auth_user_id belongs to another account, trying next strategy`);
+        continue;
+      }
+
       const needsAuthLink = userRow.auth_user_id !== authUser.id;
       const needsEmailNormalization = normalizedEmail && normalizeEmail(userRow.email) !== normalizedEmail;
 
