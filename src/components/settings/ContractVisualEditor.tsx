@@ -2320,9 +2320,10 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             }
           }}
           onFocus={(e) => {
-            const target = e.currentTarget;
-            if (target.innerHTML !== el.text) {
-              target.innerHTML = el.text;
+            // Cancel any pending blur timeout when focus returns
+            if (editingBlurTimeoutRef.current) {
+              clearTimeout(editingBlurTimeoutRef.current);
+              editingBlurTimeoutRef.current = null;
             }
           }}
           onInput={(e) => {
