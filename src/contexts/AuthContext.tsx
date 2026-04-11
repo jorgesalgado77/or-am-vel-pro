@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, ty
 import { supabase } from "@/lib/supabaseClient";
 import type { CargoPermissoes } from "@/hooks/useCargos";
 import { logLoginDiagnostic } from "@/services/system/SystemDiagnosticsService";
+import { logAudit } from "@/services/auditService";
 import { initializeTheme, resetToDefaultTheme } from "@/lib/colorThemes";
 import type { Session, User as SupabaseAuthUser } from "@supabase/supabase-js";
 import { InactivityWarningDialog } from "@/components/InactivityWarningDialog";
@@ -305,6 +306,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           if (matchingUsers.length === 0) {
             logLoginDiagnostic({ email: normalizedEmail_, codigo_loja: normalizedStoreCode, tenant_id: resolvedTenantId, auth_user_id: authData.user.id, resultado: "falha_vinculo", detalhes: { motivo: "Usuário não pertence à loja informada" } });
+            logAudit({
+              acao: "usuario_login",
+              entidade: "security",
+              detalhes: {
+                tipo: "acesso_cross_tenant_bloqueado",
+                email: normalizedEmail_,
+                codigo_loja_digitado: normalizedStoreCode,
+                tenant_id_tentado: resolvedTenantId,
+                auth_user_id: authData.user.id,
+                motivo: "Usuário tentou acessar loja à qual não está vinculado",
+                ip: navigator?.userAgent || "unknown",
+                timestamp: new Date().toISOString(),
+              },
+              tenant_id: resolvedTenantId,
+            });
             await supabase.auth.signOut().catch(() => {});
             return { user: null, error: "Este email não está vinculado ao código da loja informado. Verifique o código da loja." };
           }
@@ -370,6 +386,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (resolvedTenantId && appUser.tenant_id && appUser.tenant_id !== resolvedTenantId) {
           logLoginDiagnostic({ email: normalizedEmail_, codigo_loja: normalizedStoreCode, tenant_id: resolvedTenantId, usuario_id: appUser.id, cargo_nome: appUser.cargo_nome, resultado: "falha_tenant", detalhes: { tenant_usuario: appUser.tenant_id, tenant_esperado: resolvedTenantId } });
+          logAudit({
+            acao: "usuario_login",
+            entidade: "security",
+            usuario_id: appUser.id,
+            usuario_nome: appUser.nome_completo,
+            detalhes: {
+              tipo: "acesso_cross_tenant_bloqueado",
+              email: normalizedEmail_,
+              codigo_loja_digitado: normalizedStoreCode,
+              tenant_id_tentado: resolvedTenantId,
+              tenant_id_real_usuario: appUser.tenant_id,
+              cargo: appUser.cargo_nome,
+              motivo: "Tenant do usuário difere do tenant da loja informada",
+              timestamp: new Date().toISOString(),
+            },
+            tenant_id: resolvedTenantId,
+          });
           await supabase.auth.signOut().catch(() => {});
           return { user: null, error: "Este email não está vinculado ao código da loja informado." };
         }
@@ -550,6 +583,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const legacyAuthUserId = legacyUser.auth_user_id || legacyUser.id;
 
           if (tenantIdFromCode && legacyUser.tenant_id !== tenantIdFromCode) {
+            logAudit({
+              acao: "usuario_login",
+              entidade: "security",
+              usuario_id: legacyUser.id,
+              detalhes: {
+                tipo: "acesso_cross_tenant_bloqueado",
+                email: normalizedEmail_,
+                codigo_loja_digitado: normalizedStoreCode,
+                tenant_id_tentado: tenantIdFromCode,
+                tenant_id_real_usuario: legacyUser.tenant_id,
+                motivo: "Tentativa de login legado em loja não vinculada",
+                timestamp: new Date().toISOString(),
+              },
+              tenant_id: tenantIdFromCode,
+            });
             return { user: null, error: "Este email não está vinculado ao código da loja informado." };
           }
 
