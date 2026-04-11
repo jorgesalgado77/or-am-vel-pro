@@ -271,31 +271,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           resolvedTenantId = await withTimeout(tenantResolutionPromise, 1400, null);
 
           if (!resolvedTenantId) {
-            const fallbackMetaTenantId = (authData.user.user_metadata as any)?.tenant_id as string | undefined;
-            if (fallbackMetaTenantId) {
-              resolvedTenantId = fallbackMetaTenantId;
-            }
-          }
-
-          if (!resolvedTenantId) {
+            // Store code invalid — sign out and reject
+            await supabase.auth.signOut().catch(() => {});
             return { user: null, error: "Código da loja não encontrado. Verifique o código informado." };
           }
         }
 
-        // Sync Auth metadata with the correct tenant BEFORE loading the user profile.
-        // This ensures the JWT (used by RLS policies via get_my_tenant_id()) reflects
-        // the correct store when the same email exists in multiple tenants.
+        // Only use metadata tenant as fallback when NO store code was provided
+        if (!resolvedTenantId && normalizedStoreCode.length !== 6) {
+          const metaTenantId = (authData.user.user_metadata as any)?.tenant_id as string | undefined;
+          if (metaTenantId) {
+            resolvedTenantId = metaTenantId;
+          }
+        }
+
+        // CRITICAL SECURITY CHECK: When a store code was provided, verify the user
+        // actually exists in that store's usuarios table BEFORE syncing metadata.
+        // This prevents users from accessing stores they don't belong to.
+        if (normalizedStoreCode.length === 6 && resolvedTenantId) {
+          const normalizedLoginEmail = normalizeEmail(authData.user.email);
+          const { data: storeUsers } = await withTimeout(
+            (supabase as any)
+              .from("usuarios")
+              .select("id, tenant_id, ativo")
+              .or(`auth_user_id.eq.${authData.user.id}${normalizedLoginEmail ? `,email.ilike.${normalizedLoginEmail}` : ""}`)
+              .eq("tenant_id", resolvedTenantId)
+              .limit(5),
+            2500,
+            { data: null } as any,
+          );
+
+          const matchingUsers = Array.isArray(storeUsers) ? storeUsers : storeUsers ? [storeUsers] : [];
+
+          if (matchingUsers.length === 0) {
+            logLoginDiagnostic({ email: normalizedEmail_, codigo_loja: normalizedStoreCode, tenant_id: resolvedTenantId, auth_user_id: authData.user.id, resultado: "falha_vinculo", detalhes: { motivo: "Usuário não pertence à loja informada" } });
+            await supabase.auth.signOut().catch(() => {});
+            return { user: null, error: "Este email não está vinculado ao código da loja informado. Verifique o código da loja." };
+          }
+
+          const activeUser = matchingUsers.find((u: any) => u.ativo !== false);
+          if (!activeUser) {
+            logLoginDiagnostic({ email: normalizedEmail_, codigo_loja: normalizedStoreCode, tenant_id: resolvedTenantId, auth_user_id: authData.user.id, resultado: "falha_inativo", detalhes: { motivo: "Usuário inativo na loja" } });
+            await supabase.auth.signOut().catch(() => {});
+            return { user: null, error: "Sua conta está inativa nesta loja. Entre em contato com o administrador." };
+          }
+        }
+
+        // Now that we confirmed the user belongs to the store, sync Auth metadata
         const currentMetaTenant = (authData.user.user_metadata as any)?.tenant_id;
         if (resolvedTenantId && currentMetaTenant !== resolvedTenantId) {
           try {
             await supabase.auth.updateUser({ data: { tenant_id: resolvedTenantId } });
-            // Refresh session so the new JWT with updated tenant_id is used by RLS
             const { data: refreshed } = await supabase.auth.refreshSession();
             if (refreshed?.user) {
               authData = { user: refreshed.user, session: refreshed.session };
             }
           } catch (e) {
-            console.warn("[Auth] Failed to sync tenant metadata before user load:", e);
+            console.warn("[Auth] Failed to sync tenant metadata:", e);
           }
         }
 
