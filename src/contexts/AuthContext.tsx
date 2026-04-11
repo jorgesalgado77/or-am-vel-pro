@@ -261,6 +261,73 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       let resolvedTenantId: string | null = null;
 
+      const lookupStoreUsers = async (tenantId: string, authUserId?: string | null) => {
+        const userSelect = "id, tenant_id, ativo, auth_user_id, nome_completo, email";
+        const fallbackResponse = { data: null, error: null } as any;
+
+        const queries: Promise<any>[] = [
+          withTimeout(
+            (supabase as any)
+              .from("usuarios")
+              .select(userSelect)
+              .eq("tenant_id", tenantId)
+              .eq("email", normalizedEmail_)
+              .limit(20),
+            2200,
+            fallbackResponse,
+          ),
+          withTimeout(
+            (supabase as any)
+              .from("usuarios")
+              .select(userSelect)
+              .eq("tenant_id", tenantId)
+              .ilike("email", normalizedEmail_)
+              .limit(20),
+            2200,
+            fallbackResponse,
+          ),
+          withTimeout(
+            (supabase as any).rpc("validate_legacy_login", {
+              p_email: normalizedEmail_,
+              p_tenant_id: tenantId,
+            }),
+            2200,
+            fallbackResponse,
+          ),
+        ];
+
+        if (authUserId) {
+          queries.push(
+            withTimeout(
+              (supabase as any)
+                .from("usuarios")
+                .select(userSelect)
+                .eq("tenant_id", tenantId)
+                .eq("auth_user_id", authUserId)
+                .limit(20),
+              2200,
+              fallbackResponse,
+            ),
+          );
+        }
+
+        const results = await Promise.all(queries);
+        const rows = results.flatMap((result) => Array.isArray(result?.data) ? result.data : result?.data ? [result.data] : []);
+        const mergedRows = Array.from(new Map(
+          rows
+            .filter(Boolean)
+            .map((row: any) => [row.id ?? `${row.tenant_id}:${normalizeEmail(row.email)}:${row.auth_user_id ?? "sem-auth"}`, row]),
+        ).values());
+
+        const exactEmailMatches = mergedRows.filter((row: any) => normalizeEmail(row.email) === normalizedEmail_);
+
+        return {
+          candidates: exactEmailMatches.length > 0 ? exactEmailMatches : mergedRows,
+          hasLookupError: results.some((result) => Boolean(result?.error)),
+          tenantIdsEncontrados: [...new Set(mergedRows.map((row: any) => row?.tenant_id).filter(Boolean))],
+        };
+      };
+
       const prevalidateStoreMembership = async (): Promise<string | null> => {
         if (normalizedStoreCode.length !== 6) return null;
 
@@ -271,26 +338,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return "Código da loja não encontrado. Verifique o código informado.";
         }
 
-        const { data: storeCandidates, error: storeCandidatesError } = await withTimeout(
-          (supabase as any)
-            .from("usuarios")
-            .select("id, tenant_id, ativo, auth_user_id, nome_completo, email")
-            .ilike("email", normalizedEmail_)
-            .limit(20),
-          2500,
-          { data: null, error: createTimeoutError("store_membership_precheck") } as any,
-        );
-
-        if (storeCandidatesError) {
-          console.warn("[Auth] Falha ao validar vínculo pré-login:", storeCandidatesError.message);
-          return "Não foi possível validar o vínculo com a loja informada. Tente novamente.";
-        }
-
-        const candidateRows = Array.isArray(storeCandidates) ? storeCandidates : storeCandidates ? [storeCandidates] : [];
-        const storeMatches = candidateRows.filter((candidate: any) => candidate.tenant_id === resolvedTenantId);
-        const tenantIdsEncontrados = [...new Set(candidateRows.map((candidate: any) => candidate?.tenant_id).filter(Boolean))];
+        const storeLookup = await lookupStoreUsers(resolvedTenantId);
+        const storeMatches = storeLookup.candidates;
 
         if (storeMatches.length === 0) {
+          if (storeLookup.hasLookupError) {
+            console.warn("[Auth] Pré-validação sem confirmação de vínculo; validação final será feita após autenticação.");
+            return null;
+          }
+
           logLoginDiagnostic({
             email: normalizedEmail_,
             codigo_loja: normalizedStoreCode,
@@ -299,7 +355,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             detalhes: {
               fase: "pre_validacao",
               motivo: "Email não cadastrado na loja informada",
-              tenant_ids_encontrados: tenantIdsEncontrados,
+              tenant_ids_encontrados: storeLookup.tenantIdsEncontrados,
             },
           });
           logAudit({
@@ -311,7 +367,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               email: normalizedEmail_,
               codigo_loja_digitado: normalizedStoreCode,
               tenant_id_tentado: resolvedTenantId,
-              tenant_ids_encontrados: tenantIdsEncontrados,
+              tenant_ids_encontrados: storeLookup.tenantIdsEncontrados,
               motivo: "Pré-validação bloqueou login sem vínculo com a loja informada",
               timestamp: new Date().toISOString(),
             },
@@ -367,6 +423,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // is really bound to the informed tenant and never allow cross-store reuse.
         if (normalizedStoreCode.length === 6 && resolvedTenantId) {
           const normalizedLoginEmail = normalizeEmail(authData.user.email);
+          const storeLookup = await lookupStoreUsers(resolvedTenantId, authData.user.id);
           const { data: authLinkedUsers } = await withTimeout(
             (supabase as any)
               .from("usuarios")
@@ -379,8 +436,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           const linkedUsers = Array.isArray(authLinkedUsers) ? authLinkedUsers : authLinkedUsers ? [authLinkedUsers] : [];
           const linkedTenantIds = [...new Set(linkedUsers.map((u: any) => u?.tenant_id).filter(Boolean))];
+          const matchingUsers = storeLookup.candidates;
+          const authorizedUsers = matchingUsers.filter((u: any) => !u.auth_user_id || u.auth_user_id === authData.user.id);
 
-          if (linkedUsers.length > 0 && !linkedUsers.some((u: any) => u.tenant_id === resolvedTenantId)) {
+          if (linkedUsers.length > 0 && !linkedUsers.some((u: any) => u.tenant_id === resolvedTenantId) && authorizedUsers.length === 0) {
             logLoginDiagnostic({
               email: normalizedEmail_,
               codigo_loja: normalizedStoreCode,
@@ -414,21 +473,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return { user: null, error: "Este email não está vinculado ao código da loja informado. Verifique o código da loja." };
           }
 
-          const { data: storeUsers } = await withTimeout(
-            (supabase as any)
-              .from("usuarios")
-              .select("id, tenant_id, ativo, auth_user_id, email")
-              .or(`auth_user_id.eq.${authData.user.id}${normalizedLoginEmail ? `,email.ilike.${normalizedLoginEmail}` : ""}`)
-              .eq("tenant_id", resolvedTenantId)
-              .limit(10),
-            2500,
-            { data: null } as any,
-          );
-
-          const matchingUsers = Array.isArray(storeUsers) ? storeUsers : storeUsers ? [storeUsers] : [];
-          const authorizedUsers = matchingUsers.filter((u: any) => !u.auth_user_id || u.auth_user_id === authData.user.id);
-
           if (matchingUsers.length === 0) {
+            if (storeLookup.hasLookupError) {
+              console.warn("[Auth] Validação pós-login sem confirmação direta do vínculo; seguindo para validação final do perfil.");
+            } else {
             logLoginDiagnostic({ email: normalizedEmail_, codigo_loja: normalizedStoreCode, tenant_id: resolvedTenantId, auth_user_id: authData.user.id, resultado: "falha_vinculo", detalhes: { fase: "pos_auth", motivo: "Usuário não pertence à loja informada" } });
             logAudit({
               acao: "usuario_login",
@@ -448,6 +496,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
             await supabase.auth.signOut().catch(() => {});
             return { user: null, error: "Este email não está vinculado ao código da loja informado. Verifique o código da loja." };
+            }
           }
 
           if (authorizedUsers.length === 0) {
