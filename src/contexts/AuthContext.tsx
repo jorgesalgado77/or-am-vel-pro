@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, ty
 import { supabase } from "@/lib/supabaseClient";
 import type { CargoPermissoes } from "@/hooks/useCargos";
 import { logLoginDiagnostic } from "@/services/system/SystemDiagnosticsService";
+import { logAudit } from "@/services/auditService";
 import { initializeTheme, resetToDefaultTheme } from "@/lib/colorThemes";
 import type { Session, User as SupabaseAuthUser } from "@supabase/supabase-js";
 import { InactivityWarningDialog } from "@/components/InactivityWarningDialog";
@@ -389,7 +390,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             acao: "usuario_login",
             entidade: "security",
             usuario_id: appUser.id,
-            usuario_nome: appUser.nome,
+            usuario_nome: appUser.nome_completo,
             detalhes: {
               tipo: "acesso_cross_tenant_bloqueado",
               email: normalizedEmail_,
