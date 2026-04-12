@@ -250,6 +250,13 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
                   <span className="text-xs text-emerald-600/70 dark:text-emerald-400/70">{catalogProducts.length} produto(s)</span>
                 </div>
               </div>
+              {/* Stock exceeded alert banner */}
+              {stockWarnings && Object.keys(stockWarnings).length > 0 && (
+                <div className="flex items-center gap-2 p-2 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-xs font-medium mb-2">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                  <span>{Object.keys(stockWarnings).length} produto(s) com estoque insuficiente — autorização do gestor necessária para fechar a venda</span>
+                </div>
+              )}
               <Table>
                 <TableHeader>
                   <TableRow>
