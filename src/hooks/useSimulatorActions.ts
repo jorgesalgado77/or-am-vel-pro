@@ -770,17 +770,24 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
       // Record stock movements (saída) for catalog products
       if (resolvedTenantId && catalogProducts.length > 0) {
         try {
+          const productIds = catalogProducts.map(cp => cp.product.id);
+          const { data: stockData } = await supabase
+            .from("products" as any)
+            .select("id, stock_quantity")
+            .in("id", productIds);
+
+          const stockMap = new Map<string, number>();
+          (stockData || []).forEach((p: any) => stockMap.set(p.id, p.stock_quantity ?? 0));
+
           for (const cp of catalogProducts) {
-            const stockQty = cp.product.stock_quantity ?? 0;
+            const stockQty = stockMap.get(cp.product.id) ?? 0;
             const newQty = Math.max(0, stockQty - cp.quantity);
 
-            // Update product stock
             await supabase
               .from("products" as any)
               .update({ stock_quantity: newQty } as any)
               .eq("id", cp.product.id);
 
-            // Record movement
             await recordStockMovement({
               tenant_id: resolvedTenantId,
               product_id: cp.product.id,
