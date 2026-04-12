@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Lock, LockOpen, Upload, EyeOff, Eye, FolderOpen, Cpu, Package, X, CircleDollarSign, RefreshCw } from "lucide-react";
+import { Lock, LockOpen, Upload, EyeOff, Eye, FolderOpen, Cpu, Package, X, CircleDollarSign, RefreshCw, AlertTriangle } from "lucide-react";
 import { SimulatorEnvironmentsTable, type ImportedEnvironment } from "@/components/simulator/SimulatorEnvironmentsTable";
 import { formatCurrency, type FormaPagamento } from "@/lib/financing";
 import { maskCurrency, unmaskCurrency } from "@/lib/masks";
@@ -250,6 +250,13 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
                   <span className="text-xs text-emerald-600/70 dark:text-emerald-400/70">{catalogProducts.length} produto(s)</span>
                 </div>
               </div>
+              {/* Stock exceeded alert banner */}
+              {stockWarnings && Object.keys(stockWarnings).length > 0 && (
+                <div className="flex items-center gap-2 p-2 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-xs font-medium mb-2">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                  <span>{Object.keys(stockWarnings).length} produto(s) com estoque insuficiente — autorização do gestor necessária para fechar a venda</span>
+                </div>
+              )}
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -268,7 +275,7 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
                     const originalPrice = (item as any)._original_price;
                     const isPromo = promoPrice != null && originalPrice != null && Number(promoPrice) > 0;
                     return (
-                    <TableRow key={item.product.id} className={isPromo ? "bg-primary/5" : undefined}>
+                    <TableRow key={item.product.id} className={`${isPromo ? "bg-primary/5" : ""} ${warning ? "bg-destructive/5" : ""}`}>
                       <TableCell className="text-[10px] font-mono py-1">{item.product.internal_code}</TableCell>
                       <TableCell className="text-[10px] py-1 max-w-[120px]">
                         <div className="flex items-center gap-1.5 min-w-0">
@@ -278,9 +285,9 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
                       </TableCell>
                       <TableCell className="text-center py-1">
                         <div className="flex flex-col items-center gap-0.5">
-                          <Input type="number" min={1} value={item.quantity} className={`w-14 h-6 text-xs text-center p-0.5 ${warning ? "border-amber-500 ring-1 ring-amber-300" : ""}`}
+                          <Input type="number" min={1} value={item.quantity} className={`w-14 h-6 text-xs text-center p-0.5 ${warning ? "border-destructive ring-1 ring-destructive/30" : ""}`}
                             onChange={e => onUpdateCatalogProductQty(item.product.id, Number(e.target.value))} />
-                          <span className="text-[8px] text-muted-foreground">Est: {stockQty}</span>
+                          <span className={`text-[8px] ${warning ? "text-destructive font-semibold" : "text-muted-foreground"}`}>Est: {stockQty}</span>
                         </div>
                       </TableCell>
                       <TableCell className="text-[10px] text-right py-1">
@@ -296,7 +303,9 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
                       </TableCell>
                       {warning && (
                         <TableCell colSpan={5} className="py-0 px-2">
-                          <span className="text-[9px] text-amber-600 dark:text-amber-400 font-medium">⚠️ {warning}</span>
+                          <span className="text-[9px] text-destructive font-medium flex items-center gap-1">
+                            <AlertTriangle className="h-2.5 w-2.5" /> {warning}
+                          </span>
                         </TableCell>
                       )}
                     </TableRow>
