@@ -8,6 +8,7 @@ import { getTenantId } from "@/lib/tenantState";
 import { formatCurrency } from "@/lib/financing";
 import { format, addDays, isPast, isAfter, isBefore, eachDayOfInterval } from "date-fns";
 import { toast } from "sonner";
+import { sendPushIfEnabled } from "@/lib/pushHelper";
 
 export interface FinancialAccount {
   id: string;
