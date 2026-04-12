@@ -2062,22 +2062,43 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       });
     };
 
-    const insertManualBreak = (mode: "paragraph" | "line") => {
+    const insertManualBreak = (mode: "paragraph" | "line", root?: HTMLElement | null) => {
       const selection = window.getSelection();
       if (!selection || selection.rangeCount === 0) return false;
 
       const range = selection.getRangeAt(0);
       range.deleteContents();
 
+      const commonContainer = range.commonAncestorContainer;
+      const commonElement = (commonContainer.nodeType === Node.ELEMENT_NODE
+        ? commonContainer as Element
+        : commonContainer.parentElement);
+      const editableRoot = root ?? (commonElement?.closest("[contenteditable='true']") as HTMLElement | null);
+
       if (mode === "paragraph") {
         const wrapper = document.createElement("div");
-        wrapper.appendChild(document.createElement("br"));
+        const spacer = document.createElement("br");
+        wrapper.appendChild(spacer);
         range.insertNode(wrapper);
-        range.setStart(wrapper, 0);
+
+        const trailingNode = wrapper.nextSibling;
+        if (trailingNode && trailingNode.nodeType === Node.TEXT_NODE && trailingNode.textContent) {
+          const trailingText = trailingNode.textContent;
+          if (trailingText.trim()) {
+            wrapper.removeChild(spacer);
+            wrapper.appendChild(document.createTextNode(trailingText));
+            trailingNode.textContent = "";
+          }
+        }
+
+        range.selectNodeContents(wrapper);
         range.collapse(true);
       } else {
         const br = document.createElement("br");
         range.insertNode(br);
+        if (!br.nextSibling) {
+          br.parentNode?.insertBefore(document.createElement("br"), br.nextSibling);
+        }
         range.setStartAfter(br);
         range.collapse(true);
       }
@@ -2086,6 +2107,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
       selection.removeAllRanges();
       selection.addRange(range);
+      editableRoot?.dispatchEvent(new Event("input", { bubbles: true }));
       return true;
     };
 
@@ -2405,11 +2427,15 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             }
             if (e.key === "Enter" && !e.ctrlKey && !e.metaKey && !e.altKey) {
               e.preventDefault();
-              const inserted = e.shiftKey
-                ? document.execCommand("insertLineBreak")
-                : document.execCommand("insertParagraph");
+              const inserted = document.execCommand(
+                "insertHTML",
+                false,
+                e.shiftKey ? "<br>" : "<div><br></div>",
+              );
               if (!inserted) {
-                insertManualBreak(e.shiftKey ? "line" : "paragraph");
+                insertManualBreak(e.shiftKey ? "line" : "paragraph", e.currentTarget as HTMLElement);
+              } else {
+                (e.currentTarget as HTMLElement).dispatchEvent(new Event("input", { bubbles: true }));
               }
               syncEditedElementLayout(el.id);
               return;
