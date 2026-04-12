@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Package, RefreshCw, Bell, Plus, BellOff, Eye, EyeOff, RotateCcw } from "lucide-react";
+import { AlertTriangle, Package, RefreshCw, Bell, Plus, BellOff, Eye, EyeOff, RotateCcw, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { sendPushIfEnabled } from "@/lib/pushHelper";
