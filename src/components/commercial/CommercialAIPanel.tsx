@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -250,49 +251,85 @@ export function CommercialAIPanel() {
     <div className="space-y-6">
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <Users className="h-5 w-5 text-muted-foreground" />
-              {metrics && metrics.leads_count > 10 && <ArrowUp className="h-4 w-4 text-emerald-500" />}
-            </div>
-            <p className="text-2xl font-bold mt-2">{metrics?.leads_count || 0}</p>
-            <p className="text-xs text-muted-foreground">Leads no Funil</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <Target className="h-5 w-5 text-muted-foreground" />
-              {metrics && metrics.conversion_rate >= 20 ? (
-                <ArrowUp className="h-4 w-4 text-emerald-500" />
-              ) : (
-                <ArrowDown className="h-4 w-4 text-destructive" />
-              )}
-            </div>
-            <p className="text-2xl font-bold mt-2">{metrics?.conversion_rate || 0}%</p>
-            <p className="text-xs text-muted-foreground">Taxa de Conversão</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <DollarSign className="h-5 w-5 text-muted-foreground" />
-              <TrendingUp className="h-4 w-4 text-emerald-500" />
-            </div>
-            <p className="text-2xl font-bold mt-2">{formatCurrency(metrics?.revenue || 0)}</p>
-            <p className="text-xs text-muted-foreground">Faturamento</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <Clock className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <p className="text-2xl font-bold mt-2">{metrics?.avg_close_days || 0}d</p>
-            <p className="text-xs text-muted-foreground">Tempo Médio Fechamento</p>
-          </CardContent>
-        </Card>
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Card className="border-blue-500/40 dark:border-blue-400/30 bg-blue-100/60 dark:bg-blue-950/40 transition-all duration-200 hover:scale-[1.03] hover:shadow-md cursor-default animate-fade-in">
+                <CardContent className="pt-4">
+                  <div className="flex items-center justify-between">
+                    <div className="p-1.5 rounded-lg bg-blue-500/15 dark:bg-blue-500/20">
+                      <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    {metrics && metrics.leads_count > 10 && <ArrowUp className="h-4 w-4 text-emerald-500" />}
+                  </div>
+                  <p className="text-2xl font-bold mt-2">{metrics?.leads_count || 0}</p>
+                  <p className="text-xs text-muted-foreground">Leads no Funil</p>
+                </CardContent>
+              </Card>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[220px] text-xs"><p>Total de leads ativos no funil de vendas</p></TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Card className="border-cyan-500/40 dark:border-cyan-400/30 bg-cyan-100/60 dark:bg-cyan-950/40 transition-all duration-200 hover:scale-[1.03] hover:shadow-md cursor-default animate-fade-in">
+                <CardContent className="pt-4">
+                  <div className="flex items-center justify-between">
+                    <div className="p-1.5 rounded-lg bg-cyan-500/15 dark:bg-cyan-500/20">
+                      <Target className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
+                    </div>
+                    {metrics && metrics.conversion_rate >= 20 ? (
+                      <ArrowUp className="h-4 w-4 text-emerald-500" />
+                    ) : (
+                      <ArrowDown className="h-4 w-4 text-destructive" />
+                    )}
+                  </div>
+                  <p className="text-2xl font-bold mt-2">{metrics?.conversion_rate || 0}%</p>
+                  <p className="text-xs text-muted-foreground">Taxa de Conversão</p>
+                </CardContent>
+              </Card>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[220px] text-xs"><p>Percentual de leads convertidos em vendas</p></TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Card className="border-emerald-500/40 dark:border-emerald-400/30 bg-emerald-100/60 dark:bg-emerald-950/40 transition-all duration-200 hover:scale-[1.03] hover:shadow-md cursor-default animate-fade-in">
+                <CardContent className="pt-4">
+                  <div className="flex items-center justify-between">
+                    <div className="p-1.5 rounded-lg bg-emerald-500/15 dark:bg-emerald-500/20">
+                      <DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <TrendingUp className="h-4 w-4 text-emerald-500" />
+                  </div>
+                  <p className="text-2xl font-bold mt-2">{formatCurrency(metrics?.revenue || 0)}</p>
+                  <p className="text-xs text-muted-foreground">Faturamento</p>
+                </CardContent>
+              </Card>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[220px] text-xs"><p>Faturamento total no período atual</p></TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Card className="border-violet-500/40 dark:border-violet-400/30 bg-violet-100/60 dark:bg-violet-950/40 transition-all duration-200 hover:scale-[1.03] hover:shadow-md cursor-default animate-fade-in">
+                <CardContent className="pt-4">
+                  <div className="flex items-center justify-between">
+                    <div className="p-1.5 rounded-lg bg-violet-500/15 dark:bg-violet-500/20">
+                      <Clock className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold mt-2">{metrics?.avg_close_days || 0}d</p>
+                  <p className="text-xs text-muted-foreground">Tempo Médio Fechamento</p>
+                </CardContent>
+              </Card>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[220px] text-xs"><p>Tempo médio em dias para fechar uma venda</p></TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       <Tabs defaultValue="director" className="space-y-4">
