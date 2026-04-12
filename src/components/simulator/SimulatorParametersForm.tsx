@@ -303,7 +303,9 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
                       </TableCell>
                       {warning && (
                         <TableCell colSpan={5} className="py-0 px-2">
-                          <span className="text-[9px] text-amber-600 dark:text-amber-400 font-medium">⚠️ {warning}</span>
+                          <span className="text-[9px] text-destructive font-medium flex items-center gap-1">
+                            <AlertTriangle className="h-2.5 w-2.5" /> {warning}
+                          </span>
                         </TableCell>
                       )}
                     </TableRow>
