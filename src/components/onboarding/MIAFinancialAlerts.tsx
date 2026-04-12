@@ -30,7 +30,7 @@ interface Props {
 const CACHE_KEY = "mia_financial_alerts_cache";
 const CACHE_TTL = 5 * 60 * 1000; // 5 min
 
-export const MIAFinancialAlerts = memo(function MIAFinancialAlerts({ tenantId }: Props) {
+export const MIAFinancialAlerts = memo(function MIAFinancialAlerts({ tenantId, onNavigateToFinanceiro }: Props) {
   const [alerts, setAlerts] = useState<FinancialAlert[]>([]);
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
