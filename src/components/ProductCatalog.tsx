@@ -25,6 +25,7 @@ import {
 import { useProductCatalog, calculateSalePrice, type Product, type Supplier, type ProductImage } from "@/hooks/useProductCatalog";
 import { ProductDetailModal } from "@/components/catalog/ProductDetailModal";
 import { ProductPromotionModal } from "@/components/catalog/ProductPromotionModal";
+import { StockMovementReport } from "@/components/catalog/StockMovementReport";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { usePromoExpirationAlerts } from "@/hooks/usePromoExpirationAlerts";
 import { maskCpfCnpj, maskPhone, maskCep } from "@/lib/masks";
