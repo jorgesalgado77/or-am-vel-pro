@@ -204,6 +204,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   }, []);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [showFormatMarks, setShowFormatMarks] = useState(false);
+  const [enterHint, setEnterHint] = useState<{ text: string; x: number; y: number } | null>(null);
+  const enterHintTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [varSearch, setVarSearch] = useState("");
   const [ctxSelectedText, setCtxSelectedText] = useState("");
@@ -2444,6 +2446,15 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             }
             if (e.key === "Enter" && !e.ctrlKey && !e.metaKey && !e.altKey) {
               e.preventDefault();
+              // Show floating hint
+              const sel = window.getSelection();
+              if (sel && sel.rangeCount > 0) {
+                const rect = sel.getRangeAt(0).getBoundingClientRect();
+                const hintText = e.shiftKey ? "Quebra de linha ↵" : "Novo parágrafo ¶";
+                setEnterHint({ text: hintText, x: rect.left, y: rect.top - 28 });
+                if (enterHintTimeoutRef.current) clearTimeout(enterHintTimeoutRef.current);
+                enterHintTimeoutRef.current = setTimeout(() => setEnterHint(null), 1200);
+              }
               const inserted = document.execCommand(
                 "insertHTML",
                 false,
@@ -4726,6 +4737,36 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
               />
             </div>
           </div>
+        </div>
+      )}
+      {/* Floating Enter hint tooltip */}
+      {enterHint && (
+        <div
+          style={{
+            position: "fixed",
+            left: enterHint.x,
+            top: enterHint.y,
+            zIndex: 99999,
+            pointerEvents: "none",
+            animation: "enterHintFade 1.2s ease-out forwards",
+          }}
+        >
+          <span
+            style={{
+              display: "inline-block",
+              padding: "3px 10px",
+              borderRadius: 6,
+              fontSize: 11,
+              fontWeight: 600,
+              color: enterHint.text.includes("¶") ? "hsl(var(--primary))" : "hsl(var(--accent-foreground))",
+              background: enterHint.text.includes("¶") ? "hsl(var(--primary) / 0.12)" : "hsl(var(--muted))",
+              border: `1px solid ${enterHint.text.includes("¶") ? "hsl(var(--primary) / 0.25)" : "hsl(var(--border))"}`,
+              boxShadow: "0 2px 8px hsl(var(--foreground) / 0.08)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {enterHint.text}
+          </span>
         </div>
       )}
     </div>
