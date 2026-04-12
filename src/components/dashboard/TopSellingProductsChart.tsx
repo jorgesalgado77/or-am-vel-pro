@@ -38,6 +38,22 @@ export function TopSellingProductsChart({ dateRange }: TopSellingProductsChartPr
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"product" | "category">("category");
   const [salesData, setSalesData] = useState<{ name: string; qty: number; revenue: number }[]>([]);
+
+  const COLLAPSE_KEY = "top_selling_collapsed";
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      const stored = localStorage.getItem(COLLAPSE_KEY);
+      return stored === "true";
+    } catch { return true; }
+  });
+
+  const toggleCollapse = useCallback(() => {
+    setCollapsed(prev => {
+      const next = !prev;
+      try { localStorage.setItem(COLLAPSE_KEY, String(next)); } catch {}
+      return next;
+    });
+  }, []);
   const [categoryData, setCategoryData] = useState<{ name: string; qty: number; revenue: number }[]>([]);
 
   const loadData = useCallback(async () => {
