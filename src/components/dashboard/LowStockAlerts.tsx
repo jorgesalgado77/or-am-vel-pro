@@ -300,6 +300,15 @@ export function LowStockAlerts() {
   const criticalCount = products.filter((p) => p.stock_quantity === 0).length;
   const hasVisibleContent = products.length > 0 || (isAdmin && snoozedProducts.length > 0);
 
+  // Auto-expand/collapse based on data (respecting user override)
+  useEffect(() => {
+    if (loading) return;
+    const userExplicitlySet = localStorage.getItem(COLLAPSE_KEY) !== null;
+    if (!userExplicitlySet) {
+      setCollapsed(!hasVisibleContent);
+    }
+  }, [loading, hasVisibleContent]);
+
   if (!loading && !hasVisibleContent) return null;
 
   return (
@@ -307,25 +316,34 @@ export function LowStockAlerts() {
       <Card className={criticalCount > 0 ? "border-destructive/50" : "border-yellow-500/30"}>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <CardTitle className="text-base flex items-center gap-2">
+            <CardTitle
+              className="text-base flex items-center gap-2 cursor-pointer select-none"
+              onClick={toggleCollapse}
+            >
               <AlertTriangle className={`h-4 w-4 ${criticalCount > 0 ? "text-destructive" : "text-yellow-500"}`} />
               Alertas de Estoque Baixo
               {products.length > 0 && <Badge variant="destructive" className="text-xs">{products.length}</Badge>}
+              {collapsed ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronUp className="h-4 w-4 text-muted-foreground" />}
             </CardTitle>
             <div className="flex items-center gap-2">
-              {isAdmin && snoozedProducts.length > 0 && (
+              {collapsed && products.length > 0 && (
+                <span className="text-xs text-muted-foreground">{products.length} alerta(s) • {criticalCount} crítico(s)</span>
+              )}
+              {!collapsed && isAdmin && snoozedProducts.length > 0 && (
                 <Button variant="outline" size="sm" className="gap-1" onClick={() => setShowSnoozed((prev) => !prev)}>
                   {showSnoozed ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                   Silenciados ({snoozedProducts.length})
                 </Button>
               )}
-              <Button variant="ghost" size="sm" onClick={loadAlerts} className="gap-1">
-                <RefreshCw className="h-3 w-3" />
-              </Button>
+              {!collapsed && (
+                <Button variant="ghost" size="sm" onClick={loadAlerts} className="gap-1">
+                  <RefreshCw className="h-3 w-3" />
+                </Button>
+              )}
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        {!collapsed && <CardContent>
           {loading ? (
             <div className="text-center py-4 text-sm text-muted-foreground">Verificando estoque...</div>
           ) : (
