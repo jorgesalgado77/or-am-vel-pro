@@ -20,11 +20,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import {
   Package, Plus, Trash2, Pencil, Search, Loader2, Upload, Image as ImageIcon,
-  Factory, ChevronLeft, ChevronRight, AlertTriangle, FileSpreadsheet, X, ShoppingCart, Video, Star, Tag,
+  Factory, ChevronLeft, ChevronRight, AlertTriangle, FileSpreadsheet, X, ShoppingCart, Video, Star, Tag, ArrowRightLeft,
 } from "lucide-react";
 import { useProductCatalog, calculateSalePrice, type Product, type Supplier, type ProductImage } from "@/hooks/useProductCatalog";
 import { ProductDetailModal } from "@/components/catalog/ProductDetailModal";
 import { ProductPromotionModal } from "@/components/catalog/ProductPromotionModal";
+import { StockMovementReport } from "@/components/catalog/StockMovementReport";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { usePromoExpirationAlerts } from "@/hooks/usePromoExpirationAlerts";
 import { maskCpfCnpj, maskPhone, maskCep } from "@/lib/masks";
@@ -448,10 +449,11 @@ export function ProductCatalog() {
   return (
     <div className="space-y-4">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-3 w-full max-w-md">
+        <TabsList className="grid grid-cols-4 w-full max-w-lg">
           <TabsTrigger value="products" className="gap-1.5 text-xs"><Package className="h-3.5 w-3.5" />Produtos</TabsTrigger>
           <TabsTrigger value="promotions" className="gap-1.5 text-xs"><Tag className="h-3.5 w-3.5" />Promoções</TabsTrigger>
           <TabsTrigger value="suppliers" className="gap-1.5 text-xs"><Factory className="h-3.5 w-3.5" />Fornecedores</TabsTrigger>
+          <TabsTrigger value="movements" className="gap-1.5 text-xs"><ArrowRightLeft className="h-3.5 w-3.5" />Movimentações</TabsTrigger>
         </TabsList>
 
         {/* === PRODUCTS TAB === */}
@@ -674,6 +676,11 @@ export function ProductCatalog() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* === MOVEMENTS TAB === */}
+        <TabsContent value="movements" className="mt-4">
+          <StockMovementReport />
         </TabsContent>
       </Tabs>
 
