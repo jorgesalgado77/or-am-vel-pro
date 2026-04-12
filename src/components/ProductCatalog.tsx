@@ -128,6 +128,18 @@ export function ProductCatalog() {
 
   usePromoExpirationAlerts();
 
+  // Listen for external search filter (e.g., from MIA stock alerts)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.search) {
+        setSearch(detail.search);
+      }
+    };
+    window.addEventListener("catalog-set-search", handler);
+    return () => window.removeEventListener("catalog-set-search", handler);
+  }, [setSearch]);
+
   const [activeTab, setActiveTab] = useState("products");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<ProductFormData>(emptyForm);
