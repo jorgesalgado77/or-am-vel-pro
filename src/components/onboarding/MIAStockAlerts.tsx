@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   AlertTriangle, Package, PackageX, ChevronDown, ChevronUp, RefreshCw,
-  ShoppingCart, FileText,
+  ShoppingCart, FileText, ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
