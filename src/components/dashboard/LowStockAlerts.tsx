@@ -133,16 +133,45 @@ export function LowStockAlerts() {
 
       if (activeLow.some((p) => p.stock_quantity === 0)) {
         const zeroCount = activeLow.filter((p) => p.stock_quantity === 0).length;
+        const zeroNames = activeLow.filter((p) => p.stock_quantity === 0).slice(0, 3).map(p => p.name).join(", ");
+        const suffix = zeroCount > 3 ? ` e mais ${zeroCount - 3}` : "";
+
+        // Send push to current user
         try {
           const { data: session } = await supabase.auth.getSession();
           if (session?.session?.user?.id) {
             sendPushIfEnabled(
-              "leads",
+              "estoque",
               session.session.user.id,
-              "⚠️ Estoque Zerado",
-              `${zeroCount} produto(s) com estoque zerado precisam de reposição!`,
-              "low-stock",
+              "🚨 Estoque Zerado",
+              `${zeroCount} produto(s) com estoque zero: ${zeroNames}${suffix}. Reposição necessária!`,
+              "zero-stock",
             );
+          }
+        } catch {}
+
+        // Send push to all admin users
+        try {
+          const { data: adminUsers } = await supabase
+            .from("usuarios" as any)
+            .select("id, cargo_nome")
+            .eq("tenant_id", tenantId)
+            .in("cargo_nome", ["administrador", "admin", "gerente"]);
+
+          const { data: session } = await supabase.auth.getSession();
+          const currentUserId = session?.session?.user?.id;
+
+          if (adminUsers) {
+            for (const admin of adminUsers as any[]) {
+              if (admin.id === currentUserId) continue; // already notified above
+              sendPushIfEnabled(
+                "estoque",
+                admin.id,
+                "🚨 Estoque Zerado",
+                `${zeroCount} produto(s) com estoque zero: ${zeroNames}${suffix}. Reposição necessária!`,
+                "zero-stock",
+              );
+            }
           }
         } catch {}
       }
