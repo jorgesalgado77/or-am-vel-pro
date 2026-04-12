@@ -222,7 +222,7 @@ export function TopSellingProductsChart({ dateRange }: TopSellingProductsChartPr
             </div>
           </div>
         )}
-      </CardContent>
+      </CardContent>}
     </Card>
   );
 }
