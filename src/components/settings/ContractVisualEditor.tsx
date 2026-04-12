@@ -203,6 +203,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     setPages(JSON.parse(JSON.stringify(snapshot)));
   }, []);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const [showFormatMarks, setShowFormatMarks] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [varSearch, setVarSearch] = useState("");
   const [ctxSelectedText, setCtxSelectedText] = useState("");
@@ -2366,6 +2367,22 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           >
             + Var
           </button>
+
+          {/* Toggle format marks ¶ */}
+          <div style={{ width: 1, height: 20, background: "hsl(var(--border))", margin: "0 2px" }} />
+          <button
+            onClick={() => setShowFormatMarks(prev => !prev)}
+            style={{
+              fontSize: 13, padding: "2px 6px", borderRadius: 4,
+              background: showFormatMarks ? "hsl(var(--primary) / 0.15)" : "hsl(var(--muted))",
+              color: showFormatMarks ? "hsl(var(--primary))" : "hsl(var(--foreground))",
+              border: `1px solid ${showFormatMarks ? "hsl(var(--primary) / 0.4)" : "hsl(var(--border))"}`,
+              cursor: "pointer", fontWeight: 600,
+            }}
+            title="Mostrar/ocultar marcadores de parágrafo (¶) e quebra de linha (↵)"
+          >
+            ¶
+          </button>
         </div>
         <div
           contentEditable
@@ -2452,9 +2469,11 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             fontWeight: el.fontWeight as any, fontStyle: el.fontStyle,
             textDecoration: el.textDecoration, color: el.color, textAlign: el.textAlign as any,
             padding: el.type === "text" ? 0 : 8, boxSizing: "border-box",
-            whiteSpace: "pre-wrap", wordWrap: "break-word",
+            whiteSpace: "pre-wrap", wordWrap: "break-word", 
             cursor: "text", lineHeight: 1.4,
+            ...(showFormatMarks ? { className: "show-format-marks" } : {}),
           }}
+          className={showFormatMarks ? "show-format-marks" : undefined}
           onClick={e => e.stopPropagation()}
           onMouseDown={e => e.stopPropagation()}
         />
