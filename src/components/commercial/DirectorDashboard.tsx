@@ -4,6 +4,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -102,53 +103,89 @@ export function DirectorDashboard({ tenantId }: DirectorDashboardProps) {
 
       {/* KPI Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card>
-          <CardContent className="pt-3 pb-3">
-            <div className="flex items-center justify-between">
-              <Target className="h-4 w-4 text-muted-foreground" />
-              {analysis.goals.pct_atingido >= 80 ? (
-                <ArrowUpRight className="h-3.5 w-3.5 text-emerald-500" />
-              ) : (
-                <ArrowDownRight className="h-3.5 w-3.5 text-destructive" />
-              )}
-            </div>
-            <p className="text-xl font-bold mt-1">{analysis.goals.pct_atingido}%</p>
-            <p className="text-[10px] text-muted-foreground">Meta Atingida</p>
-            <Progress value={Math.min(100, analysis.goals.pct_atingido)} className="h-1 mt-1" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-3 pb-3">
-            <div className="flex items-center justify-between">
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-              <Badge className={cn("text-[9px] h-4", riskInfo.bg, riskInfo.text)} variant="outline">
-                {riskInfo.label}
-              </Badge>
-            </div>
-            <p className="text-xl font-bold mt-1">{fmt(forecast.previsao_realista)}</p>
-            <p className="text-[10px] text-muted-foreground">Previsão Realista</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-3 pb-3">
-            <div className="flex items-center justify-between">
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              <span className="text-[10px] text-muted-foreground">{analysis.conversion.avg_close_days}d</span>
-            </div>
-            <p className="text-xl font-bold mt-1">{analysis.conversion.rate}%</p>
-            <p className="text-[10px] text-muted-foreground">Conversão</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-3 pb-3">
-            <div className="flex items-center justify-between">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <span className="text-[10px] text-muted-foreground">{analysis.pipeline.stalled_leads} parados</span>
-            </div>
-            <p className="text-xl font-bold mt-1">{analysis.pipeline.total_leads}</p>
-            <p className="text-[10px] text-muted-foreground">Pipeline ({analysis.pipeline.hot_leads} 🔥)</p>
-          </CardContent>
-        </Card>
+        <TooltipProvider delayDuration={300}>
+          <UITooltip>
+            <TooltipTrigger asChild>
+              <Card className="border-indigo-500/40 dark:border-indigo-400/30 bg-indigo-100/60 dark:bg-indigo-950/40 transition-all duration-200 hover:scale-[1.03] hover:shadow-md cursor-default animate-fade-in">
+                <CardContent className="pt-3 pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="p-1.5 rounded-lg bg-indigo-500/15 dark:bg-indigo-500/20">
+                      <Target className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                    </div>
+                    {analysis.goals.pct_atingido >= 80 ? (
+                      <ArrowUpRight className="h-3.5 w-3.5 text-emerald-500" />
+                    ) : (
+                      <ArrowDownRight className="h-3.5 w-3.5 text-destructive" />
+                    )}
+                  </div>
+                  <p className="text-xl font-bold mt-1">{analysis.goals.pct_atingido}%</p>
+                  <p className="text-[10px] text-muted-foreground">Meta Atingida</p>
+                  <Progress value={Math.min(100, analysis.goals.pct_atingido)} className="h-1 mt-1" />
+                </CardContent>
+              </Card>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[220px] text-xs"><p>Percentual da meta de vendas atingido no período</p></TooltipContent>
+          </UITooltip>
+        </TooltipProvider>
+        <TooltipProvider delayDuration={300}>
+          <UITooltip>
+            <TooltipTrigger asChild>
+              <Card className="border-amber-500/40 dark:border-amber-400/30 bg-amber-100/60 dark:bg-amber-950/40 transition-all duration-200 hover:scale-[1.03] hover:shadow-md cursor-default animate-fade-in">
+                <CardContent className="pt-3 pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="p-1.5 rounded-lg bg-amber-500/15 dark:bg-amber-500/20">
+                      <DollarSign className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <Badge className={cn("text-[9px] h-4", riskInfo.bg, riskInfo.text)} variant="outline">
+                      {riskInfo.label}
+                    </Badge>
+                  </div>
+                  <p className="text-xl font-bold mt-1">{fmt(forecast.previsao_realista)}</p>
+                  <p className="text-[10px] text-muted-foreground">Previsão Realista</p>
+                </CardContent>
+              </Card>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[220px] text-xs"><p>Previsão de faturamento com base no cenário mais provável</p></TooltipContent>
+          </UITooltip>
+        </TooltipProvider>
+        <TooltipProvider delayDuration={300}>
+          <UITooltip>
+            <TooltipTrigger asChild>
+              <Card className="border-emerald-500/40 dark:border-emerald-400/30 bg-emerald-100/60 dark:bg-emerald-950/40 transition-all duration-200 hover:scale-[1.03] hover:shadow-md cursor-default animate-fade-in">
+                <CardContent className="pt-3 pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="p-1.5 rounded-lg bg-emerald-500/15 dark:bg-emerald-500/20">
+                      <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">{analysis.conversion.avg_close_days}d</span>
+                  </div>
+                  <p className="text-xl font-bold mt-1">{analysis.conversion.rate}%</p>
+                  <p className="text-[10px] text-muted-foreground">Conversão</p>
+                </CardContent>
+              </Card>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[220px] text-xs"><p>Taxa de conversão de leads em vendas fechadas</p></TooltipContent>
+          </UITooltip>
+        </TooltipProvider>
+        <TooltipProvider delayDuration={300}>
+          <UITooltip>
+            <TooltipTrigger asChild>
+              <Card className="border-teal-500/40 dark:border-teal-400/30 bg-teal-100/60 dark:bg-teal-950/40 transition-all duration-200 hover:scale-[1.03] hover:shadow-md cursor-default animate-fade-in">
+                <CardContent className="pt-3 pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="p-1.5 rounded-lg bg-teal-500/15 dark:bg-teal-500/20">
+                      <Users className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">{analysis.pipeline.stalled_leads} parados</span>
+                  </div>
+                  <p className="text-xl font-bold mt-1">{analysis.pipeline.total_leads}</p>
+                  <p className="text-[10px] text-muted-foreground">Pipeline ({analysis.pipeline.hot_leads} 🔥)</p>
+                </CardContent>
+              </Card>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[220px] text-xs"><p>Total de leads no pipeline com destaque para leads quentes</p></TooltipContent>
+          </UITooltip>
+        </TooltipProvider>
       </div>
 
       {/* Forecast Card */}
@@ -163,17 +200,17 @@ export function DirectorDashboard({ tenantId }: DirectorDashboardProps) {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-3 mb-3">
-            <div className="text-center p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+            <div className="text-center p-2 rounded-lg bg-emerald-100/60 dark:bg-emerald-950/40 border border-emerald-500/40 dark:border-emerald-400/30">
               <p className="text-[10px] text-muted-foreground">Otimista</p>
-              <p className="text-sm font-bold text-emerald-600">{fmt(forecast.previsao_otimista)}</p>
+              <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{fmt(forecast.previsao_otimista)}</p>
             </div>
-            <div className="text-center p-2 rounded-lg bg-blue-500/5 border border-blue-500/20">
+            <div className="text-center p-2 rounded-lg bg-blue-100/60 dark:bg-blue-950/40 border border-blue-500/40 dark:border-blue-400/30">
               <p className="text-[10px] text-muted-foreground">Realista</p>
-              <p className="text-sm font-bold text-blue-600">{fmt(forecast.previsao_realista)}</p>
+              <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{fmt(forecast.previsao_realista)}</p>
             </div>
-            <div className="text-center p-2 rounded-lg bg-orange-500/5 border border-orange-500/20">
+            <div className="text-center p-2 rounded-lg bg-orange-100/60 dark:bg-orange-950/40 border border-orange-500/40 dark:border-orange-400/30">
               <p className="text-[10px] text-muted-foreground">Pessimista</p>
-              <p className="text-sm font-bold text-orange-600">{fmt(forecast.previsao_pessimista)}</p>
+              <p className="text-sm font-bold text-orange-600 dark:text-orange-400">{fmt(forecast.previsao_pessimista)}</p>
             </div>
           </div>
           {forecast.meta_loja > 0 && (
