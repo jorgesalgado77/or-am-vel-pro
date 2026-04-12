@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/financing";
 import { format } from "date-fns";
 import {
-  AlertTriangle, Clock, ChevronDown, ChevronUp, DollarSign, RefreshCw, CheckCircle2, Loader2,
+  AlertTriangle, Clock, ChevronDown, ChevronUp, DollarSign, RefreshCw, CheckCircle2, Loader2, ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -24,12 +24,13 @@ interface FinancialAlert {
 
 interface Props {
   tenantId: string;
+  onNavigateToFinanceiro?: () => void;
 }
 
 const CACHE_KEY = "mia_financial_alerts_cache";
 const CACHE_TTL = 5 * 60 * 1000; // 5 min
 
-export const MIAFinancialAlerts = memo(function MIAFinancialAlerts({ tenantId }: Props) {
+export const MIAFinancialAlerts = memo(function MIAFinancialAlerts({ tenantId, onNavigateToFinanceiro }: Props) {
   const [alerts, setAlerts] = useState<FinancialAlert[]>([]);
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -191,6 +192,17 @@ export const MIAFinancialAlerts = memo(function MIAFinancialAlerts({ tenantId }:
                 {" · "}
                 {format(new Date(alert.due_date + "T12:00:00"), "dd/MM")}
               </span>
+              {onNavigateToFinanceiro && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 shrink-0 hover:bg-primary/10"
+                  title="Ver no Financeiro"
+                  onClick={(e) => { e.stopPropagation(); onNavigateToFinanceiro(); }}
+                >
+                  <ExternalLink className="h-3 w-3 text-primary" />
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
