@@ -469,6 +469,93 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   }, [isVendedorOrProjetista, rates.settings.admin_password, rates.settings.manager_password]);
 
   const handlePasswordConfirm = () => {
+    if (pendingUnlock === "stock_override") {
+      const pw = rates.settings.admin_password || rates.settings.manager_password;
+      if (passwordInput === pw) {
+        setPasswordDialogOpen(false);
+        setStockOverrideGranted(true);
+        toast.success("Estoque excedido autorizado pelo gestor! Prossiga com o fechamento.");
+
+        // Generate stock purchase notification
+        const overItems = catalogProducts.filter(item => {
+          const stockQty = (item.product as any).stock_quantity ?? 0;
+          return item.quantity > stockQty;
+        });
+        if (overItems.length > 0 && resolvedTenantId) {
+          const clientName = effectiveClient?.nome || "—";
+          const contractNum = effectiveClient?.numero_orcamento || "—";
+          const sellerName = currentUser?.nome_completo || currentUser?.apelido || effectiveClient?.vendedor || "—";
+          const dateStr = new Date().toLocaleDateString("pt-BR");
+
+          const lines = overItems.map(item => {
+            const stockQty = (item.product as any).stock_quantity ?? 0;
+            const needed = item.quantity - stockQty;
+            return `• ${item.product.name} (${item.product.internal_code}) — Comprar: ${needed} un.`;
+          });
+
+          const message = [
+            `📋 Solicitação de Compra de Estoque`,
+            `Cliente: ${clientName}`,
+            `Contrato: ${contractNum}`,
+            `Vendedor: ${sellerName}`,
+            `Data: ${dateStr}`,
+            ``,
+            ...lines,
+          ].join("\n");
+
+          // Send push notification to admins
+          import("@/lib/pushHelper").then(({ sendPushIfEnabled }) => {
+            sendPushIfEnabled("estoque", currentUser?.id || "", "🛒 Compra de Estoque Necessária", message, "stock-purchase");
+          });
+
+          // Also send to all admin/manager users of tenant
+          supabase
+            .from("usuarios")
+            .select("id, cargo_nome")
+            .eq("tenant_id", resolvedTenantId)
+            .eq("ativo", true)
+            .then(({ data: users }) => {
+              if (users) {
+                import("@/lib/pushHelper").then(({ sendPushIfEnabled }) => {
+                  (users as any[])
+                    .filter(u => {
+                      const cargo = (u.cargo_nome || "").toLowerCase();
+                      return cargo.includes("administrador") || cargo.includes("admin") || cargo.includes("gerente");
+                    })
+                    .forEach(u => {
+                      if (u.id !== currentUser?.id) {
+                        sendPushIfEnabled("estoque", u.id, "🛒 Compra de Estoque Necessária", message, "stock-purchase");
+                      }
+                    });
+                });
+              }
+            });
+
+          // Record in-app notification
+          supabase.from("notifications" as any).insert({
+            tenant_id: resolvedTenantId,
+            user_id: currentUser?.id,
+            type: "stock_purchase_request",
+            title: "🛒 Compra de Estoque Necessária",
+            message,
+            metadata: {
+              client_name: clientName,
+              contract_number: contractNum,
+              seller_name: sellerName,
+              date: dateStr,
+              items: overItems.map(item => ({
+                product_id: item.product.id,
+                internal_code: item.product.internal_code,
+                name: item.product.name,
+                quantity_needed: item.quantity - ((item.product as any).stock_quantity ?? 0),
+              })),
+            },
+          } as any).then(() => {});
+        }
+      } else { toast.error("Senha incorreta"); }
+      setPasswordInput("");
+      return;
+    }
     if (pendingUnlock === "extrema") {
       const pw = rates.settings.admin_password || rates.settings.manager_password;
       if (passwordInput === pw) {
@@ -493,7 +580,73 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     setPasswordInput("");
   };
 
-  const passwordDialogTitle = pendingUnlock === "extrema" ? "Senha do Gerente / Administrador" : pendingUnlock === "desconto3" ? "Senha do Gerente" : "Senha do Administrador";
+  // Reset stock override when catalog products change
+  useEffect(() => {
+    setStockOverrideGranted(false);
+  }, [catalogProducts]);
+
+  const hasStockExceeded = Object.keys(stockWarnings).length > 0;
+
+  const wrappedHandleCloseSale = useCallback(async () => {
+    if (hasStockExceeded && !stockOverrideGranted) {
+      const isAdminOrGerente = (() => {
+        const cargo = (currentUser?.cargo_nome || "").toLowerCase();
+        return cargo.includes("administrador") || cargo.includes("admin") || cargo.includes("gerente");
+      })();
+
+      if (isAdminOrGerente) {
+        // Admin/manager can authorize directly — still generate notification
+        setStockOverrideGranted(true);
+        toast.warning("Atenção: produtos com estoque excedido. Notificação de compra gerada.", { duration: 5000 });
+
+        // Generate notification for admins too
+        const overItems = catalogProducts.filter(item => {
+          const stockQty = (item.product as any).stock_quantity ?? 0;
+          return item.quantity > stockQty;
+        });
+        if (overItems.length > 0 && resolvedTenantId) {
+          const clientName = effectiveClient?.nome || "—";
+          const contractNum = effectiveClient?.numero_orcamento || "—";
+          const sellerName = currentUser?.nome_completo || currentUser?.apelido || effectiveClient?.vendedor || "—";
+          const dateStr = new Date().toLocaleDateString("pt-BR");
+          const lines = overItems.map(item => {
+            const stockQty = (item.product as any).stock_quantity ?? 0;
+            return `• ${item.product.name} (${item.product.internal_code}) — Comprar: ${item.quantity - stockQty} un.`;
+          });
+          const message = [`📋 Solicitação de Compra de Estoque`, `Cliente: ${clientName}`, `Contrato: ${contractNum}`, `Vendedor: ${sellerName}`, `Data: ${dateStr}`, ``, ...lines].join("\n");
+          import("@/lib/pushHelper").then(({ sendPushIfEnabled }) => {
+            sendPushIfEnabled("estoque", currentUser?.id || "", "🛒 Compra de Estoque Necessária", message, "stock-purchase");
+          });
+          supabase.from("notifications" as any).insert({
+            tenant_id: resolvedTenantId, user_id: currentUser?.id, type: "stock_purchase_request",
+            title: "🛒 Compra de Estoque Necessária", message,
+            metadata: { client_name: clientName, contract_number: contractNum, seller_name: sellerName, date: dateStr,
+              items: overItems.map(item => ({ product_id: item.product.id, internal_code: item.product.internal_code, name: item.product.name, quantity_needed: item.quantity - ((item.product as any).stock_quantity ?? 0) })),
+            },
+          } as any).then(() => {});
+        }
+        // Proceed to close sale
+        await actions.handleCloseSale();
+        return;
+      }
+
+      // Seller/designer needs password
+      const requiredPassword = rates.settings.admin_password || rates.settings.manager_password;
+      if (!requiredPassword) {
+        setStockOverrideGranted(true);
+        await actions.handleCloseSale();
+        return;
+      }
+      setPendingUnlock("stock_override");
+      setPasswordInput("");
+      setPasswordDialogOpen(true);
+      toast.warning("Há produtos com estoque insuficiente. Informe a senha do gestor para autorizar.", { duration: 6000 });
+      return;
+    }
+    await actions.handleCloseSale();
+  }, [hasStockExceeded, stockOverrideGranted, actions, catalogProducts, currentUser, effectiveClient, resolvedTenantId, rates.settings.admin_password, rates.settings.manager_password]);
+
+  const passwordDialogTitle = pendingUnlock === "stock_override" ? "Autorizar Estoque Excedido" : pendingUnlock === "extrema" ? "Senha do Gerente / Administrador" : pendingUnlock === "desconto3" ? "Senha do Gerente" : "Senha do Administrador";
 
   // ─── Render ───
   return (
