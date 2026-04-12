@@ -4739,7 +4739,6 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           </div>
         </div>
       )}
-    </div>
       {/* Floating Enter hint tooltip */}
       {enterHint && (
         <div
