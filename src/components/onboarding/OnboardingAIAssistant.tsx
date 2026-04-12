@@ -611,7 +611,13 @@ export function OnboardingAIAssistant() {
           <MIAFinancialAlerts tenantId={tenantId} onNavigateToFinanceiro={() => { closeChat(); navigateTo("financeiro"); }} />
 
           {/* Stock alerts — zero, low stock, contracts needing purchase */}
-          <MIAStockAlerts tenantId={tenantId} />
+          <MIAStockAlerts tenantId={tenantId} onNavigateToCatalog={(productName) => {
+            closeChat();
+            navigateTo("products");
+            if (productName) {
+              setTimeout(() => window.dispatchEvent(new CustomEvent("catalog-set-search", { detail: { search: productName } })), 300);
+            }
+          }} />
           {/* Missing API keys alert */}
           {missingCriticalKeys && !missingKeysDismissed && (
             <div className="px-3 py-2 border-b border-border bg-destructive/5 shrink-0">
