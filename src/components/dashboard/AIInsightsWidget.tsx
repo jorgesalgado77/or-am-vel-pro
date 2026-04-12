@@ -357,6 +357,7 @@ export function AIInsightsWidget() {
           </div>
         )}
       </CardContent>
+      )}
     </Card>
   );
 }
