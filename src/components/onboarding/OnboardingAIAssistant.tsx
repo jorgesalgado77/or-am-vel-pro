@@ -44,6 +44,7 @@ import { getMIAMonitorService } from "@/services/mia/MIAMonitorService";
 import type { MIAMonitorAlert } from "@/services/mia/MIAMonitorService";
 import { MIAKpiSummary } from "@/components/onboarding/MIAKpiSummary";
 import { MIAWeeklyInsights } from "@/components/onboarding/MIAWeeklyInsights";
+import { MIAFinancialAlerts } from "@/components/onboarding/MIAFinancialAlerts";
 import { getContextualTip } from "@/hooks/useMIAContextualTips";
 import {
   DropdownMenu,
@@ -604,6 +605,9 @@ export function OnboardingAIAssistant() {
               cargoNome={currentUser?.cargo_nome || null}
             />
           )}
+
+          {/* Financial alerts — overdue and upcoming accounts */}
+          <MIAFinancialAlerts tenantId={tenantId} />
 
           {/* Missing API keys alert */}
           {missingCriticalKeys && !missingKeysDismissed && (
