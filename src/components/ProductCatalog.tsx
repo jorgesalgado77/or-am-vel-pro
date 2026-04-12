@@ -677,6 +677,11 @@ export function ProductCatalog() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* === MOVEMENTS TAB === */}
+        <TabsContent value="movements" className="mt-4">
+          <StockMovementReport />
+        </TabsContent>
       </Tabs>
 
       {/* === PRODUCT DIALOG === */}
