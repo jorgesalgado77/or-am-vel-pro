@@ -344,98 +344,111 @@ export function LowStockAlerts() {
             </div>
           </div>
         </CardHeader>
-        {!collapsed && <CardContent>
-          {loading ? (
-            <div className="text-center py-4 text-sm text-muted-foreground">Verificando estoque...</div>
-          ) : (
-            <div className="space-y-3 max-h-[360px] overflow-y-auto">
-              {criticalCount > 0 && (
-                <div className="flex items-center gap-2 p-2 rounded-md bg-destructive/10 text-destructive text-xs font-medium">
-                  <Bell className="h-3 w-3" />
-                  {criticalCount} produto(s) com estoque ZERADO — reposição urgente!
-                </div>
-              )}
-
-              {products.length === 0 ? (
-                <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-                  Nenhum alerta ativo no momento.
-                </div>
-              ) : (
-                products.map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex items-center justify-between p-2 rounded-md border bg-card hover:bg-accent/30 transition-colors gap-2"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Package className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{p.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {p.internal_code} • {p.category}
-                          {p.supplier_name && ` • ${p.supplier_name}`}
-                        </p>
+        <AnimatePresence initial={false}>
+          {!collapsed && (
+            <motion.div
+              key="low-stock-content"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25, ease: "easeInOut" }}
+              style={{ overflow: "hidden" }}
+            >
+              <CardContent>
+                {loading ? (
+                  <div className="text-center py-4 text-sm text-muted-foreground">Verificando estoque...</div>
+                ) : (
+                  <div className="space-y-3 max-h-[360px] overflow-y-auto">
+                    {criticalCount > 0 && (
+                      <div className="flex items-center gap-2 p-2 rounded-md bg-destructive/10 text-destructive text-xs font-medium">
+                        <Bell className="h-3 w-3" />
+                        {criticalCount} produto(s) com estoque ZERADO — reposição urgente!
                       </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {isAdmin && (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 px-2 text-xs gap-1"
-                            onClick={() => {
-                              setAddStockDialog(p);
-                              setAddQty("");
-                            }}
-                            title="Adicionar ao estoque"
-                          >
-                            <Plus className="h-3 w-3" />
-                            Estoque
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
-                            onClick={() => handleSnooze(p)}
-                            title="Silenciar alerta por 15 dias"
-                          >
-                            <BellOff className="h-3 w-3" />
-                          </Button>
-                        </>
-                      )}
-                      <Badge variant={p.stock_quantity === 0 ? "destructive" : "outline"} className="text-xs">
-                        {p.stock_quantity} / {p.stock_min_quantity}
-                      </Badge>
-                    </div>
-                  </div>
-                ))
-              )}
+                    )}
 
-              {isAdmin && showSnoozed && snoozedProducts.length > 0 && (
-                <div className="space-y-2 border-t pt-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium">Alertas silenciados</p>
-                    <span className="text-xs text-muted-foreground">Reative antes dos 15 dias se desejar</span>
-                  </div>
-                  {snoozedProducts.map((p) => (
-                    <div key={p.id} className="flex items-center justify-between gap-2 rounded-md border border-dashed p-2 bg-muted/30">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{p.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {p.internal_code} • volta em {formatSnoozeDate(p.snoozedUntil)}
-                        </p>
+                    {products.length === 0 ? (
+                      <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                        Nenhum alerta ativo no momento.
                       </div>
-                      <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1" onClick={() => handleReactivate(p)}>
-                        <RotateCcw className="h-3 w-3" />
-                        Reativar
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    ) : (
+                      products.map((p) => (
+                        <div
+                          key={p.id}
+                          className="flex items-center justify-between p-2 rounded-md border bg-card hover:bg-accent/30 transition-colors gap-2"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Package className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium truncate">{p.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {p.internal_code} • {p.category}
+                                {p.supplier_name && ` • ${p.supplier_name}`}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {isAdmin && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 px-2 text-xs gap-1"
+                                  onClick={() => {
+                                    setAddStockDialog(p);
+                                    setAddQty("");
+                                  }}
+                                  title="Adicionar ao estoque"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                  Estoque
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                                  onClick={() => handleSnooze(p)}
+                                  title="Silenciar alerta por 15 dias"
+                                >
+                                  <BellOff className="h-3 w-3" />
+                                </Button>
+                              </>
+                            )}
+                            <Badge variant={p.stock_quantity === 0 ? "destructive" : "outline"} className="text-xs">
+                              {p.stock_quantity} / {p.stock_min_quantity}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))
+                    )}
+
+                    {isAdmin && showSnoozed && snoozedProducts.length > 0 && (
+                      <div className="space-y-2 border-t pt-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium">Alertas silenciados</p>
+                          <span className="text-xs text-muted-foreground">Reative antes dos 15 dias se desejar</span>
+                        </div>
+                        {snoozedProducts.map((p) => (
+                          <div key={p.id} className="flex items-center justify-between gap-2 rounded-md border border-dashed p-2 bg-muted/30">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium truncate">{p.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {p.internal_code} • volta em {formatSnoozeDate(p.snoozedUntil)}
+                              </p>
+                            </div>
+                            <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1" onClick={() => handleReactivate(p)}>
+                              <RotateCcw className="h-3 w-3" />
+                              Reativar
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </motion.div>
           )}
-        </CardContent>}
+        </AnimatePresence>
       </Card>
 
       <Dialog open={!!addStockDialog} onOpenChange={(open) => { if (!open) setAddStockDialog(null); }}>
