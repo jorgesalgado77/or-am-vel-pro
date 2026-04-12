@@ -138,6 +138,34 @@ export function useFinancialData() {
     if (alertsList.filter(a => a.type === "atrasado").length > 0) {
       toast.warning(`Você tem ${alertsList.filter(a => a.type === "atrasado").length} conta(s) vencida(s)!`, { duration: 6000 });
     }
+
+    // Push notifications for overdue / due-soon accounts
+    const { data: sessionData } = await supabase.auth.getSession();
+    const currentUserId = sessionData?.session?.user?.id;
+    if (currentUserId) {
+      const atrasadas = alertsList.filter(a => a.type === "atrasado");
+      const aVencer = alertsList.filter(a => a.type === "vencer");
+
+      if (atrasadas.length > 0) {
+        sendPushIfEnabled(
+          "financeiro",
+          currentUserId,
+          `🚨 ${atrasadas.length} conta(s) vencida(s)`,
+          atrasadas.slice(0, 3).map(a => a.message.replace(/⚠️\s?/, "")).join(" | "),
+          "financial-overdue"
+        );
+      }
+      if (aVencer.length > 0) {
+        sendPushIfEnabled(
+          "financeiro",
+          currentUserId,
+          `🔔 ${aVencer.length} conta(s) vencem em breve`,
+          aVencer.slice(0, 3).map(a => a.message.replace(/🔔\s?/, "")).join(" | "),
+          "financial-due-soon"
+        );
+      }
+    }
+
     if (alertsList.length > 0 && tenantId) {
       alertsList.forEach(async (alert) => {
         await supabase.from("financial_notifications" as any).upsert({

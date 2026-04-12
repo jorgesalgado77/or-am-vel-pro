@@ -19,6 +19,7 @@ const DEFAULT_PREFS: PushPreferences = {
   leads: true,
   medidas: true,
   api_keys: true,
+  financeiro: true,
 };
 
 export function usePushPreferences() {
