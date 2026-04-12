@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/financing";
 import { format } from "date-fns";
 import {
-  AlertTriangle, Clock, ChevronDown, ChevronUp, DollarSign, RefreshCw, CheckCircle2, Loader2,
+  AlertTriangle, Clock, ChevronDown, ChevronUp, DollarSign, RefreshCw, CheckCircle2, Loader2, ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
