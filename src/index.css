@@ -355,3 +355,9 @@ All colors MUST be HSL.
   pointer-events: none;
   user-select: none;
 }
+
+@keyframes enterHintFade {
+  0% { opacity: 1; transform: translateY(0); }
+  70% { opacity: 1; transform: translateY(-4px); }
+  100% { opacity: 0; transform: translateY(-12px); }
+}
