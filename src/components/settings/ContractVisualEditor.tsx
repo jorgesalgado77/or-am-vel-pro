@@ -2469,9 +2469,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             fontWeight: el.fontWeight as any, fontStyle: el.fontStyle,
             textDecoration: el.textDecoration, color: el.color, textAlign: el.textAlign as any,
             padding: el.type === "text" ? 0 : 8, boxSizing: "border-box",
-            whiteSpace: "pre-wrap", wordWrap: "break-word", 
+            whiteSpace: "pre-wrap", wordWrap: "break-word",
             cursor: "text", lineHeight: 1.4,
-            ...(showFormatMarks ? { className: "show-format-marks" } : {}),
           }}
           className={showFormatMarks ? "show-format-marks" : undefined}
           onClick={e => e.stopPropagation()}
