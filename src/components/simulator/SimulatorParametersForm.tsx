@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Lock, LockOpen, Upload, EyeOff, Eye, FolderOpen, Cpu, Package, X, CircleDollarSign, RefreshCw } from "lucide-react";
+import { Lock, LockOpen, Upload, EyeOff, Eye, FolderOpen, Cpu, Package, X, CircleDollarSign, RefreshCw, AlertTriangle } from "lucide-react";
 import { SimulatorEnvironmentsTable, type ImportedEnvironment } from "@/components/simulator/SimulatorEnvironmentsTable";
 import { formatCurrency, type FormaPagamento } from "@/lib/financing";
 import { maskCurrency, unmaskCurrency } from "@/lib/masks";
