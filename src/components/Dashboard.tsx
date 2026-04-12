@@ -501,11 +501,11 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
             </Select>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-            <KpiCard icon={Megaphone} label="Landing Page" value={String(filteredLeadsBySource.landing_page)} colorVariant="blue" />
-            <KpiCard icon={UserPlus} label="Afiliados" value={String(filteredLeadsBySource.afiliado)} colorVariant="violet" />
-            <KpiCard icon={Users} label="Indicação" value={String(filteredLeadsBySource.indicacao)} colorVariant="amber" />
-            <KpiCard icon={Share2} label="Link Compartilhado" value={String(filteredLeadsBySource.link)} colorVariant="teal" />
-            <KpiCard icon={UserCheck} label="Manual / Loja" value={String(filteredLeadsBySource.manual)} colorVariant="rose" />
+            <KpiCard icon={Megaphone} label="Landing Page" value={String(filteredLeadsBySource.landing_page)} colorVariant="blue" tooltip="Leads captados através da landing page do sistema" />
+            <KpiCard icon={UserPlus} label="Afiliados" value={String(filteredLeadsBySource.afiliado)} colorVariant="violet" tooltip="Leads gerados por afiliados e parceiros comerciais" />
+            <KpiCard icon={Users} label="Indicação" value={String(filteredLeadsBySource.indicacao)} colorVariant="amber" tooltip="Leads recebidos por indicação de clientes existentes" />
+            <KpiCard icon={Share2} label="Link Compartilhado" value={String(filteredLeadsBySource.link)} colorVariant="teal" tooltip="Leads captados via links compartilhados em redes sociais ou mensagens" />
+            <KpiCard icon={UserCheck} label="Manual / Loja" value={String(filteredLeadsBySource.manual)} colorVariant="rose" tooltip="Leads cadastrados manualmente ou captados diretamente na loja" />
           </div>
         </CardContent>
       </Card>
