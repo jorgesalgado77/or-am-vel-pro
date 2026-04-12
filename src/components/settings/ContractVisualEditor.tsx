@@ -2439,6 +2439,10 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             }, 150);
           }}
           onKeyDown={(e) => {
+            // Allow undo/redo shortcuts to bubble to the global handler
+            if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "y")) {
+              return; // let it propagate
+            }
             e.stopPropagation();
             if (e.key === "Escape") {
               setEditingTextId(null);
