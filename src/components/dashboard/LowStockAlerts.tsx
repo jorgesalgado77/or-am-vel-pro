@@ -84,6 +84,22 @@ export function LowStockAlerts() {
   const [addStockDialog, setAddStockDialog] = useState<LowStockProduct | null>(null);
   const [addQty, setAddQty] = useState("");
 
+  const COLLAPSE_KEY = "low_stock_alerts_collapsed";
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      const stored = localStorage.getItem(COLLAPSE_KEY);
+      return stored === "true";
+    } catch { return true; }
+  });
+
+  const toggleCollapse = useCallback(() => {
+    setCollapsed(prev => {
+      const next = !prev;
+      try { localStorage.setItem(COLLAPSE_KEY, String(next)); } catch {}
+      return next;
+    });
+  }, []);
+
   const cargoNome = (user?.cargo_nome || "").toLowerCase();
   const isAdmin = cargoNome.includes("administrador") || cargoNome.includes("gerente") || cargoNome.includes("admin");
 
