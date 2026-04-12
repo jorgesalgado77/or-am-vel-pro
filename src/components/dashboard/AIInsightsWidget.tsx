@@ -50,6 +50,8 @@ interface TempConversion {
   rate: number;
 }
 
+const COLLAPSE_KEY = "ai_insights_collapsed";
+
 export function AIInsightsWidget() {
   const [loading, setLoading] = useState(true);
   const [strategies, setStrategies] = useState<StrategyConversion[]>([]);
@@ -57,6 +59,29 @@ export function AIInsightsWidget() {
   const [vendors, setVendors] = useState<VendorDisplay[]>([]);
   const [tempConversions, setTempConversions] = useState<TempConversion[]>([]);
   const [hasData, setHasData] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      const stored = localStorage.getItem(COLLAPSE_KEY);
+      return stored === "true";
+    } catch { return true; } // default collapsed when empty
+  });
+
+  const toggleCollapse = useCallback(() => {
+    setCollapsed(prev => {
+      const next = !prev;
+      try { localStorage.setItem(COLLAPSE_KEY, String(next)); } catch {}
+      return next;
+    });
+  }, []);
+
+  // Auto-expand when data arrives, auto-collapse when empty (respecting user override)
+  useEffect(() => {
+    if (loading) return;
+    const userExplicitlySet = localStorage.getItem(COLLAPSE_KEY) !== null;
+    if (!userExplicitlySet) {
+      setCollapsed(!hasData);
+    }
+  }, [loading, hasData]);
 
   const loadInsights = useCallback(async () => {
     setLoading(true);
@@ -70,7 +95,6 @@ export function AIInsightsWidget() {
       setStrategies(result.strategies);
       setDiscountSpot(result.discountSpot);
 
-      // Enrich vendor names
       const vendorIds = result.vendorPerformances.map((v) => v.user_id);
       let vendorNames: Record<string, string> = {};
       if (vendorIds.length > 0) {
@@ -92,7 +116,6 @@ export function AIInsightsWidget() {
         }))
       );
 
-      // Compute temperature conversions from raw events
       const tempEvents = await fetchTempData(tenantId);
       setTempConversions(tempEvents);
 
@@ -124,28 +147,6 @@ export function AIInsightsWidget() {
         <CardContent className="space-y-3">
           <Skeleton className="h-20 w-full" />
           <Skeleton className="h-20 w-full" />
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!hasData) {
-    return (
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Brain className="h-5 w-5 text-primary" />
-            IA Auto-Aprendizado
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center gap-2 py-6 text-center">
-            <Lightbulb className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              Ainda não há dados suficientes para gerar insights.
-              Continue usando o VendaZap, Simulador e Chat para alimentar a IA.
-            </p>
-          </div>
         </CardContent>
       </Card>
     );
