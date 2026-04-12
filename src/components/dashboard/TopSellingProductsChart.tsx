@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, TrendingUp, Loader2 } from "lucide-react";
+import { Package, TrendingUp, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
@@ -38,6 +38,22 @@ export function TopSellingProductsChart({ dateRange }: TopSellingProductsChartPr
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"product" | "category">("category");
   const [salesData, setSalesData] = useState<{ name: string; qty: number; revenue: number }[]>([]);
+
+  const COLLAPSE_KEY = "top_selling_collapsed";
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      const stored = localStorage.getItem(COLLAPSE_KEY);
+      return stored === "true";
+    } catch { return true; }
+  });
+
+  const toggleCollapse = useCallback(() => {
+    setCollapsed(prev => {
+      const next = !prev;
+      try { localStorage.setItem(COLLAPSE_KEY, String(next)); } catch {}
+      return next;
+    });
+  }, []);
   const [categoryData, setCategoryData] = useState<{ name: string; qty: number; revenue: number }[]>([]);
 
   const loadData = useCallback(async () => {
@@ -106,27 +122,47 @@ export function TopSellingProductsChart({ dateRange }: TopSellingProductsChartPr
   const hasData = chartData.length > 0;
   const periodLabel = `${format(dateRange.start, "dd/MM/yy")} — ${format(dateRange.end, "dd/MM/yy")}`;
 
+  // Auto-expand/collapse based on data (respecting user override)
+  useEffect(() => {
+    if (loading) return;
+    const userExplicitlySet = localStorage.getItem(COLLAPSE_KEY) !== null;
+    if (!userExplicitlySet) {
+      setCollapsed(!hasData);
+    }
+  }, [loading, hasData]);
+
   return (
     <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <CardTitle className="text-base flex items-center gap-2">
+          <CardTitle
+            className="text-base flex items-center gap-2 cursor-pointer select-none"
+            onClick={toggleCollapse}
+          >
             <Package className="h-4 w-4 text-primary" />
             Produtos Mais Vendidos
             <span className="text-xs font-normal text-muted-foreground ml-1">({periodLabel})</span>
+            {collapsed ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronUp className="h-4 w-4 text-muted-foreground" />}
           </CardTitle>
-          <Select value={view} onValueChange={(v) => setView(v as any)}>
-            <SelectTrigger className="w-[150px] h-8 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="category">Por Categoria</SelectItem>
-              <SelectItem value="product">Por Produto</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            {collapsed && hasData && (
+              <span className="text-xs text-muted-foreground">{chartData.length} item(ns) no ranking</span>
+            )}
+            {!collapsed && (
+              <Select value={view} onValueChange={(v) => setView(v as any)}>
+                <SelectTrigger className="w-[150px] h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="category">Por Categoria</SelectItem>
+                  <SelectItem value="product">Por Produto</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         </div>
       </CardHeader>
-      <CardContent>
+      {!collapsed && <CardContent>
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -186,7 +222,7 @@ export function TopSellingProductsChart({ dateRange }: TopSellingProductsChartPr
             </div>
           </div>
         )}
-      </CardContent>
+      </CardContent>}
     </Card>
   );
 }
