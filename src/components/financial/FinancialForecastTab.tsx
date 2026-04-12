@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { miaInvoke } from "@/services/mia/MIAInvoke";
 import { toast } from "sonner";
+import { KpiCard } from "@/components/dashboard/DashboardKpiCard";
 import type { useFinancialData } from "@/hooks/useFinancialData";
 
 type FinData = ReturnType<typeof useFinancialData>;
@@ -37,50 +38,24 @@ export const FinancialForecastTab = React.memo(function FinancialForecastTab({ f
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${fin.saldoFinal30d >= 0 ? "bg-primary/10" : "bg-destructive/10"}`}>
-              {fin.saldoFinal30d >= 0 ? <TrendingUp className="h-5 w-5 text-primary" /> : <TrendingDown className="h-5 w-5 text-destructive" />}
-            </div>
-            <div>
-              <p className={`text-lg font-bold ${fin.saldoFinal30d >= 0 ? "text-primary" : "text-destructive"}`}>{formatCurrency(fin.saldoFinal30d)}</p>
-              <p className="text-xs text-muted-foreground">Saldo em 30 dias</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${fin.diasNegativo > 0 ? "bg-destructive/10" : "bg-primary/10"}`}>
-              <AlertTriangle className={`h-5 w-5 ${fin.diasNegativo > 0 ? "text-destructive" : "text-primary"}`} />
-            </div>
-            <div>
-              <p className={`text-lg font-bold ${fin.diasNegativo > 0 ? "text-destructive" : "text-primary"}`}>{fin.diasNegativo}</p>
-              <p className="text-xs text-muted-foreground">Dias no Vermelho</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <ArrowUpRight className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-lg font-bold">{formatCurrency(fin.faturamento / 30)}</p>
-              <p className="text-xs text-muted-foreground">Entrada Diária Média</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-accent flex items-center justify-center">
-              <ArrowDownRight className="h-5 w-5 text-accent-foreground" />
-            </div>
-            <div>
-              <p className="text-lg font-bold">{formatCurrency((fin.contasFixas + fin.totalFolha) / 30)}</p>
-              <p className="text-xs text-muted-foreground">Saída Diária Média</p>
-            </div>
-          </div>
-        </Card>
+        <KpiCard
+          icon={fin.saldoFinal30d >= 0 ? TrendingUp : TrendingDown}
+          label="Saldo em 30 dias"
+          value={formatCurrency(fin.saldoFinal30d)}
+          colorVariant={fin.saldoFinal30d >= 0 ? "emerald" : undefined}
+          destructive={fin.saldoFinal30d < 0}
+          tooltip="Projeção do saldo de caixa daqui a 30 dias"
+        />
+        <KpiCard
+          icon={AlertTriangle}
+          label="Dias no Vermelho"
+          value={String(fin.diasNegativo)}
+          colorVariant={fin.diasNegativo > 0 ? undefined : "blue"}
+          destructive={fin.diasNegativo > 0}
+          tooltip="Quantidade de dias com saldo negativo projetado nos próximos 30 dias"
+        />
+        <KpiCard icon={ArrowUpRight} label="Entrada Diária Média" value={formatCurrency(fin.faturamento / 30)} colorVariant="cyan" tooltip="Média diária de entradas baseada no faturamento mensal" />
+        <KpiCard icon={ArrowDownRight} label="Saída Diária Média" value={formatCurrency((fin.contasFixas + fin.totalFolha) / 30)} colorVariant="orange" tooltip="Média diária de saídas baseada nos custos fixos e folha" />
       </div>
 
       {fin.diasNegativo > 0 && (

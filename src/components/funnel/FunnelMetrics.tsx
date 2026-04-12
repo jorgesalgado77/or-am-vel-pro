@@ -2,6 +2,7 @@ import {useState, useEffect} from "react";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
 import {Badge} from "@/components/ui/badge";
 import {Loader2, Users, TrendingUp, Globe, Calendar} from "lucide-react";
+import { KpiCard } from "@/components/dashboard/DashboardKpiCard";
 import {useAuth} from "@/contexts/AuthContext";
 import {supabase} from "@/lib/supabaseClient";
 import {BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell} from "recharts";
@@ -130,38 +131,10 @@ export function FunnelMetrics() {
     <div className="space-y-4">
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card className="border-none shadow-md bg-gradient-to-br from-primary/5 to-primary/10">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium mb-1">
-              <Users className="h-3.5 w-3.5" /> Total (30d)
-            </div>
-            <p className="text-2xl font-bold tabular-nums">{metrics.total}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-none shadow-md bg-gradient-to-br from-chart-2/5 to-chart-2/10">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium mb-1">
-              <Calendar className="h-3.5 w-3.5" /> Hoje
-            </div>
-            <p className="text-2xl font-bold tabular-nums">{metrics.hoje}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-none shadow-md bg-gradient-to-br from-chart-3/5 to-chart-3/10">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium mb-1">
-              <TrendingUp className="h-3.5 w-3.5" /> Conversão
-            </div>
-            <p className="text-2xl font-bold tabular-nums">{taxaConversao}%</p>
-          </CardContent>
-        </Card>
-        <Card className="border-none shadow-md bg-gradient-to-br from-chart-4/5 to-chart-4/10">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium mb-1">
-              <Globe className="h-3.5 w-3.5" /> Semana
-            </div>
-            <p className="text-2xl font-bold tabular-nums">{metrics.semana}</p>
-          </CardContent>
-        </Card>
+        <KpiCard icon={Users} label="Total (30d)" value={String(metrics.total)} colorVariant="blue" tooltip="Total de leads captados nos últimos 30 dias" />
+        <KpiCard icon={Calendar} label="Hoje" value={String(metrics.hoje)} colorVariant="cyan" tooltip="Leads captados hoje" />
+        <KpiCard icon={TrendingUp} label="Conversão" value={`${taxaConversao}%`} colorVariant="emerald" tooltip="Taxa de conversão de leads em clientes" />
+        <KpiCard icon={Globe} label="Semana" value={String(metrics.semana)} colorVariant="violet" tooltip="Leads captados nos últimos 7 dias" />
       </div>
 
       {/* Charts */}

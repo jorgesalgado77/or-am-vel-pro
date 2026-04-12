@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { KpiCard } from "@/components/dashboard/DashboardKpiCard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -303,50 +304,10 @@ export function ReferralPanel() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Link2 className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{totalLinks}</p>
-              <p className="text-xs text-muted-foreground">Links Ativos</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-              <UserPlus className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{totalReferrals}</p>
-              <p className="text-xs text-muted-foreground">Indicações</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-green-500/10 flex items-center justify-center">
-              <TrendingUp className="h-5 w-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{conversionRate}%</p>
-              <p className="text-xs text-muted-foreground">Taxa Conversão</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
-              <Award className="h-5 w-5 text-amber-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{rewardedCount}</p>
-              <p className="text-xs text-muted-foreground">Recompensas</p>
-            </div>
-          </div>
-        </Card>
+        <KpiCard icon={Link2} label="Links Ativos" value={String(totalLinks)} colorVariant="indigo" tooltip="Quantidade de links de indicação ativos" />
+        <KpiCard icon={UserPlus} label="Indicações" value={String(totalReferrals)} colorVariant="blue" tooltip="Total de indicações recebidas pelos links" />
+        <KpiCard icon={TrendingUp} label="Taxa Conversão" value={`${conversionRate}%`} colorVariant="emerald" tooltip="Percentual de indicações que se converteram em clientes" />
+        <KpiCard icon={Award} label="Recompensas" value={String(rewardedCount)} colorVariant="amber" tooltip="Indicações que geraram recompensa ao indicador" />
       </div>
 
       <Tabs defaultValue="links">
