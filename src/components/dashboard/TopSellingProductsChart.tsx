@@ -2,6 +2,7 @@
  * Top Selling Products Chart — ranking by category for Dashboard
  */
 import { useState, useEffect, useCallback } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -162,67 +163,77 @@ export function TopSellingProductsChart({ dateRange }: TopSellingProductsChartPr
           </div>
         </div>
       </CardHeader>
-      {!collapsed && <CardContent>
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : !hasData ? (
-          <div className="text-center py-12 text-muted-foreground text-sm">
-            Nenhuma venda registrada no período selecionado. Registre vendas pelo catálogo para ver o ranking.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Bar chart */}
-            <div>
-              <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-                <TrendingUp className="h-3 w-3" /> Faturamento
-              </p>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={chartData} layout="vertical" margin={{ left: 80, right: 10 }}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                  <XAxis type="number" tickFormatter={(v) => currencyFmt(v)} tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={75} />
-                  <Tooltip formatter={(v: number) => currencyFmt(v)} labelStyle={{ fontWeight: 600 }} />
-                  <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} name="Faturamento" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            {/* Pie chart */}
-            <div>
-              <p className="text-xs text-muted-foreground mb-2">Distribuição por quantidade</p>
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={chartData}
-                    dataKey="qty"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={90}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {chartData.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(v: number) => `${v} un.`} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            {/* Top list */}
-            <div className="lg:col-span-2">
-              <div className="flex flex-wrap gap-2">
-                {chartData.slice(0, 5).map((item, i) => (
-                  <Badge key={i} variant="outline" className="text-xs gap-1 px-3 py-1">
-                    #{i + 1} {item.name} — {item.qty} un. — {currencyFmt(item.revenue)}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-      </CardContent>}
+        <AnimatePresence initial={false}>
+          {!collapsed && (
+            <motion.div
+              key="top-selling-content"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25, ease: "easeInOut" }}
+              style={{ overflow: "hidden" }}
+            >
+              <CardContent>
+                {loading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : !hasData ? (
+                  <div className="text-center py-12 text-muted-foreground text-sm">
+                    Nenhuma venda registrada no período selecionado. Registre vendas pelo catálogo para ver o ranking.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                        <TrendingUp className="h-3 w-3" /> Faturamento
+                      </p>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={chartData} layout="vertical" margin={{ left: 80, right: 10 }}>
+                          <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                          <XAxis type="number" tickFormatter={(v) => currencyFmt(v)} tick={{ fontSize: 11 }} />
+                          <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={75} />
+                          <Tooltip formatter={(v: number) => currencyFmt(v)} labelStyle={{ fontWeight: 600 }} />
+                          <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} name="Faturamento" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-2">Distribuição por quantidade</p>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <PieChart>
+                          <Pie
+                            data={chartData}
+                            dataKey="qty"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={90}
+                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          >
+                            {chartData.map((_, i) => (
+                              <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(v: number) => `${v} un.`} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="lg:col-span-2">
+                      <div className="flex flex-wrap gap-2">
+                        {chartData.slice(0, 5).map((item, i) => (
+                          <Badge key={i} variant="outline" className="text-xs gap-1 px-3 py-1">
+                            #{i + 1} {item.name} — {item.qty} un. — {currencyFmt(item.revenue)}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </motion.div>
+          )}
+        </AnimatePresence>
     </Card>
   );
 }

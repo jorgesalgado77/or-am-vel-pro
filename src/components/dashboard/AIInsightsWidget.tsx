@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -174,31 +175,44 @@ export function AIInsightsWidget() {
         </div>
       </CardHeader>
 
-      {collapsed ? (
-        !hasData ? (
-          <CardContent className="pt-0 pb-3">
-            <p className="text-xs text-muted-foreground">
-              Ainda não há dados suficientes. Continue usando o VendaZap, Simulador e Chat.
-            </p>
-          </CardContent>
+      <AnimatePresence initial={false} mode="wait">
+        {collapsed ? (
+          <motion.div
+            key="collapsed"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            style={{ overflow: "hidden" }}
+          >
+            <CardContent className="pt-0 pb-3">
+              <p className="text-xs text-muted-foreground">
+                {!hasData
+                  ? "Ainda não há dados suficientes. Continue usando o VendaZap, Simulador e Chat."
+                  : `${strategies.length} estratégia(s) · ${vendors.length} vendedor(es) analisado(s)`}
+              </p>
+            </CardContent>
+          </motion.div>
         ) : (
-          <CardContent className="pt-0 pb-3">
-            <p className="text-xs text-muted-foreground">
-              {strategies.length} estratégia(s) · {vendors.length} vendedor(es) analisado(s)
-            </p>
-          </CardContent>
-        )
-      ) : !hasData ? (
-        <CardContent>
-          <div className="flex flex-col items-center gap-2 py-6 text-center">
-            <Lightbulb className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              Ainda não há dados suficientes para gerar insights.
-              Continue usando o VendaZap, Simulador e Chat para alimentar a IA.
-            </p>
-          </div>
-        </CardContent>
-      ) : (
+          <motion.div
+            key="expanded"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            style={{ overflow: "hidden" }}
+          >
+            {!hasData ? (
+              <CardContent>
+                <div className="flex flex-col items-center gap-2 py-6 text-center">
+                  <Lightbulb className="h-8 w-8 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    Ainda não há dados suficientes para gerar insights.
+                    Continue usando o VendaZap, Simulador e Chat para alimentar a IA.
+                  </p>
+                </div>
+              </CardContent>
+            ) : (
       <CardContent className="space-y-4">
         {/* Best Strategy */}
         {bestStrategy && (
@@ -357,7 +371,10 @@ export function AIInsightsWidget() {
           </div>
         )}
       </CardContent>
-      )}
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Card>
   );
 }
