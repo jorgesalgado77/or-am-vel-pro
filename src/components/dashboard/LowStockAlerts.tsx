@@ -434,7 +434,7 @@ export function LowStockAlerts() {
               )}
             </div>
           )}
-        </CardContent>
+        </CardContent>}
       </Card>
 
       <Dialog open={!!addStockDialog} onOpenChange={(open) => { if (!open) setAddStockDialog(null); }}>
