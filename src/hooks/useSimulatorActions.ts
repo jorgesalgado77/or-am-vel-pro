@@ -8,6 +8,7 @@ import { generateSaleCommissions } from "@/services/commissionService";
 import { generateBudgetPdfServerSide } from "@/lib/pdfService";
 import { openContractPrintWindow } from "@/lib/contractDocument";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
+import { recordStockMovement } from "@/lib/stockMovement";
 import { logError, logEvent } from "@/services/system/SystemDiagnosticsService";
 import { validateFileUpload } from "@/lib/validation";
 import { parseProjectFileMulti } from "@/services/fileImportService";
