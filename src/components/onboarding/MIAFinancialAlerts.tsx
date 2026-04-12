@@ -192,6 +192,17 @@ export const MIAFinancialAlerts = memo(function MIAFinancialAlerts({ tenantId, o
                 {" · "}
                 {format(new Date(alert.due_date + "T12:00:00"), "dd/MM")}
               </span>
+              {onNavigateToFinanceiro && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 shrink-0 hover:bg-primary/10"
+                  title="Ver no Financeiro"
+                  onClick={(e) => { e.stopPropagation(); onNavigateToFinanceiro(); }}
+                >
+                  <ExternalLink className="h-3 w-3 text-primary" />
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
