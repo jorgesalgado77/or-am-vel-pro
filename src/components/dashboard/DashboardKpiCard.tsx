@@ -49,10 +49,10 @@ export const KpiCard = memo(function KpiCard({ icon: Icon, label, value, accent,
     : "text-muted-foreground";
 
   const card = (
-    <Card className={borderClass}>
+    <Card className={`${borderClass} transition-all duration-200 hover:scale-[1.03] hover:shadow-md cursor-default`}>
       <CardContent className="p-4 flex items-center gap-3">
-        <div className={`p-2 rounded-lg ${iconBgClass}`}>
-          <Icon className={`h-5 w-5 ${iconColorClass}`} />
+        <div className={`p-2 rounded-lg ${iconBgClass} transition-transform duration-200 group-hover:scale-110`}>
+          <Icon className={`h-5 w-5 ${iconColorClass} transition-transform duration-200`} />
         </div>
         <div>
           <p className="text-xs text-muted-foreground">{label}</p>
