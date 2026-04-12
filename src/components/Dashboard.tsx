@@ -434,20 +434,20 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
       {/* Primary KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        <KpiCard icon={Users} label="Total de Clientes" value={String(stats.totalClients)} tooltip="Número acumulado de todos os clientes cadastrados na base" />
-        <KpiCard icon={UserPlus} label="Novos no Período" value={String(stats.newClientsInPeriod)} accent={stats.newClientsInPeriod > 0} tooltip="Clientes cadastrados durante o período selecionado no filtro" />
-        <KpiCard icon={Calculator} label="Com Orçamento" value={String(stats.clientsWithSim)} accent tooltip="Clientes que possuem ao menos uma simulação de orçamento no período" />
-        <KpiCard icon={TrendingUp} label="Valor Total Orçamentos" value={formatCurrency(stats.totalValue)} accent tooltip="Soma dos valores à vista de todos os orçamentos em aberto (sem contrato)" />
-        <KpiCard icon={FileCheck} label="Contratos Fechados" value={String(stats.closedClients)} success tooltip="Quantidade de clientes que assinaram contrato" />
-        <KpiCard icon={DollarSign} label="Faturamento Contratos" value={formatCurrency(stats.faturamentoContratos)} success tooltip="Soma dos valores dos contratos fechados" />
+        <KpiCard icon={Users} label="Total de Clientes" value={String(stats.totalClients)} colorVariant="blue" tooltip="Número acumulado de todos os clientes cadastrados na base" />
+        <KpiCard icon={UserPlus} label="Novos no Período" value={String(stats.newClientsInPeriod)} colorVariant="cyan" tooltip="Clientes cadastrados durante o período selecionado no filtro" />
+        <KpiCard icon={Calculator} label="Com Orçamento" value={String(stats.clientsWithSim)} colorVariant="indigo" tooltip="Clientes que possuem ao menos uma simulação de orçamento no período" />
+        <KpiCard icon={TrendingUp} label="Valor Total Orçamentos" value={formatCurrency(stats.totalValue)} colorVariant="violet" tooltip="Soma dos valores à vista de todos os orçamentos em aberto (sem contrato)" />
+        <KpiCard icon={FileCheck} label="Contratos Fechados" value={String(stats.closedClients)} colorVariant="emerald" tooltip="Quantidade de clientes que assinaram contrato" />
+        <KpiCard icon={DollarSign} label="Faturamento Contratos" value={formatCurrency(stats.faturamentoContratos)} colorVariant="teal" tooltip="Soma dos valores dos contratos fechados" />
       </div>
 
       {/* Secondary KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard icon={DollarSign} label="Ticket Médio" value={formatCurrency(stats.ticketMedio)} accent tooltip="Valor médio dos orçamentos em aberto por cliente" />
-        <KpiCard icon={TrendingUp} label="Taxa de Conversão" value={`${stats.taxaConversao.toFixed(1)}%`} accent={stats.taxaConversao > 0} tooltip="Percentual de clientes que fecharam contrato em relação ao total" />
-        <KpiCard icon={AlertTriangle} label="Orç. Expirados" value={String(stats.expired)} destructive={stats.expired > 0} tooltip="Orçamentos que ultrapassaram o prazo de validade configurado" />
-        <KpiCard icon={UserCheck} label="Sem Orçamento" value={String(stats.clientsWithoutSim)} tooltip="Clientes cadastrados que ainda não receberam nenhuma simulação" />
+        <KpiCard icon={DollarSign} label="Ticket Médio" value={formatCurrency(stats.ticketMedio)} colorVariant="amber" tooltip="Valor médio dos orçamentos em aberto por cliente" />
+        <KpiCard icon={TrendingUp} label="Taxa de Conversão" value={`${stats.taxaConversao.toFixed(1)}%`} colorVariant="cyan" tooltip="Percentual de clientes que fecharam contrato em relação ao total" />
+        <KpiCard icon={AlertTriangle} label="Orç. Expirados" value={String(stats.expired)} destructive={stats.expired > 0} colorVariant={stats.expired > 0 ? undefined : "orange"} tooltip="Orçamentos que ultrapassaram o prazo de validade configurado" />
+        <KpiCard icon={UserCheck} label="Sem Orçamento" value={String(stats.clientsWithoutSim)} colorVariant="slate" tooltip="Clientes cadastrados que ainda não receberam nenhuma simulação" />
       </div>
 
       {/* Meta Loja */}
