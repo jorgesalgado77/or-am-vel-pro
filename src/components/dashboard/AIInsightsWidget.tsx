@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Brain, TrendingUp, Percent, Users, Thermometer,
   RefreshCw, Trophy, Target, Lightbulb, AlertTriangle,
+  ChevronDown, ChevronUp,
 } from "lucide-react";
 import { getLearningEngine } from "@/services/ai/LearningEngine";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
@@ -49,6 +50,8 @@ interface TempConversion {
   rate: number;
 }
 
+const COLLAPSE_KEY = "ai_insights_collapsed";
+
 export function AIInsightsWidget() {
   const [loading, setLoading] = useState(true);
   const [strategies, setStrategies] = useState<StrategyConversion[]>([]);
@@ -56,6 +59,29 @@ export function AIInsightsWidget() {
   const [vendors, setVendors] = useState<VendorDisplay[]>([]);
   const [tempConversions, setTempConversions] = useState<TempConversion[]>([]);
   const [hasData, setHasData] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      const stored = localStorage.getItem(COLLAPSE_KEY);
+      return stored === "true";
+    } catch { return true; } // default collapsed when empty
+  });
+
+  const toggleCollapse = useCallback(() => {
+    setCollapsed(prev => {
+      const next = !prev;
+      try { localStorage.setItem(COLLAPSE_KEY, String(next)); } catch {}
+      return next;
+    });
+  }, []);
+
+  // Auto-expand when data arrives, auto-collapse when empty (respecting user override)
+  useEffect(() => {
+    if (loading) return;
+    const userExplicitlySet = localStorage.getItem(COLLAPSE_KEY) !== null;
+    if (!userExplicitlySet) {
+      setCollapsed(!hasData);
+    }
+  }, [loading, hasData]);
 
   const loadInsights = useCallback(async () => {
     setLoading(true);
@@ -69,7 +95,6 @@ export function AIInsightsWidget() {
       setStrategies(result.strategies);
       setDiscountSpot(result.discountSpot);
 
-      // Enrich vendor names
       const vendorIds = result.vendorPerformances.map((v) => v.user_id);
       let vendorNames: Record<string, string> = {};
       if (vendorIds.length > 0) {
@@ -91,7 +116,6 @@ export function AIInsightsWidget() {
         }))
       );
 
-      // Compute temperature conversions from raw events
       const tempEvents = await fetchTempData(tenantId);
       setTempConversions(tempEvents);
 
@@ -128,15 +152,43 @@ export function AIInsightsWidget() {
     );
   }
 
-  if (!hasData) {
-    return (
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
+  const bestStrategy = strategies[0];
+  const worstStrategy = strategies.length > 1 ? strategies[strategies.length - 1] : null;
+
+  return (
+    <Card className={hasData ? "border-primary/20" : ""}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-base cursor-pointer select-none" onClick={toggleCollapse}>
             <Brain className="h-5 w-5 text-primary" />
-            IA Auto-Aprendizado
+            {hasData ? "🧠 IA Auto-Aprendizado — Insights" : "IA Auto-Aprendizado"}
+            <Button variant="ghost" size="icon" className="h-6 w-6 ml-1" asChild>
+              <span>{collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}</span>
+            </Button>
           </CardTitle>
-        </CardHeader>
+          {!collapsed && hasData && (
+            <Button variant="ghost" size="sm" onClick={loadInsights}>
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+
+      {collapsed ? (
+        !hasData ? (
+          <CardContent className="pt-0 pb-3">
+            <p className="text-xs text-muted-foreground">
+              Ainda não há dados suficientes. Continue usando o VendaZap, Simulador e Chat.
+            </p>
+          </CardContent>
+        ) : (
+          <CardContent className="pt-0 pb-3">
+            <p className="text-xs text-muted-foreground">
+              {strategies.length} estratégia(s) · {vendors.length} vendedor(es) analisado(s)
+            </p>
+          </CardContent>
+        )
+      ) : !hasData ? (
         <CardContent>
           <div className="flex flex-col items-center gap-2 py-6 text-center">
             <Lightbulb className="h-8 w-8 text-muted-foreground" />
@@ -146,26 +198,7 @@ export function AIInsightsWidget() {
             </p>
           </div>
         </CardContent>
-      </Card>
-    );
-  }
-
-  const bestStrategy = strategies[0];
-  const worstStrategy = strategies.length > 1 ? strategies[strategies.length - 1] : null;
-
-  return (
-    <Card className="border-primary/20">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Brain className="h-5 w-5 text-primary" />
-            🧠 IA Auto-Aprendizado — Insights
-          </CardTitle>
-          <Button variant="ghost" size="sm" onClick={loadInsights}>
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-        </div>
-      </CardHeader>
+      ) : (
       <CardContent className="space-y-4">
         {/* Best Strategy */}
         {bestStrategy && (
@@ -324,6 +357,7 @@ export function AIInsightsWidget() {
           </div>
         )}
       </CardContent>
+      )}
     </Card>
   );
 }
