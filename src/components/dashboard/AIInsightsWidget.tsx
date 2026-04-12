@@ -202,6 +202,17 @@ export function AIInsightsWidget() {
             transition={{ duration: 0.25, ease: "easeInOut" }}
             style={{ overflow: "hidden" }}
           >
+            {!hasData ? (
+              <CardContent>
+                <div className="flex flex-col items-center gap-2 py-6 text-center">
+                  <Lightbulb className="h-8 w-8 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    Ainda não há dados suficientes para gerar insights.
+                    Continue usando o VendaZap, Simulador e Chat para alimentar a IA.
+                  </p>
+                </div>
+              </CardContent>
+            ) : (
       <CardContent className="space-y-4">
         {/* Best Strategy */}
         {bestStrategy && (
