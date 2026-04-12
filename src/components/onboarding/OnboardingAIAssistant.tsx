@@ -608,7 +608,7 @@ export function OnboardingAIAssistant() {
           )}
 
           {/* Financial alerts — overdue and upcoming accounts */}
-          <MIAFinancialAlerts tenantId={tenantId} />
+          <MIAFinancialAlerts tenantId={tenantId} onNavigateToFinanceiro={() => { closeChat(); navigateTo("financeiro"); }} />
 
           {/* Stock alerts — zero, low stock, contracts needing purchase */}
           <MIAStockAlerts tenantId={tenantId} />
