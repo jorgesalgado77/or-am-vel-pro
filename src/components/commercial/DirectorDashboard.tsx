@@ -104,7 +104,7 @@ export function DirectorDashboard({ tenantId }: DirectorDashboardProps) {
       {/* KPI Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <TooltipProvider delayDuration={300}>
-          <Tooltip>
+          <UITooltip>
             <TooltipTrigger asChild>
               <Card className="border-indigo-500/40 dark:border-indigo-400/30 bg-indigo-100/60 dark:bg-indigo-950/40 transition-all duration-200 hover:scale-[1.03] hover:shadow-md cursor-default animate-fade-in">
                 <CardContent className="pt-3 pb-3">
@@ -125,10 +125,10 @@ export function DirectorDashboard({ tenantId }: DirectorDashboardProps) {
               </Card>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-[220px] text-xs"><p>Percentual da meta de vendas atingido no período</p></TooltipContent>
-          </Tooltip>
+          </UITooltip>
         </TooltipProvider>
         <TooltipProvider delayDuration={300}>
-          <Tooltip>
+          <UITooltip>
             <TooltipTrigger asChild>
               <Card className="border-amber-500/40 dark:border-amber-400/30 bg-amber-100/60 dark:bg-amber-950/40 transition-all duration-200 hover:scale-[1.03] hover:shadow-md cursor-default animate-fade-in">
                 <CardContent className="pt-3 pb-3">
@@ -146,10 +146,10 @@ export function DirectorDashboard({ tenantId }: DirectorDashboardProps) {
               </Card>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-[220px] text-xs"><p>Previsão de faturamento com base no cenário mais provável</p></TooltipContent>
-          </Tooltip>
+          </UITooltip>
         </TooltipProvider>
         <TooltipProvider delayDuration={300}>
-          <Tooltip>
+          <UITooltip>
             <TooltipTrigger asChild>
               <Card className="border-emerald-500/40 dark:border-emerald-400/30 bg-emerald-100/60 dark:bg-emerald-950/40 transition-all duration-200 hover:scale-[1.03] hover:shadow-md cursor-default animate-fade-in">
                 <CardContent className="pt-3 pb-3">
@@ -165,10 +165,10 @@ export function DirectorDashboard({ tenantId }: DirectorDashboardProps) {
               </Card>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-[220px] text-xs"><p>Taxa de conversão de leads em vendas fechadas</p></TooltipContent>
-          </Tooltip>
+          </UITooltip>
         </TooltipProvider>
         <TooltipProvider delayDuration={300}>
-          <Tooltip>
+          <UITooltip>
             <TooltipTrigger asChild>
               <Card className="border-teal-500/40 dark:border-teal-400/30 bg-teal-100/60 dark:bg-teal-950/40 transition-all duration-200 hover:scale-[1.03] hover:shadow-md cursor-default animate-fade-in">
                 <CardContent className="pt-3 pb-3">
@@ -184,7 +184,7 @@ export function DirectorDashboard({ tenantId }: DirectorDashboardProps) {
               </Card>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-[220px] text-xs"><p>Total de leads no pipeline com destaque para leads quentes</p></TooltipContent>
-          </Tooltip>
+          </UITooltip>
         </TooltipProvider>
       </div>
 
