@@ -501,11 +501,11 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
             </Select>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-            <KpiCard icon={Megaphone} label="Landing Page" value={String(filteredLeadsBySource.landing_page)} accent={filteredLeadsBySource.landing_page > 0} />
-            <KpiCard icon={UserPlus} label="Afiliados" value={String(filteredLeadsBySource.afiliado)} accent={filteredLeadsBySource.afiliado > 0} />
-            <KpiCard icon={Users} label="Indicação" value={String(filteredLeadsBySource.indicacao)} accent={filteredLeadsBySource.indicacao > 0} />
-            <KpiCard icon={Share2} label="Link Compartilhado" value={String(filteredLeadsBySource.link)} accent={filteredLeadsBySource.link > 0} />
-            <KpiCard icon={UserCheck} label="Manual / Loja" value={String(filteredLeadsBySource.manual)} />
+            <KpiCard icon={Megaphone} label="Landing Page" value={String(filteredLeadsBySource.landing_page)} colorVariant="blue" />
+            <KpiCard icon={UserPlus} label="Afiliados" value={String(filteredLeadsBySource.afiliado)} colorVariant="violet" />
+            <KpiCard icon={Users} label="Indicação" value={String(filteredLeadsBySource.indicacao)} colorVariant="amber" />
+            <KpiCard icon={Share2} label="Link Compartilhado" value={String(filteredLeadsBySource.link)} colorVariant="teal" />
+            <KpiCard icon={UserCheck} label="Manual / Loja" value={String(filteredLeadsBySource.manual)} colorVariant="rose" />
           </div>
         </CardContent>
       </Card>
