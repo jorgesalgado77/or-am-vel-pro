@@ -175,6 +175,47 @@ export function LowStockAlerts() {
           }
         } catch {}
       }
+
+      // Push for low stock (at or below minimum, but not zero)
+      const lowOnly = activeLow.filter((p) => p.stock_quantity > 0);
+      if (lowOnly.length > 0) {
+        const lowNames = lowOnly.slice(0, 3).map(p => `${p.name} (${p.stock_quantity}/${p.stock_min_quantity})`).join(", ");
+        const lowSuffix = lowOnly.length > 3 ? ` e mais ${lowOnly.length - 3}` : "";
+
+        try {
+          const { data: session } = await supabase.auth.getSession();
+          const currentUserId = session?.session?.user?.id;
+
+          if (currentUserId) {
+            sendPushIfEnabled(
+              "estoque",
+              currentUserId,
+              "⚠️ Estoque Baixo",
+              `${lowOnly.length} produto(s) atingiram o mínimo: ${lowNames}${lowSuffix}`,
+              "low-stock",
+            );
+          }
+
+          const { data: adminUsers } = await supabase
+            .from("usuarios" as any)
+            .select("id, cargo_nome")
+            .eq("tenant_id", tenantId)
+            .in("cargo_nome", ["administrador", "admin", "gerente"]);
+
+          if (adminUsers) {
+            for (const admin of adminUsers as any[]) {
+              if (admin.id === currentUserId) continue;
+              sendPushIfEnabled(
+                "estoque",
+                admin.id,
+                "⚠️ Estoque Baixo",
+                `${lowOnly.length} produto(s) atingiram o mínimo: ${lowNames}${lowSuffix}`,
+                "low-stock",
+              );
+            }
+          }
+        } catch {}
+      }
     }
     setLoading(false);
   }, []);
