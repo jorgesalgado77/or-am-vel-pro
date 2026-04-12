@@ -371,7 +371,10 @@ export function AIInsightsWidget() {
           </div>
         )}
       </CardContent>
-      )}
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Card>
   );
 }
