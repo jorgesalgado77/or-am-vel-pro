@@ -767,6 +767,37 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
         }
       } catch {}
 
+      // Record stock movements (saída) for catalog products
+      if (resolvedTenantId && catalogProducts.length > 0) {
+        try {
+          for (const cp of catalogProducts) {
+            const stockQty = cp.product.stock_quantity ?? 0;
+            const newQty = Math.max(0, stockQty - cp.quantity);
+
+            // Update product stock
+            await supabase
+              .from("products" as any)
+              .update({ stock_quantity: newQty } as any)
+              .eq("id", cp.product.id);
+
+            // Record movement
+            await recordStockMovement({
+              tenant_id: resolvedTenantId,
+              product_id: cp.product.id,
+              user_id: currentUser?.id,
+              type: "saida",
+              quantity: cp.quantity,
+              previous_quantity: stockQty,
+              new_quantity: newQty,
+              reason: `Venda fechada - Cliente: ${effectiveClient.nome}`,
+              reference_id: contractId,
+            });
+          }
+        } catch (stockErr) {
+          console.warn("[CloseSaleFlow] Stock movement error:", stockErr);
+        }
+      }
+
       const userInfo = getAuditUserInfo();
       logAudit({ acao: "venda_fechada", entidade: "contract", entidade_id: pendingSimId, detalhes: { cliente: effectiveClient.nome, cliente_id: effectiveClient.id, valor_final: result.valorFinal, forma_pagamento: formaPagamento }, ...userInfo });
 
