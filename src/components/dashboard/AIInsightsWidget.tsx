@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Brain, TrendingUp, Percent, Users, Thermometer,
   RefreshCw, Trophy, Target, Lightbulb, AlertTriangle,
+  ChevronDown, ChevronUp,
 } from "lucide-react";
 import { getLearningEngine } from "@/services/ai/LearningEngine";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
