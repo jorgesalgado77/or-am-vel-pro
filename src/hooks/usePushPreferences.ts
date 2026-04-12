@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 
-export type PushCategory = "tarefas" | "mensagens" | "leads" | "medidas" | "api_keys";
+export type PushCategory = "tarefas" | "mensagens" | "leads" | "medidas" | "api_keys" | "financeiro";
 
 export interface PushPreferences {
   tarefas: boolean;
@@ -8,6 +8,7 @@ export interface PushPreferences {
   leads: boolean;
   medidas: boolean;
   api_keys: boolean;
+  financeiro: boolean;
 }
 
 const STORAGE_KEY = "push_notification_preferences";
