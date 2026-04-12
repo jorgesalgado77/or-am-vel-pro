@@ -610,6 +610,8 @@ export function OnboardingAIAssistant() {
           {/* Financial alerts — overdue and upcoming accounts */}
           <MIAFinancialAlerts tenantId={tenantId} />
 
+          {/* Stock alerts — zero, low stock, contracts needing purchase */}
+          <MIAStockAlerts tenantId={tenantId} />
           {/* Missing API keys alert */}
           {missingCriticalKeys && !missingKeysDismissed && (
             <div className="px-3 py-2 border-b border-border bg-destructive/5 shrink-0">
