@@ -173,24 +173,37 @@ export const MIAFinancialAlerts = memo(function MIAFinancialAlerts({ tenantId }:
             <div
               key={alert.id}
               className={cn(
-                "flex items-start gap-2 rounded-md px-2 py-1.5 text-[11px] leading-relaxed",
+                "flex items-center gap-2 rounded-md px-2 py-1.5 text-[11px] leading-relaxed",
                 alert.type === "vencida" && "bg-destructive/5 text-destructive",
                 alert.type === "a_vencer" && "bg-amber-500/5 text-amber-700 dark:text-amber-400",
               )}
             >
-              <span className="shrink-0 mt-0.5">
+              <span className="shrink-0">
                 {alert.type === "vencida"
                   ? <AlertTriangle className="h-3.5 w-3.5" />
                   : <Clock className="h-3.5 w-3.5" />
                 }
               </span>
-              <span className="flex-1 min-w-0">
+              <span className="flex-1 min-w-0 truncate">
                 <span className="font-medium">{alert.name}</span>
                 {" · "}
                 {formatCurrency(alert.amount)}
                 {" · "}
                 {format(new Date(alert.due_date + "T12:00:00"), "dd/MM")}
               </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5 shrink-0 hover:bg-emerald-500/10"
+                title="Marcar como pago"
+                disabled={markingPaid === alert.id}
+                onClick={(e) => { e.stopPropagation(); handleMarkPaid(alert.id, alert.name); }}
+              >
+                {markingPaid === alert.id
+                  ? <Loader2 className="h-3 w-3 animate-spin" />
+                  : <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                }
+              </Button>
             </div>
           ))}
         </div>
