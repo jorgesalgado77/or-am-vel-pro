@@ -221,6 +221,12 @@ export const MIAStockAlerts = memo(function MIAStockAlerts({ tenantId, onNavigat
                     <span className="opacity-60 ml-1">({p.internal_code})</span>
                   </span>
                   <Badge variant="destructive" className="text-[9px] h-4 px-1">0 un</Badge>
+                  {onNavigateToCatalog && (
+                    <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 hover:bg-primary/10" title="Ver no Catálogo"
+                      onClick={(e) => { e.stopPropagation(); onNavigateToCatalog(p.name); }}>
+                      <ExternalLink className="h-3 w-3 text-primary" />
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>
