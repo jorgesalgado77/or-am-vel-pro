@@ -9,6 +9,7 @@ import { AlertTriangle, Package, RefreshCw, Bell, Plus, BellOff, Eye, EyeOff, Ro
 import { supabase } from "@/lib/supabaseClient";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { sendPushIfEnabled } from "@/lib/pushHelper";
+import { recordStockMovement } from "@/lib/stockMovement";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import {
@@ -237,6 +238,22 @@ export function LowStockAlerts() {
     if (error) {
       toast.error("Erro ao atualizar estoque");
       return;
+    }
+
+    // Record stock movement
+    const tenantId = await getResolvedTenantId();
+    if (tenantId) {
+      const { data: session } = await supabase.auth.getSession();
+      recordStockMovement({
+        tenant_id: tenantId,
+        product_id: addStockDialog.id,
+        user_id: session?.session?.user?.id,
+        type: "entrada",
+        quantity: qty,
+        previous_quantity: addStockDialog.stock_quantity,
+        new_quantity: newQty,
+        reason: "Reposição manual via painel de alertas",
+      });
     }
 
     toast.success(`Estoque de "${addStockDialog.name}" atualizado para ${newQty} unidades`);
