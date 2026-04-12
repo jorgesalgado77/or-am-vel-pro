@@ -34,6 +34,25 @@ export const MIAFinancialAlerts = memo(function MIAFinancialAlerts({ tenantId }:
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [markingPaid, setMarkingPaid] = useState<string | null>(null);
+
+  const handleMarkPaid = useCallback(async (id: string, name: string) => {
+    setMarkingPaid(id);
+    try {
+      const { error } = await supabase
+        .from("financial_accounts" as any)
+        .update({ status: "pago" } as any)
+        .eq("id", id);
+      if (error) throw error;
+      setAlerts(prev => prev.filter(a => a.id !== id));
+      toast.success(`"${name}" marcada como paga!`);
+      sessionStorage.removeItem(CACHE_KEY);
+    } catch {
+      toast.error("Erro ao marcar como pago");
+    } finally {
+      setMarkingPaid(null);
+    }
+  }, []);
 
   const fetchAlerts = useCallback(async (skipCache = false) => {
     if (!skipCache) {
