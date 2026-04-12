@@ -37,7 +37,7 @@ export const FinancialHeader = React.memo(function FinancialHeader({
     try {
       const alertas = fin.notifications.map(n => n.message).join("\n");
       const resumo = `Alertas financeiros:\n${alertas}\n\nResumo:\n- Total a pagar: ${formatCurrency(fin.totalContasPagar)}\n- Contas vencidas: ${fin.contasVencidas.length}\n- Vencem em 7 dias: ${fin.contasAVencer7d.length}\n- Lucro estimado: ${formatCurrency(fin.lucroEstimado)}\n- Faturamento: ${formatCurrency(fin.faturamento)}\n- Custos fixos: ${formatCurrency(fin.contasFixas)}\n- Folha: ${formatCurrency(fin.totalFolha)}`;
-      const { data, error } = await miaInvoke("cashflow-ai", { resumo_financeiro: resumo }, { tenantId: "system", userId: "system", origin: "system", context: "financial-alerts" });
+      const { data, error } = await miaInvoke("cashflow-ai", { resumo_financeiro: resumo }, { tenantId: "system", userId: "system", origin: "system", context: "cashflow" });
       if (error) throw error;
       setMiaAnalysis(data.analise || "Sem análise disponível.");
     } catch {
