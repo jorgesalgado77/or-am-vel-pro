@@ -156,18 +156,49 @@ export function AIInsightsWidget() {
   const worstStrategy = strategies.length > 1 ? strategies[strategies.length - 1] : null;
 
   return (
-    <Card className="border-primary/20">
+    <Card className={hasData ? "border-primary/20" : ""}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2 text-base cursor-pointer select-none" onClick={toggleCollapse}>
             <Brain className="h-5 w-5 text-primary" />
-            🧠 IA Auto-Aprendizado — Insights
+            {hasData ? "🧠 IA Auto-Aprendizado — Insights" : "IA Auto-Aprendizado"}
+            <Button variant="ghost" size="icon" className="h-6 w-6 ml-1" asChild>
+              <span>{collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}</span>
+            </Button>
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={loadInsights}>
-            <RefreshCw className="h-4 w-4" />
-          </Button>
+          {!collapsed && hasData && (
+            <Button variant="ghost" size="sm" onClick={loadInsights}>
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </CardHeader>
+
+      {collapsed ? (
+        !hasData ? (
+          <CardContent className="pt-0 pb-3">
+            <p className="text-xs text-muted-foreground">
+              Ainda não há dados suficientes. Continue usando o VendaZap, Simulador e Chat.
+            </p>
+          </CardContent>
+        ) : (
+          <CardContent className="pt-0 pb-3">
+            <p className="text-xs text-muted-foreground">
+              {strategies.length} estratégia(s) · {vendors.length} vendedor(es) analisado(s)
+            </p>
+          </CardContent>
+        )
+      ) : !hasData ? (
+        <CardContent>
+          <div className="flex flex-col items-center gap-2 py-6 text-center">
+            <Lightbulb className="h-8 w-8 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              Ainda não há dados suficientes para gerar insights.
+              Continue usando o VendaZap, Simulador e Chat para alimentar a IA.
+            </p>
+          </div>
+        </CardContent>
+      ) : (
       <CardContent className="space-y-4">
         {/* Best Strategy */}
         {bestStrategy && (
