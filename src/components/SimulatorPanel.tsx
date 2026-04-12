@@ -107,9 +107,10 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const [plusUnlocked, setPlusUnlocked] = useState((init?.plus_percentual ?? 0) > 0 || (stored.plusUnlocked ?? false));
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
-  const [pendingUnlock, setPendingUnlock] = useState<"desconto3" | "plus" | "extrema" | null>(null);
+  const [pendingUnlock, setPendingUnlock] = useState<"desconto3" | "plus" | "extrema" | "stock_override" | null>(null);
   const [extremaLocked, setExtremaLocked] = useState(stored.extremaLocked ?? false);
   const [pendingExtremaCallback, setPendingExtremaCallback] = useState<(() => void) | null>(null);
+  const [stockOverrideGranted, setStockOverrideGranted] = useState(false);
   const [activeStrategy, setActiveStrategy] = useState<string>((init as any)?.estrategia_ia ?? stored.activeStrategy ?? "");
   const [aiStrategyEnabled, setAiStrategyEnabled] = useState<boolean>((init as any)?.ia_strategy_enabled ?? stored.aiStrategyEnabled ?? !!((init as any)?.estrategia_ia || stored.activeStrategy));
   const [loadSimModalOpen, setLoadSimModalOpen] = useState(false);
