@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   AlertTriangle, Package, PackageX, ChevronDown, ChevronUp, RefreshCw,
-  ShoppingCart, FileText,
+  ShoppingCart, FileText, ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -30,12 +30,13 @@ interface ContractNeedsPurchase {
 
 interface Props {
   tenantId: string;
+  onNavigateToCatalog?: (productName?: string) => void;
 }
 
 const CACHE_KEY = "mia_stock_alerts_cache";
 const CACHE_TTL = 10 * 60 * 1000;
 
-export const MIAStockAlerts = memo(function MIAStockAlerts({ tenantId }: Props) {
+export const MIAStockAlerts = memo(function MIAStockAlerts({ tenantId, onNavigateToCatalog }: Props) {
   const [zeroStock, setZeroStock] = useState<LowStockProduct[]>([]);
   const [lowStock, setLowStock] = useState<LowStockProduct[]>([]);
   const [contractAlerts, setContractAlerts] = useState<ContractNeedsPurchase[]>([]);
@@ -220,6 +221,12 @@ export const MIAStockAlerts = memo(function MIAStockAlerts({ tenantId }: Props) 
                     <span className="opacity-60 ml-1">({p.internal_code})</span>
                   </span>
                   <Badge variant="destructive" className="text-[9px] h-4 px-1">0 un</Badge>
+                  {onNavigateToCatalog && (
+                    <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 hover:bg-primary/10" title="Ver no Catálogo"
+                      onClick={(e) => { e.stopPropagation(); onNavigateToCatalog(p.name); }}>
+                      <ExternalLink className="h-3 w-3 text-primary" />
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>
@@ -242,6 +249,12 @@ export const MIAStockAlerts = memo(function MIAStockAlerts({ tenantId }: Props) 
                   <Badge variant="outline" className="text-[9px] h-4 px-1 border-amber-500/30">
                     {p.stock_quantity}/{p.stock_min_quantity ?? 5}
                   </Badge>
+                  {onNavigateToCatalog && (
+                    <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 hover:bg-primary/10" title="Ver no Catálogo"
+                      onClick={(e) => { e.stopPropagation(); onNavigateToCatalog(p.name); }}>
+                      <ExternalLink className="h-3 w-3 text-primary" />
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>
