@@ -448,10 +448,11 @@ export function ProductCatalog() {
   return (
     <div className="space-y-4">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-3 w-full max-w-md">
+        <TabsList className="grid grid-cols-4 w-full max-w-lg">
           <TabsTrigger value="products" className="gap-1.5 text-xs"><Package className="h-3.5 w-3.5" />Produtos</TabsTrigger>
           <TabsTrigger value="promotions" className="gap-1.5 text-xs"><Tag className="h-3.5 w-3.5" />Promoções</TabsTrigger>
           <TabsTrigger value="suppliers" className="gap-1.5 text-xs"><Factory className="h-3.5 w-3.5" />Fornecedores</TabsTrigger>
+          <TabsTrigger value="movements" className="gap-1.5 text-xs"><ArrowRightLeft className="h-3.5 w-3.5" />Movimentações</TabsTrigger>
         </TabsList>
 
         {/* === PRODUCTS TAB === */}
