@@ -2069,10 +2069,11 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       const range = selection.getRangeAt(0);
       range.deleteContents();
 
-      const editableRoot = root
-        ?? ((range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
-          ? range.commonAncestorContainer
-          : range.commonAncestorContainer.parentElement)?.closest?.("[contenteditable='true']") as HTMLElement | null);
+      const commonContainer = range.commonAncestorContainer;
+      const commonElement = (commonContainer.nodeType === Node.ELEMENT_NODE
+        ? commonContainer as Element
+        : commonContainer.parentElement);
+      const editableRoot = root ?? (commonElement?.closest("[contenteditable='true']") as HTMLElement | null);
 
       if (mode === "paragraph") {
         const wrapper = document.createElement("div");
