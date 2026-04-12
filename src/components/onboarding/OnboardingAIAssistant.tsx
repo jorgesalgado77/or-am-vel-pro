@@ -45,6 +45,7 @@ import type { MIAMonitorAlert } from "@/services/mia/MIAMonitorService";
 import { MIAKpiSummary } from "@/components/onboarding/MIAKpiSummary";
 import { MIAWeeklyInsights } from "@/components/onboarding/MIAWeeklyInsights";
 import { MIAFinancialAlerts } from "@/components/onboarding/MIAFinancialAlerts";
+import { MIAStockAlerts } from "@/components/onboarding/MIAStockAlerts";
 import { getContextualTip } from "@/hooks/useMIAContextualTips";
 import {
   DropdownMenu,
@@ -609,6 +610,8 @@ export function OnboardingAIAssistant() {
           {/* Financial alerts — overdue and upcoming accounts */}
           <MIAFinancialAlerts tenantId={tenantId} />
 
+          {/* Stock alerts — zero, low stock, contracts needing purchase */}
+          <MIAStockAlerts tenantId={tenantId} />
           {/* Missing API keys alert */}
           {missingCriticalKeys && !missingKeysDismissed && (
             <div className="px-3 py-2 border-b border-border bg-destructive/5 shrink-0">
