@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { KpiCard } from "@/components/dashboard/DashboardKpiCard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
