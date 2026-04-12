@@ -772,7 +772,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               setPdfUrl(url);
               setPdfLoading(false);
             } : null}
-            onCloseSale={actions.handleCloseSale}
+            onCloseSale={wrappedHandleCloseSale}
             onClear={() => {
               setValorTela(0); setDesconto1(0); setDesconto2(0); setDesconto3(0);
               setFormaPagamento("A vista"); setParcelas(1); setValorEntrada(0);
