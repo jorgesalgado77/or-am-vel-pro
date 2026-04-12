@@ -204,6 +204,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
   }, []);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [showFormatMarks, setShowFormatMarks] = useState(false);
+  const [enterHint, setEnterHint] = useState<{ text: string; x: number; y: number } | null>(null);
+  const enterHintTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [varSearch, setVarSearch] = useState("");
   const [ctxSelectedText, setCtxSelectedText] = useState("");
@@ -2444,6 +2446,15 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             }
             if (e.key === "Enter" && !e.ctrlKey && !e.metaKey && !e.altKey) {
               e.preventDefault();
+              // Show floating hint
+              const sel = window.getSelection();
+              if (sel && sel.rangeCount > 0) {
+                const rect = sel.getRangeAt(0).getBoundingClientRect();
+                const hintText = e.shiftKey ? "Quebra de linha ↵" : "Novo parágrafo ¶";
+                setEnterHint({ text: hintText, x: rect.left, y: rect.top - 28 });
+                if (enterHintTimeoutRef.current) clearTimeout(enterHintTimeoutRef.current);
+                enterHintTimeoutRef.current = setTimeout(() => setEnterHint(null), 1200);
+              }
               const inserted = document.execCommand(
                 "insertHTML",
                 false,
