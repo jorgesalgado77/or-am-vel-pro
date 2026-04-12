@@ -4771,4 +4771,5 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         </div>
       )}
   );
+  // hint rendered via portal below
 }
