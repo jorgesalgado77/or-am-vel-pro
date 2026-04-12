@@ -31,9 +31,9 @@ interface KpiCardProps {
 export const KpiCard = memo(function KpiCard({ icon: Icon, label, value, accent, destructive, success, tooltip, colorVariant }: KpiCardProps) {
   const variant = colorVariant ? COLOR_VARIANTS[colorVariant] : null;
 
-  const borderClass = destructive ? "border-destructive/30" 
-    : success ? "border-emerald-500/30" 
-    : variant ? variant.border 
+  const borderClass = destructive ? "border-destructive/30 bg-destructive/5" 
+    : success ? "border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20" 
+    : variant ? `${variant.border} ${variant.cardBg}` 
     : "";
 
   const iconBgClass = destructive ? "bg-destructive/10" 
