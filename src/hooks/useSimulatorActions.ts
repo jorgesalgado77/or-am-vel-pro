@@ -8,6 +8,7 @@ import { generateSaleCommissions } from "@/services/commissionService";
 import { generateBudgetPdfServerSide } from "@/lib/pdfService";
 import { openContractPrintWindow } from "@/lib/contractDocument";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
+import { recordStockMovement } from "@/lib/stockMovement";
 import { logError, logEvent } from "@/services/system/SystemDiagnosticsService";
 import { validateFileUpload } from "@/lib/validation";
 import { parseProjectFileMulti } from "@/services/fileImportService";
@@ -765,6 +766,44 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
           });
         }
       } catch {}
+
+      // Record stock movements (saída) for catalog products
+      if (resolvedTenantId && catalogProducts.length > 0) {
+        try {
+          const productIds = catalogProducts.map(cp => cp.product.id);
+          const { data: stockData } = await supabase
+            .from("products" as any)
+            .select("id, stock_quantity")
+            .in("id", productIds);
+
+          const stockMap = new Map<string, number>();
+          (stockData || []).forEach((p: any) => stockMap.set(p.id, p.stock_quantity ?? 0));
+
+          for (const cp of catalogProducts) {
+            const stockQty = stockMap.get(cp.product.id) ?? 0;
+            const newQty = Math.max(0, stockQty - cp.quantity);
+
+            await supabase
+              .from("products" as any)
+              .update({ stock_quantity: newQty } as any)
+              .eq("id", cp.product.id);
+
+            await recordStockMovement({
+              tenant_id: resolvedTenantId,
+              product_id: cp.product.id,
+              user_id: currentUser?.id,
+              type: "saida",
+              quantity: cp.quantity,
+              previous_quantity: stockQty,
+              new_quantity: newQty,
+              reason: `Venda fechada - Cliente: ${effectiveClient.nome}`,
+              reference_id: contractId,
+            });
+          }
+        } catch (stockErr) {
+          console.warn("[CloseSaleFlow] Stock movement error:", stockErr);
+        }
+      }
 
       const userInfo = getAuditUserInfo();
       logAudit({ acao: "venda_fechada", entidade: "contract", entidade_id: pendingSimId, detalhes: { cliente: effectiveClient.nome, cliente_id: effectiveClient.id, valor_final: result.valorFinal, forma_pagamento: formaPagamento }, ...userInfo });
