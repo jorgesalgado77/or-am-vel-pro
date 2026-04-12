@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bell, BellRing, BellOff, Settings2, ListTodo, MessageSquare, UserPlus, Ruler, History, CheckCircle, XCircle, Clock, KeyRound, DollarSign } from "lucide-react";
+import { Bell, BellRing, BellOff, Settings2, ListTodo, MessageSquare, UserPlus, Ruler, History, CheckCircle, XCircle, Clock, KeyRound, DollarSign, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,7 @@ const CATEGORIES: { key: PushCategory; label: string; icon: React.ElementType; d
   { key: "medidas", label: "Medidas", icon: Ruler, desc: "Novas solicitações de medida para distribuição" },
   { key: "api_keys", label: "API Keys", icon: KeyRound, desc: "Alertas quando uma API key expira ou falha na validação" },
   { key: "financeiro", label: "Financeiro", icon: DollarSign, desc: "Alertas de contas vencidas e prestes a vencer" },
+  { key: "estoque", label: "Estoque", icon: Package, desc: "Alertas quando um produto atinge estoque zero ou mínimo" },
 ];
 
 interface PushLog {
