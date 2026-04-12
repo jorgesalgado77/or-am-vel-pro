@@ -44,6 +44,7 @@ import { getMIAMonitorService } from "@/services/mia/MIAMonitorService";
 import type { MIAMonitorAlert } from "@/services/mia/MIAMonitorService";
 import { MIAKpiSummary } from "@/components/onboarding/MIAKpiSummary";
 import { MIAWeeklyInsights } from "@/components/onboarding/MIAWeeklyInsights";
+import { MIAFinancialAlerts } from "@/components/onboarding/MIAFinancialAlerts";
 import { getContextualTip } from "@/hooks/useMIAContextualTips";
 import {
   DropdownMenu,
