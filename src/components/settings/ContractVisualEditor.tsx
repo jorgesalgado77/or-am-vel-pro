@@ -4770,6 +4770,5 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           </span>
         </div>
       )}
-    </div>
   );
 }
