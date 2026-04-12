@@ -328,3 +328,30 @@ All colors MUST be HSL.
     background: hsl(var(--muted-foreground) / 0.45);
   }
 }
+
+/* Contract editor: visual format marks (¶ for paragraphs, ↵ for line breaks) */
+.show-format-marks div:not(:last-child)::after {
+  content: "¶";
+  color: hsl(var(--primary) / 0.35);
+  font-size: 0.75em;
+  pointer-events: none;
+  user-select: none;
+  margin-left: 1px;
+}
+
+.show-format-marks p:not(:last-child)::after {
+  content: "¶";
+  color: hsl(var(--primary) / 0.35);
+  font-size: 0.75em;
+  pointer-events: none;
+  user-select: none;
+  margin-left: 1px;
+}
+
+.show-format-marks br::after {
+  content: "↵";
+  color: hsl(var(--accent-foreground) / 0.3);
+  font-size: 0.7em;
+  pointer-events: none;
+  user-select: none;
+}
