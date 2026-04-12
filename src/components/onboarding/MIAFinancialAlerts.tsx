@@ -24,6 +24,7 @@ interface FinancialAlert {
 
 interface Props {
   tenantId: string;
+  onNavigateToFinanceiro?: () => void;
 }
 
 const CACHE_KEY = "mia_financial_alerts_cache";
