@@ -4,6 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/financing";
 import { DollarSign, TrendingUp, Users } from "lucide-react";
+import { KpiCard } from "@/components/dashboard/DashboardKpiCard";
 import type { useFinancialData } from "@/hooks/useFinancialData";
 
 type FinData = ReturnType<typeof useFinancialData>;
@@ -22,39 +23,9 @@ export const FinancialPayrollTab = React.memo(function FinancialPayrollTab({
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Users className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-lg font-bold">{formatCurrency(totalSalarios)}</p>
-              <p className="text-xs text-muted-foreground">Salários Fixos</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <TrendingUp className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-lg font-bold">{formatCurrency(totalComissoes)}</p>
-              <p className="text-xs text-muted-foreground">Comissões do Mês</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <DollarSign className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-lg font-bold">{formatCurrency(totalFolha)}</p>
-              <p className="text-xs text-muted-foreground">Total Folha</p>
-            </div>
-          </div>
-        </Card>
+        <KpiCard icon={Users} label="Salários Fixos" value={formatCurrency(totalSalarios)} colorVariant="blue" tooltip="Soma de todos os salários fixos dos colaboradores" />
+        <KpiCard icon={TrendingUp} label="Comissões do Mês" value={formatCurrency(totalComissoes)} colorVariant="violet" tooltip="Total de comissões geradas no mês atual" />
+        <KpiCard icon={DollarSign} label="Total Folha" value={formatCurrency(totalFolha)} colorVariant="teal" tooltip="Soma de salários fixos e comissões" />
       </div>
 
       <Card>

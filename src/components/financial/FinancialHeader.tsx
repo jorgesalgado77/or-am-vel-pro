@@ -6,6 +6,7 @@ import {
   DollarSign, TrendingUp, TrendingDown, AlertTriangle, CalendarDays,
   Bell, FileDown, Loader2, Target,
 } from "lucide-react";
+import { KpiCard } from "@/components/dashboard/DashboardKpiCard";
 import type { useFinancialData } from "@/hooks/useFinancialData";
 
 type FinData = ReturnType<typeof useFinancialData>;
@@ -60,52 +61,17 @@ export const FinancialHeader = React.memo(function FinancialHeader({
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-destructive/10 flex items-center justify-center">
-              <DollarSign className="h-5 w-5 text-destructive" />
-            </div>
-            <div>
-              <p className="text-lg font-bold">{formatCurrency(fin.totalContasPagar)}</p>
-              <p className="text-xs text-muted-foreground">Total a Pagar</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-accent flex items-center justify-center">
-              <AlertTriangle className="h-5 w-5 text-accent-foreground" />
-            </div>
-            <div>
-              <p className="text-lg font-bold text-destructive">{fin.contasVencidas.length}</p>
-              <p className="text-xs text-muted-foreground">Contas Vencidas</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <CalendarDays className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-lg font-bold">{fin.contasAVencer7d.length}</p>
-              <p className="text-xs text-muted-foreground">Vencem em 7 dias</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${fin.lucroEstimado >= 0 ? "bg-primary/10" : "bg-destructive/10"}`}>
-              {fin.lucroEstimado >= 0 ? <TrendingUp className="h-5 w-5 text-primary" /> : <TrendingDown className="h-5 w-5 text-destructive" />}
-            </div>
-            <div>
-              <p className={`text-lg font-bold ${fin.lucroEstimado >= 0 ? "text-primary" : "text-destructive"}`}>
-                {formatCurrency(Math.abs(fin.lucroEstimado))}
-              </p>
-              <p className="text-xs text-muted-foreground">{fin.lucroEstimado >= 0 ? "Lucro Estimado" : "Prejuízo Estimado"}</p>
-            </div>
-          </div>
-        </Card>
+        <KpiCard icon={DollarSign} label="Total a Pagar" value={formatCurrency(fin.totalContasPagar)} colorVariant="rose" tooltip="Soma de todas as contas a pagar pendentes" />
+        <KpiCard icon={AlertTriangle} label="Contas Vencidas" value={String(fin.contasVencidas.length)} destructive={fin.contasVencidas.length > 0} colorVariant={fin.contasVencidas.length > 0 ? undefined : "orange"} tooltip="Contas que já passaram da data de vencimento" />
+        <KpiCard icon={CalendarDays} label="Vencem em 7 dias" value={String(fin.contasAVencer7d.length)} colorVariant="amber" tooltip="Contas com vencimento nos próximos 7 dias" />
+        <KpiCard
+          icon={fin.lucroEstimado >= 0 ? TrendingUp : TrendingDown}
+          label={fin.lucroEstimado >= 0 ? "Lucro Estimado" : "Prejuízo Estimado"}
+          value={formatCurrency(Math.abs(fin.lucroEstimado))}
+          colorVariant={fin.lucroEstimado >= 0 ? "emerald" : undefined}
+          destructive={fin.lucroEstimado < 0}
+          tooltip="Diferença entre faturamento e custos totais"
+        />
       </div>
 
       {/* Break-even card */}
