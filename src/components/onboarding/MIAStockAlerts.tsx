@@ -30,12 +30,13 @@ interface ContractNeedsPurchase {
 
 interface Props {
   tenantId: string;
+  onNavigateToCatalog?: (productName?: string) => void;
 }
 
 const CACHE_KEY = "mia_stock_alerts_cache";
 const CACHE_TTL = 10 * 60 * 1000;
 
-export const MIAStockAlerts = memo(function MIAStockAlerts({ tenantId }: Props) {
+export const MIAStockAlerts = memo(function MIAStockAlerts({ tenantId, onNavigateToCatalog }: Props) {
   const [zeroStock, setZeroStock] = useState<LowStockProduct[]>([]);
   const [lowStock, setLowStock] = useState<LowStockProduct[]>([]);
   const [contractAlerts, setContractAlerts] = useState<ContractNeedsPurchase[]>([]);
