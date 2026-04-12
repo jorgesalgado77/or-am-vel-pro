@@ -275,7 +275,7 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
                     const originalPrice = (item as any)._original_price;
                     const isPromo = promoPrice != null && originalPrice != null && Number(promoPrice) > 0;
                     return (
-                    <TableRow key={item.product.id} className={isPromo ? "bg-primary/5" : undefined}>
+                    <TableRow key={item.product.id} className={`${isPromo ? "bg-primary/5" : ""} ${warning ? "bg-destructive/5" : ""}`}>
                       <TableCell className="text-[10px] font-mono py-1">{item.product.internal_code}</TableCell>
                       <TableCell className="text-[10px] py-1 max-w-[120px]">
                         <div className="flex items-center gap-1.5 min-w-0">
