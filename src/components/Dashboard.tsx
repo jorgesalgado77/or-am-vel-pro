@@ -494,72 +494,78 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       )}
 
       {/* Lead Sources */}
-      <Card>
-        <CardContent className="p-4 space-y-3">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <Megaphone className="h-4 w-4 text-primary" /> Leads por Origem
-            </h3>
-            <Select value={leadProjetistaFilter} onValueChange={setLeadProjetistaFilter}>
-              <SelectTrigger className="w-[180px] h-8 text-sm"><SelectValue placeholder="Todos os projetistas" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos os projetistas</SelectItem>
-                {projetistaNames.map((name: string) => (<SelectItem key={name} value={name}>{name}</SelectItem>))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-            <KpiCard icon={Megaphone} label="Landing Page" value={String(filteredLeadsBySource.landing_page)} colorVariant="blue" tooltip="Leads captados através da landing page do sistema" />
-            <KpiCard icon={UserPlus} label="Afiliados" value={String(filteredLeadsBySource.afiliado)} colorVariant="violet" tooltip="Leads gerados por afiliados e parceiros comerciais" />
-            <KpiCard icon={Users} label="Indicação" value={String(filteredLeadsBySource.indicacao)} colorVariant="amber" tooltip="Leads recebidos por indicação de clientes existentes" />
-            <KpiCard icon={Share2} label="Link Compartilhado" value={String(filteredLeadsBySource.link)} colorVariant="teal" tooltip="Leads captados via links compartilhados em redes sociais ou mensagens" />
-            <KpiCard icon={UserCheck} label="Manual / Loja" value={String(filteredLeadsBySource.manual)} colorVariant="rose" tooltip="Leads cadastrados manualmente ou captados diretamente na loja" />
-          </div>
-        </CardContent>
-      </Card>
+      {showSection("dash_leads_origem") && (
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Megaphone className="h-4 w-4 text-primary" /> Leads por Origem
+              </h3>
+              <Select value={leadProjetistaFilter} onValueChange={setLeadProjetistaFilter}>
+                <SelectTrigger className="w-[180px] h-8 text-sm"><SelectValue placeholder="Todos os projetistas" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos os projetistas</SelectItem>
+                  {projetistaNames.map((name: string) => (<SelectItem key={name} value={name}>{name}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+              <KpiCard icon={Megaphone} label="Landing Page" value={String(filteredLeadsBySource.landing_page)} colorVariant="blue" tooltip="Leads captados através da landing page do sistema" />
+              <KpiCard icon={UserPlus} label="Afiliados" value={String(filteredLeadsBySource.afiliado)} colorVariant="violet" tooltip="Leads gerados por afiliados e parceiros comerciais" />
+              <KpiCard icon={Users} label="Indicação" value={String(filteredLeadsBySource.indicacao)} colorVariant="amber" tooltip="Leads recebidos por indicação de clientes existentes" />
+              <KpiCard icon={Share2} label="Link Compartilhado" value={String(filteredLeadsBySource.link)} colorVariant="teal" tooltip="Leads captados via links compartilhados em redes sociais ou mensagens" />
+              <KpiCard icon={UserCheck} label="Manual / Loja" value={String(filteredLeadsBySource.manual)} colorVariant="rose" tooltip="Leads cadastrados manualmente ou captados diretamente na loja" />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Chart Toggles */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs text-muted-foreground font-medium">Gráficos:</span>
-        {chartToggles.map(({ key, label }) => (
-          <Button key={key} variant={visibleCharts[key] ? "default" : "outline"} size="sm" className="gap-1.5 h-7 text-xs" onClick={() => toggleChart(key)}>
-            {visibleCharts[key] ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-            {label}
-          </Button>
-        ))}
-      </div>
+      {showSection("dash_graficos") && (
+        <>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-muted-foreground font-medium">Gráficos:</span>
+            {chartToggles.map(({ key, label }) => (
+              <Button key={key} variant={visibleCharts[key] ? "default" : "outline"} size="sm" className="gap-1.5 h-7 text-xs" onClick={() => toggleChart(key)}>
+                {visibleCharts[key] ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                {label}
+              </Button>
+            ))}
+          </div>
 
-      {/* Lazy-loaded charts */}
-      <Suspense fallback={<ChartsSkeleton />}>
-        {visibleCharts.evolucao && <EvolutionChart data={lineData} />}
-        {visibleCharts.contratos && <ContractsEvolutionChart data={contractsLineData} />}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {visibleCharts.projetista && <ProjetistaBarChart data={barData} />}
-          {visibleCharts.indicador && (
-            <IndicadorPieChart
-              data={pieData}
-              title={stats.byIndicador.length > 0 ? "Clientes por Indicador" : "Status dos Clientes"}
-              fullWidth={!visibleCharts.projetista}
-            />
-          )}
-        </div>
-        {visibleCharts.leads_origem && <LeadsPieChart data={leadsPieData} title="Distribuição de Leads por Origem" />}
-        {visibleCharts.vendedor_leads && <LeadsPieChart data={vendedorLeadsPieData} title="Distribuição de Leads por Vendedor" legendLabel="Leads" />}
-      </Suspense>
+          {/* Lazy-loaded charts */}
+          <Suspense fallback={<ChartsSkeleton />}>
+            {visibleCharts.evolucao && <EvolutionChart data={lineData} />}
+            {visibleCharts.contratos && <ContractsEvolutionChart data={contractsLineData} />}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {visibleCharts.projetista && <ProjetistaBarChart data={barData} />}
+              {visibleCharts.indicador && (
+                <IndicadorPieChart
+                  data={pieData}
+                  title={stats.byIndicador.length > 0 ? "Clientes por Indicador" : "Status dos Clientes"}
+                  fullWidth={!visibleCharts.projetista}
+                />
+              )}
+            </div>
+            {visibleCharts.leads_origem && <LeadsPieChart data={leadsPieData} title="Distribuição de Leads por Origem" />}
+            {visibleCharts.vendedor_leads && <LeadsPieChart data={vendedorLeadsPieData} title="Distribuição de Leads por Vendedor" legendLabel="Leads" />}
+          </Suspense>
+        </>
+      )}
 
       {/* Lazy-loaded tables */}
       <Suspense fallback={<TablesSkeleton />}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <DashboardProjetistaTable byProjetista={stats.byProjetista} cargos={cargos} comissaoPolicy={comissaoPolicyDash} />
-          <DashboardIndicadorTable byIndicador={stats.byIndicador} />
+          {showSection("dash_projetista") && <DashboardProjetistaTable byProjetista={stats.byProjetista} cargos={cargos} comissaoPolicy={comissaoPolicyDash} />}
+          {showSection("dash_indicador") && <DashboardIndicadorTable byIndicador={stats.byIndicador} />}
         </div>
       </Suspense>
 
       {/* Lazy-loaded bottom sections */}
       <Suspense fallback={<ChartsSkeleton />}>
-        <TopSellingProductsChart dateRange={dateRange} />
-        <LowStockAlerts />
-        <ContractTrackingList clients={clients} lastSims={lastSims} globalDateRange={dateRange} />
+        {showSection("dash_produtos_vendidos") && <TopSellingProductsChart dateRange={dateRange} />}
+        {showSection("dash_estoque") && <LowStockAlerts />}
+        {showSection("dash_contratos") && <ContractTrackingList clients={clients} lastSims={lastSims} globalDateRange={dateRange} />}
       </Suspense>
     </div>
   );
