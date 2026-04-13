@@ -371,9 +371,12 @@ export function LowStockAlerts() {
                         Nenhum alerta ativo no momento.
                       </div>
                     ) : (
-                      products.map((p) => (
-                        <div
+                      products.map((p, idx) => (
+                        <motion.div
                           key={p.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.2, delay: idx * 0.05 }}
                           className="flex items-center justify-between p-2 rounded-md border bg-card hover:bg-accent/30 transition-colors gap-2"
                         >
                           <div className="flex items-center gap-2 min-w-0">
@@ -417,7 +420,7 @@ export function LowStockAlerts() {
                               {p.stock_quantity} / {p.stock_min_quantity}
                             </Badge>
                           </div>
-                        </div>
+                        </motion.div>
                       ))
                     )}
 
