@@ -429,6 +429,18 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
         dateRange={dateRange}
       />
 
+      {/* Tasks Panel for liberador role — right below date filter */}
+      {isLiberador && (
+        <Suspense fallback={<div className="h-48 animate-pulse bg-muted rounded-lg" />}>
+          <TasksPanel
+            tenantId={resolvedTenantId}
+            userId={currentUser?.id}
+            userName={currentUser?.nome_completo || currentUser?.apelido || ""}
+            cargoNome={cargoLower}
+          />
+        </Suspense>
+      )}
+
       {showSection("dash_ia_auto") && (
         <Suspense fallback={<AIWidgetsSkeleton />}>
           <ProfileCompletenessCard onOpenProfile={onOpenProfile} onOpenSettings={onOpenSettings} />
