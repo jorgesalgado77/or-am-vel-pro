@@ -14,7 +14,8 @@ export function AdminKanbanSection() {
     const { data } = await supabase
       .from("admin_tasks" as any)
       .select("coluna, moved_at")
-      .neq("coluna", "concluida");
+      .neq("coluna", "concluida")
+      .neq("coluna", "arquivada");
 
     if (!data) return;
     const now = new Date();
