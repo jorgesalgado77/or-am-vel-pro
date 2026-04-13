@@ -258,6 +258,24 @@ export function AdminKanbanTasks() {
     toast.success("Tarefa excluída");
   };
 
+  const archiveTask = async (id: string) => {
+    const { error } = await supabase
+      .from("admin_tasks" as any)
+      .update({ coluna: "arquivada", moved_at: new Date().toISOString() } as any)
+      .eq("id", id);
+    if (error) { toast.error("Erro ao arquivar"); return; }
+    toast.success("Tarefa arquivada");
+  };
+
+  const restoreTask = async (id: string) => {
+    const { error } = await supabase
+      .from("admin_tasks" as any)
+      .update({ coluna: "concluida", moved_at: new Date().toISOString() } as any)
+      .eq("id", id);
+    if (error) { toast.error("Erro ao restaurar"); return; }
+    toast.success("Tarefa restaurada para Concluída");
+  };
+
   const syncGoogleCalendar = async () => {
     setGcalSyncing(true);
     try {
