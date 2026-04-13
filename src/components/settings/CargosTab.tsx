@@ -80,6 +80,7 @@ export function CargosTab() {
   const [editTipoComissao, setEditTipoComissao] = useState<Record<string, string>>({});
   const [editSalario, setEditSalario] = useState<Record<string, string>>({});
   const [openCards, setOpenCards] = useState<Record<string, boolean>>({});
+  const [searchTerm, setSearchTerm] = useState("");
 
   const handleAdd = async () => {
     if (!newName.trim()) return;
