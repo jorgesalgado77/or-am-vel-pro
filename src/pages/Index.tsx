@@ -478,6 +478,7 @@ export default function Index() {
 
               {activeView === "measurements" && <MeasurementKanban />}
               {activeView === "catalog" && <ProductCatalog />}
+              {activeView === "stock-purchases" && <StockPurchaseRequests />}
               {activeView === "commercial-ai" && <CommercialAIPanel />}
               {activeView === "emails" && <EmailPanel />}
 
