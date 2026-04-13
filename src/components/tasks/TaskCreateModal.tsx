@@ -101,6 +101,7 @@ export function TaskCreateModal({ open, onClose, onSave, editingTask, currentUse
   const handleSubmit = async () => {
     if (!titulo.trim()) { toast.error("Título é obrigatório"); return; }
     if (!dataTarefa) { toast.error("Data é obrigatória"); return; }
+    if (tipo === "outros" && !tipoOutrosDesc.trim()) { toast.error("Descreva o tipo de tarefa"); return; }
     setSaving(true);
     try {
       const responsavelNome = usuarios.find(u => u.id === responsavelId)?.nome_completo || currentUserName || null;
