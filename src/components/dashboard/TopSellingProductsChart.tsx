@@ -184,7 +184,7 @@ export function TopSellingProductsChart({ dateRange }: TopSellingProductsChartPr
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div>
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.05 }}>
                       <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
                         <TrendingUp className="h-3 w-3" /> Faturamento
                       </p>
@@ -197,8 +197,8 @@ export function TopSellingProductsChart({ dateRange }: TopSellingProductsChartPr
                           <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} name="Faturamento" />
                         </BarChart>
                       </ResponsiveContainer>
-                    </div>
-                    <div>
+                    </motion.div>
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.15 }}>
                       <p className="text-xs text-muted-foreground mb-2">Distribuição por quantidade</p>
                       <ResponsiveContainer width="100%" height={250}>
                         <PieChart>
@@ -218,16 +218,18 @@ export function TopSellingProductsChart({ dateRange }: TopSellingProductsChartPr
                           <Tooltip formatter={(v: number) => `${v} un.`} />
                         </PieChart>
                       </ResponsiveContainer>
-                    </div>
-                    <div className="lg:col-span-2">
+                    </motion.div>
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.25 }} className="lg:col-span-2">
                       <div className="flex flex-wrap gap-2">
                         {chartData.slice(0, 5).map((item, i) => (
-                          <Badge key={i} variant="outline" className="text-xs gap-1 px-3 py-1">
-                            #{i + 1} {item.name} — {item.qty} un. — {currencyFmt(item.revenue)}
-                          </Badge>
+                          <motion.div key={i} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.15, delay: 0.3 + i * 0.05 }}>
+                            <Badge variant="outline" className="text-xs gap-1 px-3 py-1">
+                              #{i + 1} {item.name} — {item.qty} un. — {currencyFmt(item.revenue)}
+                            </Badge>
+                          </motion.div>
                         ))}
                       </div>
-                    </div>
+                    </motion.div>
                   </div>
                 )}
               </CardContent>
