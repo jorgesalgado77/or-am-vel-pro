@@ -420,7 +420,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       {isLiberador && (
         <Suspense fallback={<div className="h-48 animate-pulse bg-muted rounded-lg" />}>
           <TasksPanel
-            tenantId={currentUser?.id ? null : null}
+            tenantId={resolvedTenantId}
             userId={currentUser?.id}
             userName={currentUser?.nome_completo || currentUser?.apelido || ""}
             cargoNome={cargoLower}
