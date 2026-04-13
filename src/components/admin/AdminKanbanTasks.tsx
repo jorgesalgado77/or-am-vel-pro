@@ -115,6 +115,10 @@ export function AdminKanbanTasks() {
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [filterPrioridade, setFilterPrioridade] = useState("all");
+  const [activeTab, setActiveTab] = useState("kanban");
+  const [archivedSearch, setArchivedSearch] = useState("");
+  const [archivedDateStart, setArchivedDateStart] = useState("");
+  const [archivedDateEnd, setArchivedDateEnd] = useState("");
 
   const fetchTasks = useCallback(async () => {
     const { data, error } = await supabase
