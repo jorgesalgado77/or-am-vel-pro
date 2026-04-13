@@ -44,7 +44,7 @@ const CDEUrgencyWidget = lazy(() => import("@/components/dashboard/CDEUrgencyWid
 const AIInsightsWidget = lazy(() => import("@/components/dashboard/AIInsightsWidget").then(m => ({ default: m.AIInsightsWidget })));
 const MeasurementCalendarWidget = lazy(() => import("@/components/dashboard/MeasurementCalendarWidget").then(m => ({ default: m.MeasurementCalendarWidget })));
 const TechnicalDashboardCards = lazy(() => import("@/components/dashboard/TechnicalDashboardCards").then(m => ({ default: m.TechnicalDashboardCards })));
-const TasksPanel = lazy(() => import("@/components/tasks/TasksPanel").then(m => ({ default: m.TasksPanel })));
+
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
@@ -74,7 +74,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
   const isAdminOrGerente = ["administrador", "gerente"].includes(currentUser?.cargo_nome?.toLowerCase() || "");
   const cargoLower = (currentUser?.cargo_nome || "").toLowerCase();
   const isTechnicalRole = cargoLower.includes("tecnico") || cargoLower.includes("técnico") || cargoLower.includes("liberador") || cargoLower.includes("conferente");
-  const isLiberador = cargoLower.includes("liberador");
+  
   const perms = currentUser?.permissoes;
   const showSection = (key: string) => perms ? (perms as any)[key] !== false : true;
 
@@ -89,8 +89,6 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
   const dateRange = useMemo(() => getDateRange(datePreset, customStart, customEnd), [datePreset, customStart, customEnd]);
 
-  // Resolved tenant ID for components that need it
-  const [resolvedTenantId, setResolvedTenantId] = useState<string | null>(null);
 
   // Contract tracking data
   const [trackingData, setTrackingData] = useState<{ count: number; total: number }>({ count: 0, total: 0 });
@@ -100,7 +98,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
   const fetchTrackingStats = useCallback(async () => {
     const tenantId = await getResolvedTenantId();
-    if (tenantId) setResolvedTenantId(tenantId);
+    
     let contractQuery = supabase.from("client_contracts").select("client_id, created_at");
     if (tenantId) contractQuery = contractQuery.eq("tenant_id", tenantId);
     const { data: contracts } = await contractQuery;
@@ -416,17 +414,13 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
   return (
     <div className="space-y-6">
-      {/* Tasks Panel first for liberador role */}
-      {isLiberador && (
-        <Suspense fallback={<div className="h-48 animate-pulse bg-muted rounded-lg" />}>
-          <TasksPanel
-            tenantId={resolvedTenantId}
-            userId={currentUser?.id}
-            userName={currentUser?.nome_completo || currentUser?.apelido || ""}
-            cargoNome={cargoLower}
-          />
-        </Suspense>
-      )}
+      {/* Date Filter — always on top */}
+      <DashboardDateFilter
+        datePreset={datePreset} onPresetChange={setDatePreset}
+        customStart={customStart} customEnd={customEnd}
+        onCustomStartChange={setCustomStart} onCustomEndChange={setCustomEnd}
+        dateRange={dateRange}
+      />
 
       {showSection("dash_ia_auto") && (
         <Suspense fallback={<AIWidgetsSkeleton />}>
@@ -445,14 +439,6 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
           <MeasurementCalendarWidget />
         </Suspense>
       )}
-
-      {/* Date Filter */}
-      <DashboardDateFilter
-        datePreset={datePreset} onPresetChange={setDatePreset}
-        customStart={customStart} customEnd={customEnd}
-        onCustomStartChange={setCustomStart} onCustomEndChange={setCustomEnd}
-        dateRange={dateRange}
-      />
 
       {/* Primary KPIs */}
       {showSection("dash_kpis") && (
