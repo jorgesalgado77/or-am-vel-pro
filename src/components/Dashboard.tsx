@@ -98,7 +98,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
   const fetchTrackingStats = useCallback(async () => {
     const tenantId = await getResolvedTenantId();
-    if (tenantId) setResolvedTenantId(tenantId);
+    
     let contractQuery = supabase.from("client_contracts").select("client_id, created_at");
     if (tenantId) contractQuery = contractQuery.eq("tenant_id", tenantId);
     const { data: contracts } = await contractQuery;
