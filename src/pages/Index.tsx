@@ -34,6 +34,7 @@ const TasksPanel = lazy(() => import("@/components/tasks/TasksPanel").then(m => 
 const TaskReminderOverlay = lazy(() => import("@/components/tasks/TaskReminderOverlay").then(m => ({ default: m.TaskReminderOverlay })));
 const MeasurementKanban = lazy(() => import("@/components/kanban/MeasurementKanban").then(m => ({ default: m.MeasurementKanban })));
 const ProductCatalog = lazy(() => import("@/components/ProductCatalog").then(m => ({ default: m.ProductCatalog })));
+const StockPurchaseRequests = lazy(() => import("@/components/catalog/StockPurchaseRequests").then(m => ({ default: m.StockPurchaseRequests })));
 const CommercialAIPanel = lazy(() => import("@/components/commercial/CommercialAIPanel").then(m => ({ default: m.CommercialAIPanel })));
 const EmailPanel = lazy(() => import("@/components/EmailPanel").then(m => ({ default: m.EmailPanel })));
 const OnboardingAIAssistant = lazy(() => import("@/components/onboarding/OnboardingAIAssistant").then(m => ({ default: m.OnboardingAIAssistant })));
