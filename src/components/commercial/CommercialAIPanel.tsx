@@ -45,8 +45,8 @@ const PRIORITY_BADGE: Record<string, { variant: "destructive" | "secondary" | "o
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
-const SUPABASE_URL = "https://bdhfzjuwtkiexyeusnqq.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkaGZ6anV3dGtpZXh5ZXVzbnFxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MjcwOTEsImV4cCI6MjA4OTUwMzA5MX0.xnbTV67kuEgvz9nNKAPHEcCAzAiYpf1xIsdEvM7OB44";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://bdhfzjuwtkiexyeusnqq.supabase.co";
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkaGZ6anV3dGtpZXh5ZXVzbnFxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MjcwOTEsImV4cCI6MjA4OTUwMzA5MX0.xnbTV67kuEgvz9nNKAPHEcCAzAiYpf1xIsdEvM7OB44";
 const CHAT_URL = `${SUPABASE_URL}/functions/v1/commercial-ai`;
 
 async function streamChat(opts: {

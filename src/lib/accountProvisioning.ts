@@ -44,13 +44,12 @@ export async function createUsuarioProfile(params: {
 }) {
   // Hash password via existing RPC
   let senhaHash: string | null = null;
-  try {
-    const { data } = await supabase.rpc("hash_password", { plain_text: params.senha }) as any;
-    senhaHash = data;
-  } catch {
-    // If hash_password doesn't exist, store plain (not ideal but matches existing pattern)
-    senhaHash = params.senha;
+  const { data, error: hashError } = await supabase.rpc("hash_password", { plain_text: params.senha }) as any;
+  if (hashError || !data) {
+    console.error("[createUsuarioProfile] hash_password failed:", hashError);
+    throw new Error("Erro ao processar senha. Verifique se a função hash_password existe no banco.");
   }
+  senhaHash = data;
 
   const { error } = await supabase.from("usuarios").insert({
     id: params.authUserId,

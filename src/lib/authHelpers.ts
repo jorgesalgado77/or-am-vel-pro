@@ -460,17 +460,17 @@ export async function ensureUserProfile(authUser: SupabaseAuthUser | null, metad
   const existingLookups: Array<(() => Promise<{ data: any; error: any }>) | null> = [
     () => (supabase as any)
       .from("usuarios")
-      .select("id, auth_user_id, email, senha")
+      .select("id, auth_user_id, email")
       .eq("id", authUser.id)
       .limit(1),
     () => (supabase as any)
       .from("usuarios")
-      .select("id, auth_user_id, email, senha")
+      .select("id, auth_user_id, email")
       .eq("auth_user_id", authUser.id)
       .limit(1),
     normalizedEmail ? () => (supabase as any)
       .from("usuarios")
-      .select("id, auth_user_id, email, senha")
+      .select("id, auth_user_id, email")
       .ilike("email", normalizedEmail)
       .limit(10) : null,
   ];

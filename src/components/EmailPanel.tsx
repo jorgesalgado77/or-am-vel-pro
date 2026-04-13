@@ -2,6 +2,7 @@
  * Email Panel — Rich text compose with attachments, contact memorization, drag & drop, resend/forward.
  */
 import { useState, useEffect, useCallback, useRef } from "react";
+import DOMPurify from "dompurify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -876,7 +877,7 @@ export function EmailPanel() {
                     <Separator />
                     <div
                       className="text-foreground prose prose-sm max-w-none"
-                      dangerouslySetInnerHTML={{ __html: bodyHtml }}
+                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(bodyHtml) }}
                     />
                     {attachments.length > 0 && (
                       <>
@@ -1097,7 +1098,7 @@ export function EmailPanel() {
                             <div className="px-3 pb-3 border-t border-border">
                               <div
                                 className="mt-2 text-sm text-foreground prose prose-sm max-w-none bg-muted/30 rounded-lg p-3 max-h-[300px] overflow-y-auto"
-                                dangerouslySetInnerHTML={{ __html: email.body_html }}
+                                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(email.body_html) }}
                               />
                               {(inlineImages.length > 0 || fileAttachments.length > 0) && (
                                 <div className="mt-2">

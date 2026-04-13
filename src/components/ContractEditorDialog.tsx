@@ -1,4 +1,5 @@
 import {useState, useRef, useEffect, useMemo, useCallback} from "react";
+import DOMPurify from "dompurify";
 import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import {Button} from "@/components/ui/button";
 import {Printer, Eye, Code, Lock, LockOpen, Save, Download, Send, Copy, Check, Wand2, Undo2, X, ChevronDown, ChevronUp, Move, Grid3X3} from "lucide-react";
@@ -393,7 +394,7 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
               suppressContentEditableWarning
               className="prose prose-sm h-full max-w-none overflow-y-auto bg-background p-6 text-sm text-foreground focus:outline-none"
               style={{ maxHeight: "calc(95vh - 200px)" }}
-              dangerouslySetInnerHTML={{ __html: html }}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}
               onKeyDown={(e) => {
                 if (layoutLocked) {
                   if (e.key === "Enter" && (e.ctrlKey || e.shiftKey)) e.preventDefault();

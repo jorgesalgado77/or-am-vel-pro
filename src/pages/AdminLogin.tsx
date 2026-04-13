@@ -43,11 +43,11 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
         if (admin) adminInfo = { id: admin.id, nome: admin.nome };
       }
 
-      // Fallback: direct query
+      // Fallback: validate via RPC only (never fetch senha to client)
       if (!adminInfo) {
         const { data, error } = await supabase
           .from("admin_master")
-          .select("id, nome, email, senha")
+          .select("id, nome, email")
           .eq("email", normalizedEmail)
           .maybeSingle();
 
@@ -61,12 +61,19 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
           setLoading(false);
           return;
         }
-        if ((data as any).senha !== senha) {
+
+        // Validate password server-side via RPC
+        const { data: validResult, error: validError } = await (supabase as any).rpc("validate_admin_password", {
+          p_admin_id: data.id,
+          p_senha: senha,
+        });
+
+        if (validError || !validResult) {
           toast.error("Senha incorreta");
           setLoading(false);
           return;
         }
-        adminInfo = { id: (data as any).id, nome: (data as any).nome };
+        adminInfo = { id: data.id, nome: data.nome };
       }
 
       if (!adminInfo) {

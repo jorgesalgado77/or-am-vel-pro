@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import DOMPurify from "dompurify";
 import {
   Dialog,
   DialogContent,
@@ -343,7 +344,7 @@ export function PdfImportPreviewModal({
             {viewMode === "preview" ? (
               <div
                 className="p-4 bg-background"
-                dangerouslySetInnerHTML={{ __html: previewHtml }}
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewHtml) }}
                 style={{ fontSize: "10px", transform: "scale(0.7)", transformOrigin: "top left", width: "142%" }}
               />
             ) : viewMode === "html" ? (
@@ -412,7 +413,7 @@ export function PdfImportPreviewModal({
                   contentEditable
                   suppressContentEditableWarning
                   className="prose prose-sm min-h-[30vh] max-w-none rounded-b-lg border border-border bg-background p-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  dangerouslySetInnerHTML={{ __html: highlightVariablesInHtml(editedHtml !== null ? editedHtml : baseHtml) }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(highlightVariablesInHtml(editedHtml !== null ? editedHtml : baseHtml)) }}
                   onBlur={() => {
                     if (editorRef.current) setEditedHtml(editorRef.current.innerHTML);
                   }}
