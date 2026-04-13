@@ -156,8 +156,14 @@ export function TaskCreateModal({ open, onClose, onSave, editingTask, currentUse
                   <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                 ))}
               </SelectContent>
-            </Select>
+           </Select>
           </div>
+          {tipo === "outros" && (
+            <div>
+              <Label>Descrição do tipo *</Label>
+              <Input value={tipoOutrosDesc} onChange={e => setTipoOutrosDesc(e.target.value)} placeholder="Descreva o tipo de tarefa..." />
+            </div>
+          )}
           <div>
             <Label>Responsável</Label>
             <Select value={responsavelId} onValueChange={setResponsavelId}>
