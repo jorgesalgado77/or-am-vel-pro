@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
   DragDropContext, Droppable, Draggable,
@@ -15,17 +16,18 @@ import {
 } from "@hello-pangea/dnd";
 import {
   Plus, Trash2, GripVertical, AlertTriangle, CalendarSync, Clock,
-  Search, Filter, CalendarClock, Pencil,
+  Search, Filter, CalendarClock, Pencil, Archive,
 } from "lucide-react";
 import { differenceInDays, format, isPast, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { AdminArchivedTasks } from "./AdminArchivedTasks";
 
 // ─── Types ───
 interface AdminTask {
   id: string;
   titulo: string;
   descricao: string | null;
-  coluna: "nova" | "pendente" | "execucao" | "concluida";
+  coluna: "nova" | "pendente" | "execucao" | "concluida" | "arquivada";
   prioridade: "baixa" | "media" | "alta" | "urgente";
   created_at: string;
   updated_at: string;
@@ -35,7 +37,7 @@ interface AdminTask {
   alerta_pendente_enviado: boolean;
 }
 
-type ColumnKey = AdminTask["coluna"];
+type ColumnKey = "nova" | "pendente" | "execucao" | "concluida";
 
 // ─── Column config ───
 const COLUMNS: { key: ColumnKey; label: string; bg: string; border: string; badge: string; cardBg: string; cardBorder: string }[] = [
@@ -113,6 +115,10 @@ export function AdminKanbanTasks() {
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [filterPrioridade, setFilterPrioridade] = useState("all");
+  const [activeTab, setActiveTab] = useState("kanban");
+  const [archivedSearch, setArchivedSearch] = useState("");
+  const [archivedDateStart, setArchivedDateStart] = useState("");
+  const [archivedDateEnd, setArchivedDateEnd] = useState("");
 
   const fetchTasks = useCallback(async () => {
     const { data, error } = await supabase
@@ -164,17 +170,20 @@ export function AdminKanbanTasks() {
   }, [tasks, alertsDismissed]);
 
   // Filtered tasks
+  const activeTasks = useMemo(() => tasks.filter(t => t.coluna !== "arquivada"), [tasks]);
+  const archivedTasks = useMemo(() => tasks.filter(t => t.coluna === "arquivada"), [tasks]);
+
   const filteredTasks = useMemo(() => {
-    return tasks.filter((t) => {
+    return activeTasks.filter((t) => {
       if (searchQuery && !t.titulo.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       if (filterPrioridade !== "all" && t.prioridade !== filterPrioridade) return false;
       return true;
     });
-  }, [tasks, searchQuery, filterPrioridade]);
+  }, [activeTasks, searchQuery, filterPrioridade]);
 
   const tasksByColumn = useMemo(() => {
     const map: Record<ColumnKey, AdminTask[]> = { nova: [], pendente: [], execucao: [], concluida: [] };
-    filteredTasks.forEach((t) => { if (map[t.coluna]) map[t.coluna].push(t); });
+    filteredTasks.forEach((t) => { if (map[t.coluna as ColumnKey]) map[t.coluna as ColumnKey].push(t); });
     return map;
   }, [filteredTasks]);
 
@@ -249,10 +258,28 @@ export function AdminKanbanTasks() {
     toast.success("Tarefa excluída");
   };
 
+  const archiveTask = async (id: string) => {
+    const { error } = await supabase
+      .from("admin_tasks" as any)
+      .update({ coluna: "arquivada", moved_at: new Date().toISOString() } as any)
+      .eq("id", id);
+    if (error) { toast.error("Erro ao arquivar"); return; }
+    toast.success("Tarefa arquivada");
+  };
+
+  const restoreTask = async (id: string) => {
+    const { error } = await supabase
+      .from("admin_tasks" as any)
+      .update({ coluna: "concluida", moved_at: new Date().toISOString() } as any)
+      .eq("id", id);
+    if (error) { toast.error("Erro ao restaurar"); return; }
+    toast.success("Tarefa restaurada para Concluída");
+  };
+
   const syncGoogleCalendar = async () => {
     setGcalSyncing(true);
     try {
-      const activeTasks = tasks.filter((t) => t.coluna !== "concluida");
+      const activeTasks = tasks.filter((t) => t.coluna !== "concluida" && t.coluna !== "arquivada");
       const { data, error } = await supabase.functions.invoke("google-calendar-admin-sync", {
         body: { tasks: activeTasks },
       });
@@ -289,6 +316,21 @@ export function AdminKanbanTasks() {
           </Button>
         </div>
       </div>
+
+      {/* Tabs: Kanban + Arquivadas */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="kanban">Kanban</TabsTrigger>
+          <TabsTrigger value="arquivadas" className="gap-1.5">
+            <Archive className="h-3.5 w-3.5" />
+            Arquivadas
+            {archivedTasks.length > 0 && (
+              <Badge variant="secondary" className="text-[10px] h-4 min-w-[16px] px-1 ml-1">{archivedTasks.length}</Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="kanban" className="mt-3 space-y-4">
 
       {/* Filters */}
       <div className="flex items-center gap-2 flex-wrap">
@@ -414,6 +456,16 @@ export function AdminKanbanTasks() {
                                     >
                                       <Trash2 className="h-3 w-3" />
                                     </Button>
+                                    {task.coluna === "concluida" && (
+                                      <Button
+                                        variant="ghost" size="icon"
+                                        className="h-5 w-5 text-muted-foreground hover:text-amber-600"
+                                        onClick={() => archiveTask(task.id)}
+                                        title="Arquivar tarefa"
+                                      >
+                                        <Archive className="h-3 w-3" />
+                                      </Button>
+                                    )}
                                   </div>
                                 </div>
                                 {task.descricao && (
@@ -463,8 +515,22 @@ export function AdminKanbanTasks() {
           ))}
         </div>
       </DragDropContext>
+        </TabsContent>
 
-      {/* New Task Dialog */}
+        <TabsContent value="arquivadas" className="mt-3">
+          <AdminArchivedTasks
+            tasks={archivedTasks}
+            onRestore={restoreTask}
+            dateStart={archivedDateStart}
+            dateEnd={archivedDateEnd}
+            onDateStartChange={setArchivedDateStart}
+            onDateEndChange={setArchivedDateEnd}
+            searchQuery={archivedSearch}
+            onSearchChange={setArchivedSearch}
+          />
+        </TabsContent>
+      </Tabs>
+
       <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
         <DialogContent className="max-w-[95vw] sm:max-w-md">
           <DialogHeader>
