@@ -31,6 +31,7 @@ const PRIORIDADE_LABELS: Record<string, string> = {
 interface Props {
   tasks: ArchivedTask[];
   onRestore: (id: string) => void;
+  onDelete: (id: string) => void;
   dateStart: string;
   dateEnd: string;
   onDateStartChange: (v: string) => void;
@@ -40,7 +41,7 @@ interface Props {
 }
 
 export function AdminArchivedTasks({
-  tasks, onRestore, dateStart, dateEnd,
+  tasks, onRestore, onDelete, dateStart, dateEnd,
   onDateStartChange, onDateEndChange, searchQuery, onSearchChange,
 }: Props) {
   const filtered = useMemo(() => {
