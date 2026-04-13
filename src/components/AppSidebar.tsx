@@ -4,7 +4,7 @@ import {
   Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, LifeBuoy,
   MessageSquare, Receipt, CreditCard, BrainCircuit, Video, Megaphone,
   BookOpen, Gift, Wallet, PanelLeftClose, PanelLeft, Sun, Moon, Monitor, GraduationCap,
-  Box, ClipboardCheck, Ruler, Package, UserCircle, Sparkles, ShieldCheck,
+  Box, ClipboardCheck, Ruler, Package, UserCircle, Sparkles, ShieldCheck, ShoppingCart,
 } from "lucide-react";
 import { PushNotificationToggle } from "@/components/tasks/PushNotificationToggle";
 
