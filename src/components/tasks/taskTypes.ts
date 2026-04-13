@@ -31,15 +31,10 @@ export const TASK_COLUMNS = [
 ];
 
 export const TASK_TYPES = [
-  { value: "geral", label: "Geral" },
-  { value: "visita", label: "Visita" },
-  { value: "medicao", label: "Medição" },
-  { value: "entrega", label: "Entrega" },
-  { value: "instalacao", label: "Instalação" },
-  { value: "follow_up", label: "Follow-up" },
+  { value: "medicao_tecnica", label: "Medição Técnica" },
+  { value: "vistoria", label: "Vistoria" },
   { value: "reuniao", label: "Reunião" },
-  { value: "projeto", label: "Projeto" },
-  { value: "financeiro", label: "Financeiro" },
+  { value: "outros", label: "Outros" },
 ];
 
 export type DateFilterPreset = "hoje" | "semana" | "mes" | "todos" | "personalizado";
