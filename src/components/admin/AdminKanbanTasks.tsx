@@ -441,6 +441,16 @@ export function AdminKanbanTasks() {
                                     >
                                       <Trash2 className="h-3 w-3" />
                                     </Button>
+                                    {task.coluna === "concluida" && (
+                                      <Button
+                                        variant="ghost" size="icon"
+                                        className="h-5 w-5 text-muted-foreground hover:text-amber-600"
+                                        onClick={() => archiveTask(task.id)}
+                                        title="Arquivar tarefa"
+                                      >
+                                        <Archive className="h-3 w-3" />
+                                      </Button>
+                                    )}
                                   </div>
                                 </div>
                                 {task.descricao && (
