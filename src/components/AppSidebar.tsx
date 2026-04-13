@@ -4,7 +4,7 @@ import {
   Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, LifeBuoy,
   MessageSquare, Receipt, CreditCard, BrainCircuit, Video, Megaphone,
   BookOpen, Gift, Wallet, PanelLeftClose, PanelLeft, Sun, Moon, Monitor, GraduationCap,
-  Box, ClipboardCheck, Ruler, Package, UserCircle, Sparkles, ShieldCheck,
+  Box, ClipboardCheck, Ruler, Package, UserCircle, Sparkles, ShieldCheck, ShoppingCart,
 } from "lucide-react";
 import { PushNotificationToggle } from "@/components/tasks/PushNotificationToggle";
 
@@ -82,6 +82,7 @@ export function AppSidebar({
     { id: "commercial-ai", label: "IA Gerente", icon: BrainCircuit, perm: "ia_gerente" as const, show: hasPermission("ia_gerente"), badge: "NOVO" },
     { id: "clients", label: "Clientes", icon: Users, perm: "clientes" as const, show: hasPermission("clientes"), badge: null },
     { id: "catalog", label: "Catálogo", icon: Package, perm: "catalogo" as const, show: hasPermission("catalogo"), badge: "NOVO" },
+    { id: "stock-purchases", label: "Compras Estoque", icon: ShoppingCart, perm: "catalogo" as const, show: hasPermission("catalogo"), badge: null },
     { id: "simulator", label: "Negociação", icon: Calculator, perm: "simulador" as const, show: true, badge: null },
     { id: "measurements", label: "Solicitação Medidas", icon: Ruler, perm: "medicao" as const, show: hasPermission("medicao") || cargoLower.includes("gerente") || cargoLower.includes("tecnico") || cargoLower.includes("técnico") || cargoLower.includes("administrador") || cargoLower.includes("liberador") || cargoLower.includes("conferente"), badge: pendingMeasurements > 0 ? pendingMeasurements : null },
     { id: "liberacao", label: "Liberação", icon: ShieldCheck, perm: "liberacao" as const, show: hasPermission("liberacao") || cargoLower.includes("gerente") || cargoLower.includes("administrador") || cargoLower.includes("liberador") || cargoLower.includes("conferente"), badge: null },
