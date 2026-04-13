@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArchiveRestore, Search, CalendarClock } from "lucide-react";
+import { ArchiveRestore, Search, CalendarClock, Trash2 } from "lucide-react";
 import { format, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -31,6 +31,7 @@ const PRIORIDADE_LABELS: Record<string, string> = {
 interface Props {
   tasks: ArchivedTask[];
   onRestore: (id: string) => void;
+  onDelete: (id: string) => void;
   dateStart: string;
   dateEnd: string;
   onDateStartChange: (v: string) => void;
@@ -40,7 +41,7 @@ interface Props {
 }
 
 export function AdminArchivedTasks({
-  tasks, onRestore, dateStart, dateEnd,
+  tasks, onRestore, onDelete, dateStart, dateEnd,
   onDateStartChange, onDateEndChange, searchQuery, onSearchChange,
 }: Props) {
   const filtered = useMemo(() => {
@@ -120,15 +121,26 @@ export function AdminArchivedTasks({
                   )}
                 </div>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 shrink-0 text-xs"
-                onClick={() => onRestore(task.id)}
-              >
-                <ArchiveRestore className="h-3.5 w-3.5" />
-                Restaurar
-              </Button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs"
+                  onClick={() => onRestore(task.id)}
+                >
+                  <ArchiveRestore className="h-3.5 w-3.5" />
+                  Restaurar
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                  onClick={() => onDelete(task.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Excluir
+                </Button>
+              </div>
             </div>
           ))}
         </div>
