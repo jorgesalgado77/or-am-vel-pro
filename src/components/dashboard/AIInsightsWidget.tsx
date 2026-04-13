@@ -216,7 +216,7 @@ export function AIInsightsWidget() {
       <CardContent className="space-y-4">
         {/* Best Strategy */}
         {bestStrategy && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.05 }} className="rounded-lg border bg-accent/30 p-3 space-y-2">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.05 }} whileHover={{ scale: 1.02 }} className="rounded-lg border bg-accent/30 p-3 space-y-2 transition-shadow duration-200 hover:shadow-md cursor-default">
             <div className="flex items-center gap-2">
               <Trophy className="h-4 w-4 text-yellow-500" />
               <span className="text-sm font-semibold text-foreground">Melhor Estratégia</span>
@@ -238,7 +238,7 @@ export function AIInsightsWidget() {
 
         {/* Low conversion alert */}
         {worstStrategy && worstStrategy.total_events >= 5 && worstStrategy.conversion_rate < 0.1 && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.1 }} className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-1">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.1 }} whileHover={{ scale: 1.02 }} className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-1 transition-shadow duration-200 hover:shadow-md cursor-default">
             <div className="flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-destructive" />
               <span className="text-sm font-semibold text-destructive">Estratégia com Baixa Conversão</span>
@@ -280,7 +280,7 @@ export function AIInsightsWidget() {
 
         {/* Discount Sweet Spot */}
         {discountSpot && discountSpot.sample_size > 0 && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.25 }} className="rounded-lg border p-3 space-y-2">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.25 }} whileHover={{ scale: 1.02 }} className="rounded-lg border p-3 space-y-2 transition-shadow duration-200 hover:shadow-md cursor-default">
             <div className="flex items-center gap-2">
               <Percent className="h-4 w-4 text-primary" />
               <span className="text-sm font-semibold text-foreground">Sweet-Spot de Desconto</span>

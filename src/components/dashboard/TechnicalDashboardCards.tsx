@@ -161,7 +161,7 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {/* Card 1: Queue Position */}
-      <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10">
+      <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 transition-all duration-200 hover:scale-[1.02] hover:shadow-md cursor-default">
         <CardContent className="pt-4 space-y-3">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-primary/15">
@@ -206,7 +206,7 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
       </Card>
 
       {/* Card 2: Release Ceiling */}
-      <Card className="border-accent/30 bg-gradient-to-br from-accent/5 to-accent/10">
+      <Card className="border-accent/30 bg-gradient-to-br from-accent/5 to-accent/10 transition-all duration-200 hover:scale-[1.02] hover:shadow-md cursor-default">
         <CardContent className="pt-4 space-y-3">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-accent/15">
@@ -255,7 +255,7 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
       </Card>
 
       {/* Card 3: Salary Preview */}
-      <Card className="border-green-500/30 bg-gradient-to-br from-green-500/5 to-green-500/10">
+      <Card className="border-green-500/30 bg-gradient-to-br from-green-500/5 to-green-500/10 transition-all duration-200 hover:scale-[1.02] hover:shadow-md cursor-default">
         <CardContent className="pt-4 space-y-3">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-green-500/15">

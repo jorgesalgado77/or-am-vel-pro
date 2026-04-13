@@ -127,9 +127,10 @@ export function DealInsightsWidget() {
         {leads.map((lead) => {
           const AggrIcon = AGGR_ICONS[lead.analysis.recommended_aggressiveness];
           return (
-            <div
+            <motion.div
               key={lead.id}
-              className="flex items-center gap-3 p-2.5 rounded-lg border border-border bg-muted/20 hover:bg-muted/40 transition-colors"
+              className="flex items-center gap-3 p-2.5 rounded-lg border border-border bg-muted/20 hover:bg-muted/40 transition-all duration-200 cursor-default"
+              whileHover={{ scale: 1.02 }}
             >
               <div className="flex items-center justify-center h-9 w-9 rounded-full bg-primary/10 shrink-0">
                 <Flame className="h-4 w-4 text-primary" />

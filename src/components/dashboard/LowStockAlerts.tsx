@@ -377,7 +377,8 @@ export function LowStockAlerts() {
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.2, delay: idx * 0.05 }}
-                          className="flex items-center justify-between p-2 rounded-md border bg-card hover:bg-accent/30 transition-colors gap-2"
+                          className="flex items-center justify-between p-2 rounded-md border bg-card hover:bg-accent/30 hover:scale-[1.02] transition-all duration-200 gap-2 cursor-default"
+                          whileHover={{ scale: 1.02 }}
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <Package className="h-4 w-4 text-muted-foreground shrink-0" />
