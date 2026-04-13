@@ -150,7 +150,7 @@ export function AdminKanbanTasks() {
       (t) => t.coluna === "pendente" && differenceInDays(now, new Date(t.moved_at)) >= 2
     );
     const overdue = tasks.filter(
-      (t) => t.vencimento && t.coluna !== "concluida" && isPast(new Date(t.vencimento)) && !isToday(new Date(t.vencimento))
+      (t) => t.vencimento && t.coluna !== "concluida" && t.coluna !== "arquivada" && isPast(new Date(t.vencimento)) && !isToday(new Date(t.vencimento))
     );
     setPendingAlerts(pending);
     setOverdueAlerts(overdue);
