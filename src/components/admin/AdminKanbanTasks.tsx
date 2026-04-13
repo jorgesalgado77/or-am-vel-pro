@@ -331,14 +331,6 @@ export function AdminKanbanTasks() {
         </TabsList>
 
         <TabsContent value="kanban" className="mt-3 space-y-4">
-            <CalendarSync className="h-3.5 w-3.5" />
-            {gcalSyncing ? "Sincronizando..." : "Google Agenda"}
-          </Button>
-          <Button size="sm" className="gap-2" onClick={() => setShowNewDialog(true)}>
-            <Plus className="h-3.5 w-3.5" /> Nova Tarefa
-          </Button>
-        </div>
-      </div>
 
       {/* Filters */}
       <div className="flex items-center gap-2 flex-wrap">
