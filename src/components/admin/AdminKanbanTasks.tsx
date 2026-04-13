@@ -317,6 +317,29 @@ export function AdminKanbanTasks() {
         </div>
       </div>
 
+      {/* Tabs: Kanban + Arquivadas */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="kanban">Kanban</TabsTrigger>
+          <TabsTrigger value="arquivadas" className="gap-1.5">
+            <Archive className="h-3.5 w-3.5" />
+            Arquivadas
+            {archivedTasks.length > 0 && (
+              <Badge variant="secondary" className="text-[10px] h-4 min-w-[16px] px-1 ml-1">{archivedTasks.length}</Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="kanban" className="mt-3 space-y-4">
+            <CalendarSync className="h-3.5 w-3.5" />
+            {gcalSyncing ? "Sincronizando..." : "Google Agenda"}
+          </Button>
+          <Button size="sm" className="gap-2" onClick={() => setShowNewDialog(true)}>
+            <Plus className="h-3.5 w-3.5" /> Nova Tarefa
+          </Button>
+        </div>
+      </div>
+
       {/* Filters */}
       <div className="flex items-center gap-2 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-xs">
