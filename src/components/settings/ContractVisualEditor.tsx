@@ -2509,7 +2509,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           const displayText = previewVarsMode ? replaceVariablesWithSample(el.text) : el.text;
           const normalizedDisplayText = forcePastedTextVisible(displayText || "", el.color || "#000000");
           if (normalizedDisplayText && (normalizedDisplayText.includes("<") || (previewVarsMode && normalizedDisplayText.includes("<table")))) {
-            return <div dangerouslySetInnerHTML={{ __html: normalizedDisplayText }} style={{ width: "100%", overflow: "hidden", color: el.color || "#000000", WebkitTextFillColor: el.color || "#000000" }} />;
+            return <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(normalizedDisplayText) }} style={{ width: "100%", overflow: "hidden", color: el.color || "#000000", WebkitTextFillColor: el.color || "#000000" }} />;
           }
           return normalizedDisplayText || (el.type === "text" ? <span className="text-muted-foreground/40 italic text-xs">Clique para editar</span> : null);
         })()}
@@ -4381,7 +4381,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                                 case "rect":
                                   content = (
                                     <div style={{ width: "100%", height: "100%", background: el.fill, border: `${el.strokeWidth}px solid ${el.stroke}`, borderRadius: el.borderRadius, boxSizing: "border-box" }}>
-                                      {el.text && <div style={{ padding: 8, fontFamily: el.fontFamily, fontSize: el.fontSize, fontWeight: el.fontWeight, fontStyle: el.fontStyle, color: el.color, textAlign: el.textAlign as any, whiteSpace: "pre-wrap", wordWrap: "break-word", overflow: "hidden" }} dangerouslySetInnerHTML={{ __html: resolveText(el.text) }} />}
+                                      {el.text && <div style={{ padding: 8, fontFamily: el.fontFamily, fontSize: el.fontSize, fontWeight: el.fontWeight, fontStyle: el.fontStyle, color: el.color, textAlign: el.textAlign as any, whiteSpace: "pre-wrap", wordWrap: "break-word", overflow: "hidden" }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(resolveText(el.text)) }} />}
                                     </div>
                                   );
                                   break;
@@ -4393,7 +4393,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                                   break;
                                 case "text":
                                   content = (
-                                    <div style={{ width: "100%", height: "100%", fontFamily: el.fontFamily, fontSize: el.fontSize, fontWeight: el.fontWeight, fontStyle: el.fontStyle, color: el.color, textAlign: el.textAlign as any, whiteSpace: "pre-wrap", wordWrap: "break-word", overflow: "hidden" }} dangerouslySetInnerHTML={{ __html: resolveText(el.text) }} />
+                                    <div style={{ width: "100%", height: "100%", fontFamily: el.fontFamily, fontSize: el.fontSize, fontWeight: el.fontWeight, fontStyle: el.fontStyle, color: el.color, textAlign: el.textAlign as any, whiteSpace: "pre-wrap", wordWrap: "break-word", overflow: "hidden" }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(resolveText(el.text)) }} />
                                   );
                                   break;
                                 case "image":

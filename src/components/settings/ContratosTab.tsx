@@ -1024,7 +1024,7 @@ export function ContratosTab() {
                   contentEditable
                   suppressContentEditableWarning
                   className="prose prose-sm min-h-[400px] max-w-none rounded-b-lg border border-border bg-background p-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  dangerouslySetInnerHTML={{ __html: htmlContent }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(htmlContent) }}
                   onInput={() => {
                     if (editorRef.current) setHtmlContent(editorRef.current.innerHTML);
                   }}
