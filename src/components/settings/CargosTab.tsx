@@ -183,6 +183,66 @@ export function CargosTab() {
     return { nome: c.nome, hiddenCount: hidden.length, hiddenLabels: hidden.map(k => PERM_LABELS_DASHBOARD[k]) };
   }).filter(c => c.hiddenCount > 0);
 
+  // Filter cargos by search
+  const filteredCargos = cargos.filter(c =>
+    c.nome.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Export cargos as JSON
+  const handleExport = () => {
+    const exportData = cargos.map(c => ({
+      nome: c.nome,
+      permissoes: c.permissoes,
+      comissao_percentual: c.comissao_percentual,
+      tipo_comissao: (c as any).tipo_comissao || null,
+      salario_base: (c as any).salario_base || null,
+    }));
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `cargos_backup_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${cargos.length} cargo(s) exportado(s)!`);
+  };
+
+  // Import cargos from JSON
+  const handleImport = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const imported = JSON.parse(text);
+        if (!Array.isArray(imported)) { toast.error("Formato inválido: esperado um array de cargos"); return; }
+        const tenantId = getTenantId();
+        if (!tenantId) { toast.error("Sessão inválida"); return; }
+        let count = 0;
+        for (const item of imported) {
+          if (!item.nome || !item.permissoes) continue;
+          const { error } = await supabase.from("cargos").insert({
+            nome: item.nome,
+            permissoes: item.permissoes,
+            comissao_percentual: item.comissao_percentual || 0,
+            tipo_comissao: item.tipo_comissao || null,
+            salario_base: item.salario_base || null,
+            tenant_id: tenantId,
+          });
+          if (!error) count++;
+        }
+        toast.success(`${count} cargo(s) importado(s)!`);
+        refresh();
+      } catch {
+        toast.error("Erro ao ler arquivo JSON");
+      }
+    };
+    input.click();
+  };
+
   return (
     <div className="space-y-6">
       {/* Visual Summary */}
@@ -219,6 +279,27 @@ export function CargosTab() {
         </CardContent>
       </Card>
 
+      {/* Search + Export/Import */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            placeholder="Buscar cargo pelo nome..."
+            className="pl-9"
+          />
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5">
+            <Download className="h-4 w-4" />Exportar JSON
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleImport} className="gap-1.5">
+            <Upload className="h-4 w-4" />Importar JSON
+          </Button>
+        </div>
+      </div>
+
       <Card>
         <CardHeader><CardTitle className="text-base">Cadastrar Cargo</CardTitle></CardHeader>
         <CardContent>
@@ -232,7 +313,11 @@ export function CargosTab() {
         </CardContent>
       </Card>
 
-      {cargos.map(cargo => {
+      {filteredCargos.length === 0 && searchTerm && (
+        <p className="text-sm text-muted-foreground text-center py-8">Nenhum cargo encontrado para "{searchTerm}"</p>
+      )}
+
+      {filteredCargos.map(cargo => {
         const perms = editPerms[cargo.id] || cargo.permissoes;
         const comissao = editComissao[cargo.id] ?? cargo.comissao_percentual;
         const tipoComissao = getCargoTipoComissao(cargo.id);
