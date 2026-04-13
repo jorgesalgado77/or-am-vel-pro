@@ -44,6 +44,7 @@ const CDEUrgencyWidget = lazy(() => import("@/components/dashboard/CDEUrgencyWid
 const AIInsightsWidget = lazy(() => import("@/components/dashboard/AIInsightsWidget").then(m => ({ default: m.AIInsightsWidget })));
 const MeasurementCalendarWidget = lazy(() => import("@/components/dashboard/MeasurementCalendarWidget").then(m => ({ default: m.MeasurementCalendarWidget })));
 const TechnicalDashboardCards = lazy(() => import("@/components/dashboard/TechnicalDashboardCards").then(m => ({ default: m.TechnicalDashboardCards })));
+const TasksPanel = lazy(() => import("@/components/tasks/TasksPanel").then(m => ({ default: m.TasksPanel })));
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
