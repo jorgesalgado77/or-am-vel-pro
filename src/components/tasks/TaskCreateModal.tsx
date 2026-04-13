@@ -26,7 +26,8 @@ export function TaskCreateModal({ open, onClose, onSave, editingTask, currentUse
   const [descricao, setDescricao] = useState("");
   const [dataTarefa, setDataTarefa] = useState(new Date().toISOString().slice(0, 10));
   const [horario, setHorario] = useState("");
-  const [tipo, setTipo] = useState("geral");
+  const [tipo, setTipo] = useState("medicao_tecnica");
+  const [tipoOutrosDesc, setTipoOutrosDesc] = useState("");
   const [responsavelId, setResponsavelId] = useState<string>("");
   const [usuarios, setUsuarios] = useState<Array<{ id: string; nome_completo: string }>>([]);
   const [saving, setSaving] = useState(false);
@@ -39,6 +40,7 @@ export function TaskCreateModal({ open, onClose, onSave, editingTask, currentUse
       setDataTarefa(editingTask.data_tarefa);
       setHorario(editingTask.horario || "");
       setTipo(editingTask.tipo);
+      setTipoOutrosDesc("");
       setResponsavelId(editingTask.responsavel_id || "");
       setAnexos(editingTask.anexos || []);
     } else {
@@ -46,7 +48,8 @@ export function TaskCreateModal({ open, onClose, onSave, editingTask, currentUse
       setDescricao("");
       setDataTarefa(new Date().toISOString().slice(0, 10));
       setHorario("");
-      setTipo("geral");
+      setTipo("medicao_tecnica");
+      setTipoOutrosDesc("");
       setResponsavelId(currentUserId || "");
       setAnexos([]);
     }
@@ -54,13 +57,30 @@ export function TaskCreateModal({ open, onClose, onSave, editingTask, currentUse
 
   useEffect(() => {
     if (!tenantId) return;
+    // Only show users with technical roles (liberador, técnico, conferente)
     supabase
       .from("usuarios")
-      .select("id, nome_completo")
+      .select("id, nome_completo, cargo_id")
       .eq("tenant_id", tenantId)
       .eq("ativo", true)
-      .then(({ data }) => {
-        if (data) setUsuarios(data);
+      .then(async ({ data }) => {
+        if (!data) return;
+        // Get cargo names to filter technical roles
+        const cargoIds = [...new Set(data.map(u => u.cargo_id).filter(Boolean))];
+        if (cargoIds.length === 0) { setUsuarios([]); return; }
+        const { data: cargos } = await supabase
+          .from("cargos")
+          .select("id, nome")
+          .in("id", cargoIds);
+        const technicalCargoIds = new Set(
+          (cargos || [])
+            .filter(c => {
+              const n = c.nome.toLowerCase();
+              return n.includes("liberador") || n.includes("tecnico") || n.includes("técnico") || n.includes("conferente");
+            })
+            .map(c => c.id)
+        );
+        setUsuarios(data.filter(u => u.cargo_id && technicalCargoIds.has(u.cargo_id)).map(u => ({ id: u.id, nome_completo: u.nome_completo })));
       });
   }, [tenantId]);
 
@@ -82,13 +102,14 @@ export function TaskCreateModal({ open, onClose, onSave, editingTask, currentUse
   const handleSubmit = async () => {
     if (!titulo.trim()) { toast.error("Título é obrigatório"); return; }
     if (!dataTarefa) { toast.error("Data é obrigatória"); return; }
+    if (tipo === "outros" && !tipoOutrosDesc.trim()) { toast.error("Descreva o tipo de tarefa"); return; }
     setSaving(true);
     try {
       const responsavelNome = usuarios.find(u => u.id === responsavelId)?.nome_completo || currentUserName || null;
       await onSave({
         ...(editingTask ? { id: editingTask.id } : {}),
         titulo: titulo.trim(),
-        descricao: descricao.trim() || null,
+        descricao: tipo === "outros" ? `[${tipoOutrosDesc.trim()}] ${descricao.trim()}`.trim() : (descricao.trim() || null),
         data_tarefa: dataTarefa,
         horario: horario || null,
         tipo,
@@ -137,8 +158,14 @@ export function TaskCreateModal({ open, onClose, onSave, editingTask, currentUse
                   <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                 ))}
               </SelectContent>
-            </Select>
+           </Select>
           </div>
+          {tipo === "outros" && (
+            <div>
+              <Label>Descrição do tipo *</Label>
+              <Input value={tipoOutrosDesc} onChange={e => setTipoOutrosDesc(e.target.value)} placeholder="Descreva o tipo de tarefa..." />
+            </div>
+          )}
           <div>
             <Label>Responsável</Label>
             <Select value={responsavelId} onValueChange={setResponsavelId}>
