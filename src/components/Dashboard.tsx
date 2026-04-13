@@ -416,17 +416,13 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
   return (
     <div className="space-y-6">
-      {/* Tasks Panel first for liberador role */}
-      {isLiberador && (
-        <Suspense fallback={<div className="h-48 animate-pulse bg-muted rounded-lg" />}>
-          <TasksPanel
-            tenantId={resolvedTenantId}
-            userId={currentUser?.id}
-            userName={currentUser?.nome_completo || currentUser?.apelido || ""}
-            cargoNome={cargoLower}
-          />
-        </Suspense>
-      )}
+      {/* Date Filter — always on top */}
+      <DashboardDateFilter
+        datePreset={datePreset} onPresetChange={setDatePreset}
+        customStart={customStart} customEnd={customEnd}
+        onCustomStartChange={setCustomStart} onCustomEndChange={setCustomEnd}
+        dateRange={dateRange}
+      />
 
       {showSection("dash_ia_auto") && (
         <Suspense fallback={<AIWidgetsSkeleton />}>
@@ -445,14 +441,6 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
           <MeasurementCalendarWidget />
         </Suspense>
       )}
-
-      {/* Date Filter */}
-      <DashboardDateFilter
-        datePreset={datePreset} onPresetChange={setDatePreset}
-        customStart={customStart} customEnd={customEnd}
-        onCustomStartChange={setCustomStart} onCustomEndChange={setCustomEnd}
-        dateRange={dateRange}
-      />
 
       {/* Primary KPIs */}
       {showSection("dash_kpis") && (
