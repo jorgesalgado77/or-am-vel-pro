@@ -529,6 +529,7 @@ export function AdminKanbanTasks() {
           <AdminArchivedTasks
             tasks={archivedTasks}
             onRestore={restoreTask}
+            onDelete={deleteArchivedTask}
             dateStart={archivedDateStart}
             dateEnd={archivedDateEnd}
             onDateStartChange={setArchivedDateStart}
