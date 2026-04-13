@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Brain, TrendingUp, AlertTriangle, Target, Zap, Flame } from "lucide-react";
@@ -161,7 +162,7 @@ export function DealInsightsWidget() {
                   <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
                 )}
               </div>
-            </div>
+            </motion.div>
           );
         })}
       </CardContent>
