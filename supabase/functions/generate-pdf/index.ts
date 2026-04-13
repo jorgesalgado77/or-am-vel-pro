@@ -263,8 +263,19 @@ serve(async (req) => {
   }
 
   try {
+    // Validate auth via JWT claims
     const authHeader = req.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ") || authHeader.replace("Bearer ", "").length < 20) {
+    if (!authHeader?.startsWith("Bearer ")) {
+      return respond({ error: "Não autorizado" }, 401);
+    }
+    const token = authHeader.replace("Bearer ", "");
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims?.sub) {
       return respond({ error: "Não autorizado" }, 401);
     }
 

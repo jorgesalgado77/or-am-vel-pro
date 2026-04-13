@@ -57,12 +57,20 @@ serve(async (req) => {
     const body = await req.json();
     const { action, tenant_id, user_id } = body;
 
-    // Auth check — allow anon key (verify_jwt=false in config.toml)
+    // Validate auth via JWT claims
     const authHeader = req.headers.get("authorization");
-    // No strict auth check needed — function is protected by verify_jwt=false + service role internally
-
-    if (!tenant_id || !user_id) {
-      return respond({ error: "tenant_id e user_id são obrigatórios" }, 400);
+    if (!authHeader?.startsWith("Bearer ")) {
+      return respond({ error: "Não autorizado" }, 401);
+    }
+    const token = authHeader.replace("Bearer ", "");
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims?.sub) {
+      return respond({ error: "Não autorizado" }, 401);
     }
 
     const sb = getSupabaseAdmin();
