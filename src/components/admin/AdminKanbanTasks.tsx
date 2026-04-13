@@ -27,7 +27,7 @@ interface AdminTask {
   id: string;
   titulo: string;
   descricao: string | null;
-  coluna: "nova" | "pendente" | "execucao" | "concluida";
+  coluna: "nova" | "pendente" | "execucao" | "concluida" | "arquivada";
   prioridade: "baixa" | "media" | "alta" | "urgente";
   created_at: string;
   updated_at: string;
@@ -37,7 +37,7 @@ interface AdminTask {
   alerta_pendente_enviado: boolean;
 }
 
-type ColumnKey = AdminTask["coluna"];
+type ColumnKey = "nova" | "pendente" | "execucao" | "concluida";
 
 // ─── Column config ───
 const COLUMNS: { key: ColumnKey; label: string; bg: string; border: string; badge: string; cardBg: string; cardBorder: string }[] = [
