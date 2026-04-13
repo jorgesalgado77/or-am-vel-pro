@@ -32,6 +32,17 @@ export interface CargoPermissoes {
   tutoriais: boolean;
   email: boolean;
   cadastrar_produtos: boolean;
+  // Dashboard section visibility
+  dash_ia_auto: boolean;
+  dash_kpis: boolean;
+  dash_leads_origem: boolean;
+  dash_graficos: boolean;
+  dash_projetista: boolean;
+  dash_indicador: boolean;
+  dash_produtos_vendidos: boolean;
+  dash_contratos: boolean;
+  dash_medicao: boolean;
+  dash_estoque: boolean;
 }
 
 const DEFAULT_PERMISSOES: CargoPermissoes = {
@@ -62,6 +73,16 @@ const DEFAULT_PERMISSOES: CargoPermissoes = {
   tutoriais: true,
   email: true,
   cadastrar_produtos: false,
+  dash_ia_auto: true,
+  dash_kpis: true,
+  dash_leads_origem: true,
+  dash_graficos: true,
+  dash_projetista: true,
+  dash_indicador: true,
+  dash_produtos_vendidos: true,
+  dash_contratos: true,
+  dash_medicao: true,
+  dash_estoque: true,
 };
 
 export interface Cargo {

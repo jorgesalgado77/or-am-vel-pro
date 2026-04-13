@@ -42,6 +42,16 @@ const DEFAULT_PERMS: CargoPermissoes = {
   tutoriais: true,
   email: true,
   cadastrar_produtos: true,
+  dash_ia_auto: true,
+  dash_kpis: true,
+  dash_leads_origem: true,
+  dash_graficos: true,
+  dash_projetista: true,
+  dash_indicador: true,
+  dash_produtos_vendidos: true,
+  dash_contratos: true,
+  dash_medicao: true,
+  dash_estoque: true,
 };
 
 export function useCurrentUserLoader() {
