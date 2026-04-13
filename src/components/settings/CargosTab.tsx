@@ -559,6 +559,7 @@ export function CargosTab() {
                       </TableBody>
                     </Table>
                   </div>
+                </CollapsibleContent>
               </Collapsible>
             </CardContent>
           </Card>
