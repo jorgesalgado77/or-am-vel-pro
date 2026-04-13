@@ -89,6 +89,9 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
   const dateRange = useMemo(() => getDateRange(datePreset, customStart, customEnd), [datePreset, customStart, customEnd]);
 
+  // Resolved tenant ID for components that need it
+  const [resolvedTenantId, setResolvedTenantId] = useState<string | null>(null);
+
   // Contract tracking data
   const [trackingData, setTrackingData] = useState<{ count: number; total: number }>({ count: 0, total: 0 });
   const [trackingRaw, setTrackingRaw] = useState<{ valor_contrato: number; dateRef: string; clientId: string }[]>([]);
