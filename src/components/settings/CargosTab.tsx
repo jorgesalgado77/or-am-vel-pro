@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Save, Pencil, X, ChevronDown, ChevronRight, TrendingUp, DollarSign, Landmark } from "lucide-react";
+import { Plus, Trash2, Save, Pencil, X, ChevronDown, ChevronRight, TrendingUp, DollarSign, Landmark, Copy, Shield, EyeOff } from "lucide-react";
 import { maskCurrency, unmaskCurrency } from "@/lib/masks";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
@@ -97,6 +97,21 @@ export function CargosTab() {
     else { toast.success("Excluído!"); refresh(); }
   };
 
+  const handleDuplicate = async (cargo: typeof cargos[0]) => {
+    const tenantId = getTenantId();
+    if (!tenantId) { toast.error("Sessão inválida"); return; }
+    const { error } = await supabase.from("cargos").insert({
+      nome: `${cargo.nome} (cópia)`,
+      permissoes: cargo.permissoes as any,
+      comissao_percentual: cargo.comissao_percentual,
+      tipo_comissao: (cargo as any).tipo_comissao || null,
+      salario_base: (cargo as any).salario_base || null,
+      tenant_id: tenantId,
+    });
+    if (error) toast.error("Erro ao duplicar: " + error.message);
+    else { toast.success("Cargo duplicado!"); refresh(); }
+  };
+
   const togglePerm = (cargoId: string, current: CargoPermissoes, key: keyof CargoPermissoes) => {
     const existing = editPerms[cargoId] || { ...current };
     setEditPerms(prev => ({ ...prev, [cargoId]: { ...existing, [key]: !existing[key] } }));
@@ -160,8 +175,49 @@ export function CargosTab() {
     refresh();
   };
 
+  // Summary: hidden dashboard sections per cargo
+  const dashKeys = Object.keys(PERM_LABELS_DASHBOARD);
+  const cargosWithHiddenSections = cargos.map(c => {
+    const hidden = dashKeys.filter(k => (c.permissoes as any)?.[k] === false);
+    return { nome: c.nome, hiddenCount: hidden.length, hiddenLabels: hidden.map(k => PERM_LABELS_DASHBOARD[k]) };
+  }).filter(c => c.hiddenCount > 0);
+
   return (
     <div className="space-y-6">
+      {/* Visual Summary */}
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="pt-4">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Shield className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Resumo de Cargos</h3>
+              <p className="text-xs text-muted-foreground">{cargos.length} cargo{cargos.length !== 1 ? "s" : ""} cadastrado{cargos.length !== 1 ? "s" : ""}</p>
+            </div>
+          </div>
+          {cargosWithHiddenSections.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <EyeOff className="h-3.5 w-3.5" /> Seções ocultas no dashboard:
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {cargosWithHiddenSections.map(c => (
+                  <div key={c.nome} className="rounded-md border border-border bg-background p-2.5">
+                    <p className="text-xs font-semibold text-foreground">{c.nome}</p>
+                    <p className="text-[10px] text-muted-foreground line-clamp-2">
+                      {c.hiddenLabels.join(", ")}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground italic">Todos os cargos possuem todas as seções do dashboard visíveis.</p>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader><CardTitle className="text-base">Cadastrar Cargo</CardTitle></CardHeader>
         <CardContent>
@@ -204,6 +260,7 @@ export function CargosTab() {
                   {hasChanges(cargo.id) && (
                     <Button size="sm" onClick={() => handleSave(cargo.id)} className="gap-1"><Save className="h-3 w-3" />Salvar</Button>
                   )}
+                  <Button size="sm" variant="outline" onClick={() => handleDuplicate(cargo)} className="gap-1"><Copy className="h-3 w-3" />Duplicar</Button>
                   <Button size="sm" variant="destructive" onClick={() => handleDelete(cargo.id, cargo.nome)} className="gap-1"><Trash2 className="h-3 w-3" />Excluir</Button>
                 </div>
               </div>
