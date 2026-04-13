@@ -50,9 +50,23 @@ const PERM_LABELS_MENU: Record<string, string> = {
   suporte: "Suporte",
 };
 
+const PERM_LABELS_DASHBOARD: Record<string, string> = {
+  dash_ia_auto: "IA Auto Aprendizado",
+  dash_kpis: "KPIs (Indicadores)",
+  dash_leads_origem: "Leads por Origem",
+  dash_graficos: "Gráficos",
+  dash_projetista: "Detalhes por Projetista",
+  dash_indicador: "Detalhes por Indicador",
+  dash_produtos_vendidos: "Produtos Mais Vendidos",
+  dash_contratos: "Contratos Fechados / Acompanhamento",
+  dash_medicao: "Agendamento de Medição",
+  dash_estoque: "Alertas de Estoque Baixo",
+};
+
 const PERM_LABELS: Record<keyof CargoPermissoes, string> = {
   ...PERM_LABELS_CORE,
   ...PERM_LABELS_MENU,
+  ...PERM_LABELS_DASHBOARD,
 } as Record<keyof CargoPermissoes, string>;
 
 export function CargosTab() {
@@ -524,7 +538,27 @@ export function CargosTab() {
                       </TableBody>
                     </Table>
                   </div>
-                </CollapsibleContent>
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground mb-2 px-2">Seções do Dashboard</p>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-secondary/50">
+                          <TableHead>Seção</TableHead>
+                          <TableHead className="w-24 text-center">Visível</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(Object.keys(PERM_LABELS_DASHBOARD) as Array<keyof CargoPermissoes>).map(key => (
+                          <TableRow key={key}>
+                            <TableCell>{PERM_LABELS_DASHBOARD[key]}</TableCell>
+                            <TableCell className="text-center">
+                              <Switch checked={perms[key] ?? true} onCheckedChange={() => togglePerm(cargo.id, cargo.permissoes, key)} />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
               </Collapsible>
             </CardContent>
           </Card>
