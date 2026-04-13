@@ -216,7 +216,7 @@ export function AIInsightsWidget() {
       <CardContent className="space-y-4">
         {/* Best Strategy */}
         {bestStrategy && (
-          <div className="rounded-lg border bg-accent/30 p-3 space-y-2">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.05 }} className="rounded-lg border bg-accent/30 p-3 space-y-2">
             <div className="flex items-center gap-2">
               <Trophy className="h-4 w-4 text-yellow-500" />
               <span className="text-sm font-semibold text-foreground">Melhor Estratégia</span>
@@ -233,12 +233,12 @@ export function AIInsightsWidget() {
               {bestStrategy.total_events} eventos · {bestStrategy.deals_won} vendas fechadas ·
               Desconto médio: {bestStrategy.avg_discount.toFixed(1)}%
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* Low conversion alert */}
         {worstStrategy && worstStrategy.total_events >= 5 && worstStrategy.conversion_rate < 0.1 && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-1">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.1 }} className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-1">
             <div className="flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-destructive" />
               <span className="text-sm font-semibold text-destructive">Estratégia com Baixa Conversão</span>
@@ -248,19 +248,19 @@ export function AIInsightsWidget() {
               {(worstStrategy.conversion_rate * 100).toFixed(1)}% de conversão em{" "}
               {worstStrategy.total_events} tentativas. Considere mudar de abordagem.
             </p>
-          </div>
+          </motion.div>
         )}
 
         {/* Strategy Rankings */}
         {strategies.length > 1 && (
-          <div className="space-y-2">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.15 }} className="space-y-2">
             <div className="flex items-center gap-2">
               <Target className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium text-foreground">Ranking de Estratégias</span>
             </div>
             <div className="space-y-1.5">
               {strategies.slice(0, 5).map((s, i) => (
-                <div key={s.strategy} className="flex items-center gap-2">
+                <motion.div key={s.strategy} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.15, delay: 0.2 + i * 0.04 }} className="flex items-center gap-2">
                   <span className="text-xs font-mono w-4 text-muted-foreground">{i + 1}.</span>
                   <span className="text-xs flex-1 truncate">
                     {STRATEGY_LABELS[s.strategy] || s.strategy}
@@ -272,15 +272,15 @@ export function AIInsightsWidget() {
                   <span className="text-xs font-mono w-12 text-right">
                     {(s.conversion_rate * 100).toFixed(0)}%
                   </span>
-                </div>
+                </motion.div>
               ))}
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* Discount Sweet Spot */}
         {discountSpot && discountSpot.sample_size > 0 && (
-          <div className="rounded-lg border p-3 space-y-2">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.25 }} className="rounded-lg border p-3 space-y-2">
             <div className="flex items-center gap-2">
               <Percent className="h-4 w-4 text-primary" />
               <span className="text-sm font-semibold text-foreground">Sweet-Spot de Desconto</span>
@@ -310,20 +310,23 @@ export function AIInsightsWidget() {
             <div className="text-xs text-muted-foreground">
               Baseado em {discountSpot.sample_size} vendas fechadas
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* Vendor Performance */}
         {vendors.length > 0 && (
-          <div className="space-y-2">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.3 }} className="space-y-2">
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium text-foreground">Performance por Vendedor</span>
             </div>
             <div className="space-y-2">
-              {vendors.slice(0, 5).map((v) => (
-                <div
+              {vendors.slice(0, 5).map((v, i) => (
+                <motion.div
                   key={v.user_id}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.15, delay: 0.35 + i * 0.04 }}
                   className="flex items-center gap-3 rounded-md border p-2"
                 >
                   <div className="flex-1 min-w-0">
@@ -341,34 +344,34 @@ export function AIInsightsWidget() {
                     </div>
                     <div className="text-xs text-muted-foreground">conversão</div>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* Temperature Conversion */}
         {tempConversions.length > 0 && (
-          <div className="space-y-2">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.35 }} className="space-y-2">
             <div className="flex items-center gap-2">
               <Thermometer className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium text-foreground">Conversão por Temperatura</span>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              {tempConversions.map((tc) => {
+              {tempConversions.map((tc, i) => {
                 const cfg = TEMPERATURE_CONFIG[tc.temperature];
                 return (
-                  <div key={tc.temperature} className={`rounded-lg p-2 text-center ${cfg?.bgColor || "bg-muted"}`}>
+                  <motion.div key={tc.temperature} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.15, delay: 0.4 + i * 0.05 }} className={`rounded-lg p-2 text-center ${cfg?.bgColor || "bg-muted"}`}>
                     <div className="text-lg">{cfg?.emoji || "📊"}</div>
                     <div className="text-sm font-bold">{tc.rate.toFixed(0)}%</div>
                     <div className="text-xs text-muted-foreground">
                       {cfg?.label || tc.temperature} ({tc.won}/{tc.total})
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })}
             </div>
-          </div>
+          </motion.div>
         )}
       </CardContent>
             )}
