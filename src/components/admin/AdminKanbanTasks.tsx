@@ -259,12 +259,20 @@ export function AdminKanbanTasks() {
   };
 
   const archiveTask = async (id: string) => {
+    if (!confirm("Deseja arquivar esta tarefa?")) return;
     const { error } = await supabase
       .from("admin_tasks" as any)
       .update({ coluna: "arquivada", moved_at: new Date().toISOString() } as any)
       .eq("id", id);
     if (error) { toast.error("Erro ao arquivar"); return; }
     toast.success("Tarefa arquivada");
+  };
+
+  const deleteArchivedTask = async (id: string) => {
+    if (!confirm("Excluir permanentemente esta tarefa? Esta ação não pode ser desfeita.")) return;
+    const { error } = await supabase.from("admin_tasks" as any).delete().eq("id", id);
+    if (error) { toast.error("Erro ao excluir"); return; }
+    toast.success("Tarefa excluída permanentemente");
   };
 
   const restoreTask = async (id: string) => {
