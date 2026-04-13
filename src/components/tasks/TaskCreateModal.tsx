@@ -40,6 +40,7 @@ export function TaskCreateModal({ open, onClose, onSave, editingTask, currentUse
       setDataTarefa(editingTask.data_tarefa);
       setHorario(editingTask.horario || "");
       setTipo(editingTask.tipo);
+      setTipoOutrosDesc("");
       setResponsavelId(editingTask.responsavel_id || "");
       setAnexos(editingTask.anexos || []);
     } else {
