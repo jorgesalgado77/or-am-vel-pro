@@ -170,17 +170,20 @@ export function AdminKanbanTasks() {
   }, [tasks, alertsDismissed]);
 
   // Filtered tasks
+  const activeTasks = useMemo(() => tasks.filter(t => t.coluna !== "arquivada"), [tasks]);
+  const archivedTasks = useMemo(() => tasks.filter(t => t.coluna === "arquivada"), [tasks]);
+
   const filteredTasks = useMemo(() => {
-    return tasks.filter((t) => {
+    return activeTasks.filter((t) => {
       if (searchQuery && !t.titulo.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       if (filterPrioridade !== "all" && t.prioridade !== filterPrioridade) return false;
       return true;
     });
-  }, [tasks, searchQuery, filterPrioridade]);
+  }, [activeTasks, searchQuery, filterPrioridade]);
 
   const tasksByColumn = useMemo(() => {
     const map: Record<ColumnKey, AdminTask[]> = { nova: [], pendente: [], execucao: [], concluida: [] };
-    filteredTasks.forEach((t) => { if (map[t.coluna]) map[t.coluna].push(t); });
+    filteredTasks.forEach((t) => { if (map[t.coluna as ColumnKey]) map[t.coluna as ColumnKey].push(t); });
     return map;
   }, [filteredTasks]);
 
