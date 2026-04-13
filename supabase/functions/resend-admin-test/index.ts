@@ -56,14 +56,14 @@ async function requireAdminMaster(authHeader: string | null) {
   }
 
   const userClient = getUserClient(authHeader);
-  const {
-    data: { user },
-    error: authError,
-  } = await userClient.auth.getUser();
+  const token = authHeader.replace("Bearer ", "");
+  const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
 
-  if (authError || !user?.email) {
+  if (claimsError || !claimsData?.claims?.sub || !claimsData?.claims?.email) {
     return { error: respond({ error: "Não autorizado" }, 401) };
   }
+
+  const user = { id: claimsData.claims.sub, email: claimsData.claims.email as string };
 
   const adminClient = getAdminClient();
   const { data: adminCheck, error: adminError } = await adminClient

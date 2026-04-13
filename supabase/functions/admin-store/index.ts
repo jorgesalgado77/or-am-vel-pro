@@ -17,14 +17,16 @@ serve(async (req) => {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const authHeader = req.headers.get("authorization") || "";
 
-    // Verify the caller is an admin master
+    // Verify the caller is an admin master using getClaims
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user }, error: authError } = await userClient.auth.getUser();
-    if (authError || !user) {
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims?.sub) {
       return json({ error: "Não autorizado" }, 401);
     }
+    const user = { id: claimsData.claims.sub, email: claimsData.claims.email };
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
     const { data: adminCheck } = await adminClient
