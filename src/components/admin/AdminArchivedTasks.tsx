@@ -121,15 +121,26 @@ export function AdminArchivedTasks({
                   )}
                 </div>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 shrink-0 text-xs"
-                onClick={() => onRestore(task.id)}
-              >
-                <ArchiveRestore className="h-3.5 w-3.5" />
-                Restaurar
-              </Button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs"
+                  onClick={() => onRestore(task.id)}
+                >
+                  <ArchiveRestore className="h-3.5 w-3.5" />
+                  Restaurar
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                  onClick={() => onDelete(task.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Excluir
+                </Button>
+              </div>
             </div>
           ))}
         </div>
