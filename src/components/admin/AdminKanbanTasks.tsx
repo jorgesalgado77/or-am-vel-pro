@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
   DragDropContext, Droppable, Draggable,
@@ -15,10 +16,11 @@ import {
 } from "@hello-pangea/dnd";
 import {
   Plus, Trash2, GripVertical, AlertTriangle, CalendarSync, Clock,
-  Search, Filter, CalendarClock, Pencil,
+  Search, Filter, CalendarClock, Pencil, Archive,
 } from "lucide-react";
 import { differenceInDays, format, isPast, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { AdminArchivedTasks } from "./AdminArchivedTasks";
 
 // ─── Types ───
 interface AdminTask {
