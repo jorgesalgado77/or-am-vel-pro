@@ -1,4 +1,5 @@
 import {useState, useRef, useEffect, useMemo, useCallback} from "react";
+import DOMPurify from "dompurify";
 import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import {Button} from "@/components/ui/button";
 import {Printer, Eye, Code, Lock, LockOpen, Save, Download, Send, Copy, Check, Wand2, Undo2, X, ChevronDown, ChevronUp, Move, Grid3X3} from "lucide-react";
