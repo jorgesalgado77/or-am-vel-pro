@@ -523,8 +523,22 @@ export function AdminKanbanTasks() {
           ))}
         </div>
       </DragDropContext>
+        </TabsContent>
 
-      {/* New Task Dialog */}
+        <TabsContent value="arquivadas" className="mt-3">
+          <AdminArchivedTasks
+            tasks={archivedTasks}
+            onRestore={restoreTask}
+            dateStart={archivedDateStart}
+            dateEnd={archivedDateEnd}
+            onDateStartChange={setArchivedDateStart}
+            onDateEndChange={setArchivedDateEnd}
+            searchQuery={archivedSearch}
+            onSearchChange={setArchivedSearch}
+          />
+        </TabsContent>
+      </Tabs>
+
       <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
         <DialogContent className="max-w-[95vw] sm:max-w-md">
           <DialogHeader>
