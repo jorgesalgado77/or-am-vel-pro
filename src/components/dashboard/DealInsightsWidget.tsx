@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Brain, TrendingUp, AlertTriangle, Target, Zap, Flame } from "lucide-react";
+import { Brain, TrendingUp, AlertTriangle, Target, Zap, Flame, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/lib/supabaseClient";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { getCommercialEngine } from "@/services/commercial";
@@ -117,55 +118,77 @@ export function DealInsightsWidget() {
   if (leads.length === 0) return null;
 
   return (
+    <TooltipProvider>
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-sm flex items-center gap-2">
           <Brain className="h-4 w-4 text-primary" />
           Top 5 Leads — IA Comercial
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help ml-auto" />
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[280px] text-xs">
+              Ranking dos 5 leads com maior probabilidade de fechamento, analisados pela IA Comercial. Inclui nível de risco, agressividade recomendada e alertas de margem.
+            </TooltipContent>
+          </Tooltip>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {leads.map((lead) => {
           const AggrIcon = AGGR_ICONS[lead.analysis.recommended_aggressiveness];
+          const aggrLabel = lead.analysis.recommended_aggressiveness === "conservadora" ? "Conservadora" : lead.analysis.recommended_aggressiveness === "comercial" ? "Comercial" : "Agressiva";
+          const riskLabel = lead.analysis.risk_level === "low" ? "Baixo" : lead.analysis.risk_level === "medium" ? "Médio" : "Alto";
           return (
-            <motion.div
-              key={lead.id}
-              className="flex items-center gap-3 p-2.5 rounded-lg border border-border bg-muted/20 hover:bg-muted/40 transition-all duration-200 cursor-default"
-              whileHover={{ scale: 1.02 }}
-            >
-              <div className="flex items-center justify-center h-9 w-9 rounded-full bg-primary/10 shrink-0">
-                <Flame className="h-4 w-4 text-primary" />
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-medium text-foreground truncate">
-                    {lead.name}
-                  </span>
-                  {lead.temperature === "quente" && <span title="Quente">🔥</span>}
-                  {lead.temperature === "morno" && <span title="Morno">🌤️</span>}
-                </div>
-                <p className="text-[10px] text-muted-foreground line-clamp-1">
-                  {lead.analysis.insights[0] || "Sem insights adicionais"}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-1.5 shrink-0">
-                <Badge
-                  variant="outline"
-                  className={`text-[10px] px-1.5 py-0 ${RISK_COLORS[lead.analysis.risk_level]}`}
+            <Tooltip key={lead.id}>
+              <TooltipTrigger asChild>
+                <motion.div
+                  className="flex items-center gap-3 p-2.5 rounded-lg border border-border bg-muted/20 hover:bg-muted/40 transition-all duration-200 cursor-default"
+                  whileHover={{ scale: 1.02 }}
                 >
-                  {lead.analysis.closing_probability}%
-                </Badge>
-                <AggrIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                {lead.analysis.margin_alert && (
-                  <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
-                )}
-              </div>
-            </motion.div>
+                  <div className="flex items-center justify-center h-9 w-9 rounded-full bg-primary/10 shrink-0">
+                    <Flame className="h-4 w-4 text-primary" />
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-medium text-foreground truncate">
+                        {lead.name}
+                      </span>
+                      {lead.temperature === "quente" && <span title="Quente">🔥</span>}
+                      {lead.temperature === "morno" && <span title="Morno">🌤️</span>}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground line-clamp-1">
+                      {lead.analysis.insights[0] || "Sem insights adicionais"}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] px-1.5 py-0 ${RISK_COLORS[lead.analysis.risk_level]}`}
+                    >
+                      {lead.analysis.closing_probability}%
+                    </Badge>
+                    <AggrIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                    {lead.analysis.margin_alert && (
+                      <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+                    )}
+                  </div>
+                </motion.div>
+              </TooltipTrigger>
+              <TooltipContent side="left" className="max-w-[260px] text-xs space-y-1">
+                <p><strong>{lead.name}</strong></p>
+                <p>Prob. fechamento: {lead.analysis.closing_probability}% • Risco: {riskLabel}</p>
+                <p>Estratégia: {aggrLabel}</p>
+                {lead.analysis.margin_alert && <p className="text-destructive">⚠️ Alerta de margem baixa</p>}
+                {lead.analysis.insights[0] && <p className="italic text-muted-foreground">{lead.analysis.insights[0]}</p>}
+              </TooltipContent>
+            </Tooltip>
           );
         })}
       </CardContent>
     </Card>
+    </TooltipProvider>
   );
 }
