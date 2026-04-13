@@ -279,7 +279,7 @@ export function AdminKanbanTasks() {
   const syncGoogleCalendar = async () => {
     setGcalSyncing(true);
     try {
-      const activeTasks = tasks.filter((t) => t.coluna !== "concluida");
+      const activeTasks = tasks.filter((t) => t.coluna !== "concluida" && t.coluna !== "arquivada");
       const { data, error } = await supabase.functions.invoke("google-calendar-admin-sync", {
         body: { tasks: activeTasks },
       });
