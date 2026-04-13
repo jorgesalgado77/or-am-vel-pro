@@ -108,7 +108,7 @@ export function TaskCreateModal({ open, onClose, onSave, editingTask, currentUse
       await onSave({
         ...(editingTask ? { id: editingTask.id } : {}),
         titulo: titulo.trim(),
-        descricao: descricao.trim() || null,
+        descricao: tipo === "outros" ? `[${tipoOutrosDesc.trim()}] ${descricao.trim()}`.trim() : (descricao.trim() || null),
         data_tarefa: dataTarefa,
         horario: horario || null,
         tipo,
