@@ -46,6 +46,17 @@ const MeasurementCalendarWidget = lazy(() => import("@/components/dashboard/Meas
 const TechnicalDashboardCards = lazy(() => import("@/components/dashboard/TechnicalDashboardCards").then(m => ({ default: m.TechnicalDashboardCards })));
 const TasksPanel = lazy(() => import("@/components/tasks/TasksPanel").then(m => ({ default: m.TasksPanel })));
 
+      {/* Tasks Panel for liberador role — right below date filter */}
+      {isLiberador && (
+        <Suspense fallback={<div className="h-48 animate-pulse bg-muted rounded-lg" />}>
+          <TasksPanel
+            tenantId={resolvedTenantId}
+            userId={currentUser?.id}
+            userName={currentUser?.nome_completo || currentUser?.apelido || ""}
+            cargoNome={cargoLower}
+          />
+        </Suspense>
+      )}
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
