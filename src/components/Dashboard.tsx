@@ -420,7 +420,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
   // Skeleton fallbacks are now imported from DashboardSkeletons
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-4 lg:space-y-6">
       {/* Date Filter — always on top */}
       <DashboardDateFilter
         datePreset={datePreset} onPresetChange={setDatePreset}
