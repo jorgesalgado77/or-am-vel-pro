@@ -202,6 +202,8 @@ export default function Login() {
     let cancelled = false;
     const formattedCode = digits.replace(/(\d{3})(\d{3})/, "$1.$2");
 
+    setResolvedTenantId(null);
+    setTenantInfo(null);
     setTenantLoading(true);
     (async () => {
       try {
@@ -266,35 +268,21 @@ export default function Login() {
           console.warn("[Login] RPC resolve_tenant_by_code not available:", e);
         }
 
-        // Strategy 3: Direct query tenants (works only if RLS allows anon read)
+        // Strategy 3: Direct query tenants (fallback only for branding when anon read is allowed)
         const { data: tenantData } = await supabase
           .from("tenants")
-          .select("id, nome_loja")
+          .select("nome_loja, codigo_loja")
           .or(`codigo_loja.eq.${formattedCode},codigo_loja.eq.${digits}`)
           .limit(1)
           .maybeSingle();
 
-        if (!cancelled && tenantData?.id) {
-          setResolvedTenantId(tenantData.id);
-          const { data: csData } = await supabase
-            .from("company_settings" as unknown as "clients")
-            .select("company_name, nome_empresa, company_subtitle, logo_url")
-            .eq("tenant_id", tenantData.id)
-            .maybeSingle();
-
-          const cs = csData as unknown as { company_name?: string; nome_empresa?: string; company_subtitle?: string; logo_url?: string } | null;
-
-          if (!cancelled) {
-            const nome = cs?.company_name || cs?.nome_empresa || (tenantData as unknown as { nome_loja: string }).nome_loja;
-            if (nome) {
-              setTenantInfo({
-                nome,
-                subtitulo: cs?.company_subtitle || "",
-                logo_url: cs?.logo_url || null,
-              });
-              return;
-            }
-          }
+        if (!cancelled && tenantData?.nome_loja) {
+          setTenantInfo({
+            nome: (tenantData as unknown as { nome_loja: string }).nome_loja,
+            subtitulo: "",
+            logo_url: null,
+          });
+          return;
         }
 
         if (!cancelled) setTenantInfo(null);
@@ -310,6 +298,7 @@ export default function Login() {
 
   const companyName = tenantInfo?.nome || "OrçaMóvel PRO";
   const companySubtitle = tenantInfo?.subtitulo || "Orce. Venda. Simplifique";
+  const hasTenantMatch = Boolean(resolvedTenantId || tenantInfo?.nome);
 
   if (planBlocked) {
     return (
@@ -461,7 +450,7 @@ export default function Login() {
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 group">
                       {tenantLoading ? (
                         <Loader2 className="h-4 w-4 text-white/50 animate-spin" />
-                      ) : resolvedTenantId ? (
+                      ) : hasTenantMatch ? (
                         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 400, damping: 15 }} className="relative">
                           <div className="h-5 w-5 rounded-full bg-emerald-500/20 flex items-center justify-center cursor-default">
                             <svg className="h-3 w-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
