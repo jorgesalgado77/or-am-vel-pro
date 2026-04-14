@@ -34,7 +34,7 @@ interface AuthContextType {
   user: AppUser | null;
   session: Session | null;
   loading: boolean;
-  login: (email: string, password: string, storeCode?: string) => Promise<{ user: AppUser | null; error: string | null }>;
+  login: (email: string, password: string, storeCode?: string, preResolvedTenantId?: string | null) => Promise<{ user: AppUser | null; error: string | null }>;
   signUp: (email: string, password: string, metadata?: Record<string, unknown>) => Promise<{ error: string | null; tenantId?: string }>;
   logout: () => Promise<void>;
   hasPermission: (perm: keyof CargoPermissoes) => boolean;
