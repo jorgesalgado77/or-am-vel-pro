@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabaseClient";
 import type { CargoPermissoes } from "@/hooks/useCargos";
 import { logLoginDiagnostic } from "@/services/system/SystemDiagnosticsService";
 import { logAudit } from "@/services/auditService";
-import { initializeTheme, resetToDefaultTheme } from "@/lib/colorThemes";
+import { initializeTheme, resetToDefaultTheme, applyTheme } from "@/lib/colorThemes";
 import type { Session, User as SupabaseAuthUser } from "@supabase/supabase-js";
 import { InactivityWarningDialog } from "@/components/InactivityWarningDialog";
 
