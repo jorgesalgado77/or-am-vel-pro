@@ -118,8 +118,8 @@ export function MeasurementRequestModal({
     [client?.id, tracking?.id],
   );
   const addressDraftStorageKey = useMemo(
-    () => (client?.id ? `measurement-request-address:${client.id}:${tracking?.id || "no-tracking"}` : null),
-    [client?.id, tracking?.id],
+    () => (client?.id ? `measurement-request-address:${client.id}` : null),
+    [client?.id],
   );
   const sanitizeAddressForm = useCallback((value?: Partial<AddressFormState> | null): AddressFormState => ({
     cep: maskCep(String(value?.cep || "")),
@@ -143,7 +143,7 @@ export function MeasurementRequestModal({
     if (!addressDraftStorageKey) return null;
 
     try {
-      const stored = sessionStorage.getItem(addressDraftStorageKey);
+      const stored = localStorage.getItem(addressDraftStorageKey) || sessionStorage.getItem(addressDraftStorageKey);
       if (!stored) return null;
       return sanitizeAddressForm(JSON.parse(stored));
     } catch {
@@ -154,7 +154,9 @@ export function MeasurementRequestModal({
     if (!addressDraftStorageKey) return;
 
     try {
-      sessionStorage.setItem(addressDraftStorageKey, JSON.stringify(sanitizeAddressForm(value)));
+      const normalized = JSON.stringify(sanitizeAddressForm(value));
+      localStorage.setItem(addressDraftStorageKey, normalized);
+      sessionStorage.setItem(addressDraftStorageKey, normalized);
     } catch {
       // ignore storage issues
     }
@@ -163,6 +165,7 @@ export function MeasurementRequestModal({
     if (!addressDraftStorageKey) return;
 
     try {
+      localStorage.removeItem(addressDraftStorageKey);
       sessionStorage.removeItem(addressDraftStorageKey);
     } catch {
       // ignore storage issues
@@ -391,7 +394,7 @@ export function MeasurementRequestModal({
     return (Array.isArray(data) ? data[0] : null) as Record<string, any> | null;
   }, [client.id, tracking?.id]);
 
-  const hydrateClientState = useCallback((source: any) => {
+  const hydrateClientState = useCallback((source: any, options?: { suppressWarning?: boolean }) => {
     const merged = source || {};
     const nestedClient = [
       merged.client_snapshot,
@@ -521,7 +524,8 @@ export function MeasurementRequestModal({
         (client as any)?.uf,
       ) || ""),
     };
-    const nextAddressForm = persistedDraft || resolvedAddressForm;
+    const nextAddressForm = sanitizeAddressForm(persistedDraft || resolvedAddressForm);
+    const shouldSuppressWarning = options?.suppressWarning ?? false;
 
     setEditableFields({
       telefone: maskPhone(String(pickFirstFilled(
@@ -552,16 +556,19 @@ export function MeasurementRequestModal({
       addressFormRef.current = nextAddressForm;
       setAddressForm(nextAddressForm);
 
-      if (!isAddressComplete(nextAddressForm)) {
-        setEditingAddress(true);
-        setTimeout(() => toast.warning("⚠️ Endereço de entrega não encontrado. Por favor, preencha o endereço abaixo."), 500);
-      } else {
+      if (isAddressComplete(nextAddressForm)) {
+        persistAddressDraft(nextAddressForm);
         setEditingAddress(false);
+      } else {
+        setEditingAddress(true);
+        if (!shouldSuppressWarning) {
+          setTimeout(() => toast.warning("⚠️ Endereço de entrega não encontrado. Por favor, preencha o endereço abaixo."), 500);
+        }
       }
     }
 
     setEditingField(null);
-  }, [client, isAddressComplete, loadAddressDraft, parsePersistedValue, tracking.cpf_cnpj]);
+  }, [client, isAddressComplete, loadAddressDraft, parsePersistedValue, persistAddressDraft, sanitizeAddressForm, tracking.cpf_cnpj]);
 
   useEffect(() => {
     if (!open || !client?.id || !modalSessionKey) return;
@@ -580,7 +587,12 @@ export function MeasurementRequestModal({
       setLastEditInfo(null);
       setPdfPreviewImages([]);
       setPdfPreviewOpen(false);
-      hydrateClientState(client as any);
+
+      const cachedAddress = loadAddressDraft();
+      hydrateClientState(
+        cachedAddress ? { ...(client as any), delivery_address: cachedAddress } : (client as any),
+        { suppressWarning: true },
+      );
     }
 
     const loadFreshClient = async () => {
@@ -594,7 +606,7 @@ export function MeasurementRequestModal({
       ]);
 
       if (active) {
-        hydrateClientState({ ...(clientRes.data as Record<string, any> || {}), ...(latestRequest || {}) });
+        hydrateClientState({ ...(clientRes.data as Record<string, any> || {}), ...(latestRequest || {}) }, { suppressWarning: false });
       }
     };
 
@@ -605,7 +617,7 @@ export function MeasurementRequestModal({
     return () => {
       active = false;
     };
-  }, [clearPreviewUrls, client, hydrateClientState, loadLatestMeasurementRequest, modalSessionKey, open]);
+  }, [clearPreviewUrls, client, hydrateClientState, loadAddressDraft, loadLatestMeasurementRequest, modalSessionKey, open]);
 
   useEffect(() => {
     if (!open) {
@@ -726,10 +738,16 @@ export function MeasurementRequestModal({
     persistAddressDraft(nextAddressForm);
 
     try {
-      // Try updating with all possible address column names; ignore errors from non-existent columns
-      const updatePayload: Record<string, string> = {};
-      // Try common column names — PostgREST will ignore unknown columns silently on some setups
-      // We attempt a minimal update first with the most likely columns
+      const deliveryAddressPayload = {
+        cep: nextAddressForm.cep,
+        street: nextAddressForm.street,
+        number: nextAddressForm.number,
+        complement: nextAddressForm.complement,
+        district: nextAddressForm.district,
+        city: nextAddressForm.city,
+        state: nextAddressForm.state,
+      };
+
       const columnSets = [
         {
           cep_entrega: nextAddressForm.cep,
@@ -751,21 +769,29 @@ export function MeasurementRequestModal({
         },
       ];
 
-      let saved = false;
       for (const cols of columnSets) {
         const { error } = await (supabase as any).from("clients").update(cols as any).eq("id", client.id);
-        if (!error) { saved = true; break; }
+        if (!error) break;
       }
 
-      // Even if DB columns don't exist, the address is kept in local state for the PDF and submission
+      const latestRequest = existingRequestId ? { id: existingRequestId } : await loadLatestMeasurementRequest();
+      if (latestRequest?.id) {
+        await (supabase as any)
+          .from("measurement_requests")
+          .update({
+            delivery_address: deliveryAddressPayload,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", latestRequest.id);
+      }
+
       toast.success("Endereço salvo!");
       setEditingAddress(false);
     } catch {
-      // Address is still preserved in local state even if DB save fails
       toast.success("Endereço salvo localmente!");
       setEditingAddress(false);
     }
-  }, [client?.id, getLatestAddressForm, persistAddressDraft]);
+  }, [client?.id, existingRequestId, getLatestAddressForm, loadLatestMeasurementRequest, persistAddressDraft]);
 
   // Load environments from simulations
   useEffect(() => {
@@ -1382,6 +1408,7 @@ export function MeasurementRequestModal({
       }
 
       // Build the payload
+      persistAddressDraft(normalizedAddress);
       const payload = {
         client_id: client.id,
         tracking_id: tracking.id,
@@ -1417,6 +1444,13 @@ export function MeasurementRequestModal({
           last_edited_by_user_id: currentUser?.id || userInfo.usuario_id || null,
           last_edited_by_user_name: userNomeCompleto || null,
           last_edited_by_user_cargo: userCargoNome || null,
+          delivery_address_zip: normalizedAddress.cep,
+          delivery_address_street: normalizedAddress.street,
+          delivery_address_number: normalizedAddress.number,
+          delivery_address_complement: normalizedAddress.complement,
+          delivery_address_district: normalizedAddress.district,
+          delivery_address_city: normalizedAddress.city,
+          delivery_address_state: normalizedAddress.state,
         },
         delivery_address: {
           cep: normalizedAddress.cep,
