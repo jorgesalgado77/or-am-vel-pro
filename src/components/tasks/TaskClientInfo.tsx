@@ -7,6 +7,9 @@ import { Separator } from "@/components/ui/separator";
 import { MapPin, User, Phone, Mail, Calendar, DollarSign, FileText, Loader2, Store, Hash } from "lucide-react";
 import { formatCurrency } from "@/lib/financing";
 import { format } from "date-fns";
+import { MeasurementRequestModal } from "@/components/kanban/MeasurementRequestModal";
+import type { Client } from "@/components/kanban/kanbanTypes";
+import type { ClientTrackingRecord } from "@/hooks/useClientTracking";
 
 interface ClientInfo {
   nome: string;
