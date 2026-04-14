@@ -182,6 +182,10 @@ interface LiberacaoRow {
   comissao: number | null;
   dataMedicao: string | null;
   prazoLiberacao: string | null;
+  prazoEntregaLoja: string | null;
+  prazoLiberacaoTecnica: string | null;
+  prazoInicioMontagem: string | null;
+  prazoAssistenciaTecnica: string | null;
   dataFinalizado: string | null;
   diasEmLiberacao: number | null;
   tecnicoResponsavel: string | null;
