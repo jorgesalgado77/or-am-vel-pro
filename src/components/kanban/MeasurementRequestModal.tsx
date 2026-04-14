@@ -1000,7 +1000,16 @@ export function MeasurementRequestModal({
       .catch(reject);
   }), []);
 
+  // In-memory thumbnail cache to avoid re-fetching and re-rendering
+  const thumbnailCacheRef = useRef<Map<string, string>>(new Map());
+
   const createPdfThumbnail = useCallback(async (source: string | File) => {
+    // Check cache for URL-based sources
+    const cacheKey = typeof source === "string" ? source : null;
+    if (cacheKey && thumbnailCacheRef.current.has(cacheKey)) {
+      return thumbnailCacheRef.current.get(cacheKey)!;
+    }
+
     try {
       const data = source instanceof File
         ? await source.arrayBuffer()
@@ -1014,7 +1023,12 @@ export function MeasurementRequestModal({
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       await page.render({ canvas, canvasContext: context, viewport }).promise;
-      return canvas.toDataURL("image/png");
+      const dataUrl = canvas.toDataURL("image/png");
+
+      // Store in cache
+      if (cacheKey) thumbnailCacheRef.current.set(cacheKey, dataUrl);
+
+      return dataUrl;
     } catch {
       return null;
     }
