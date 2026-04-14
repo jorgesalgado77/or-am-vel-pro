@@ -283,6 +283,8 @@ export default function Login() {
       } catch (err) {
         console.warn("[Login] Branding fetch failed:", err);
         if (!cancelled) setTenantInfo(null);
+      } finally {
+        if (!cancelled) setTenantLoading(false);
       }
     })();
     return () => { cancelled = true; };
