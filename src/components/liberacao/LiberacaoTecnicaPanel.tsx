@@ -478,7 +478,7 @@ export function LiberacaoTecnicaPanel() {
   };
 
   // Resizable header helper
-  const ResizableHead = ({ col, children, className, style: extraStyle }: { col: string; children: React.ReactNode; className?: string; style?: React.CSSProperties }) => (
+  const ResizableHead = ({ col, children, className, style: extraStyle }: { col: string; children?: React.ReactNode; className?: string; style?: React.CSSProperties }) => (
     <TableHead className={cn("relative select-none", className)} style={{ width: colWidths[col], minWidth: 40, ...extraStyle }}>
       {children}
       <div
