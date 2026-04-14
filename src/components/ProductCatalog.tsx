@@ -169,6 +169,36 @@ export function ProductCatalog() {
   const [promoProduct, setPromoProduct] = useState<Product | null>(null);
   const [promoFilter, setPromoFilter] = useState(false);
 
+  // Default images map: productId -> image_url
+  const [defaultImages, setDefaultImages] = useState<Record<string, string>>({});
+  const loadDefaultImages = useCallback(async () => {
+    const tenantId = getTenantId();
+    if (!tenantId) return;
+    const productIds = products.map(p => p.id);
+    if (productIds.length === 0) return;
+    const { data } = await supabase
+      .from("product_images" as any)
+      .select("product_id, image_url, is_default")
+      .in("product_id", productIds);
+    if (data) {
+      const map: Record<string, string> = {};
+      // First pass: collect all images per product
+      const byProduct: Record<string, any[]> = {};
+      (data as any[]).forEach(img => {
+        if (!byProduct[img.product_id]) byProduct[img.product_id] = [];
+        byProduct[img.product_id].push(img);
+      });
+      // Pick default or first
+      Object.entries(byProduct).forEach(([pid, imgs]) => {
+        const def = imgs.find(i => i.is_default);
+        map[pid] = def ? def.image_url : imgs[0].image_url;
+      });
+      setDefaultImages(map);
+    }
+  }, [products]);
+
+  useEffect(() => { loadDefaultImages(); }, [loadDefaultImages]);
+
   // Promotions map: productId -> { desconto, validade }
   const [promoMap, setPromoMap] = useState<Record<string, { desconto_percentual: number; valor_promocional: number; validade: string }>>({});
   const loadPromotions = useCallback(async () => {
@@ -518,6 +548,7 @@ export function ProductCatalog() {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="w-12 text-xs"></TableHead>
                           <TableHead className="text-xs">Código</TableHead>
                           <TableHead className="text-xs">Nome</TableHead>
                           <TableHead className="text-xs hidden sm:table-cell">Categoria</TableHead>
@@ -537,6 +568,20 @@ export function ProductCatalog() {
                           const promoActive = promo && !promoExpired;
                           return (
                             <TableRow key={p.id} className="cursor-pointer" onClick={() => { setDetailProduct(p); setDetailOpen(true); }}>
+                              <TableCell className="p-1">
+                                {defaultImages[p.id] ? (
+                                  <img
+                                    src={defaultImages[p.id]}
+                                    alt={p.name}
+                                    className="w-10 h-10 rounded object-cover border border-border"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
+                                    <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                                  </div>
+                                )}
+                              </TableCell>
                               <TableCell className="text-xs font-mono">{p.internal_code}</TableCell>
                               <TableCell className="text-xs font-medium max-w-[250px]">
                                 <div className="flex items-center gap-1.5 flex-wrap">
