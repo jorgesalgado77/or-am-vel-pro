@@ -96,66 +96,67 @@ export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId
       return;
     }
 
-    // Fetch client address from measurement_requests or client_contracts
+    // Fetch client address from measurement_requests.delivery_address or contract HTML
     setAddrLoading(true);
     (async () => {
       try {
-        // Strategy 1: measurement_requests (most likely has address)
         const { data: mrData } = await (supabase as any)
           .from("measurement_requests")
-          .select("delivery_address_zip, delivery_address_street, delivery_address_number, delivery_address_complement, delivery_address_district, delivery_address_city, delivery_address_state, endereco_entrega, numero_entrega, complemento_entrega, bairro_entrega, cidade_entrega, uf_entrega, cep_entrega")
+          .select("delivery_address, client_snapshot, created_at")
           .eq("client_id", clientId)
           .eq("tenant_id", tenantId)
           .order("created_at", { ascending: false })
           .limit(1);
 
         const mr = Array.isArray(mrData) ? mrData[0] : mrData;
-        if (mr) {
-          const addr = buildAddress([
-            mr.delivery_address_street || mr.endereco_entrega,
-            mr.delivery_address_number || mr.numero_entrega,
-            mr.delivery_address_complement || mr.complemento_entrega,
-            mr.delivery_address_district || mr.bairro_entrega,
-            mr.delivery_address_city || mr.cidade_entrega,
-            mr.delivery_address_state || mr.uf_entrega,
-            mr.delivery_address_zip || mr.cep_entrega,
-          ]);
-          if (addr) {
-            setResolvedClientAddr(addr);
-            setAddrLoading(false);
-            return;
-          }
+        const deliveryAddress = mr?.delivery_address || {};
+        const snapshot = mr?.client_snapshot || {};
+
+        const addrFromRequest = buildAddress([
+          deliveryAddress.street || snapshot.delivery_address_street || snapshot.endereco_entrega || snapshot.endereco,
+          deliveryAddress.number || snapshot.delivery_address_number || snapshot.numero_entrega || snapshot.numero,
+          deliveryAddress.complement || snapshot.delivery_address_complement || snapshot.complemento_entrega || snapshot.complemento,
+          deliveryAddress.district || snapshot.delivery_address_district || snapshot.bairro_entrega || snapshot.bairro,
+          deliveryAddress.city || snapshot.delivery_address_city || snapshot.cidade_entrega || snapshot.cidade,
+          deliveryAddress.state || snapshot.delivery_address_state || snapshot.uf_entrega || snapshot.estado || snapshot.uf,
+          deliveryAddress.cep || snapshot.delivery_address_zip || snapshot.cep_entrega || snapshot.cep,
+        ]);
+
+        if (addrFromRequest) {
+          setResolvedClientAddr(addrFromRequest);
+          setAddrLoading(false);
+          return;
         }
 
-        // Strategy 2: client_contracts snapshot
         const { data: contractData } = await (supabase as any)
           .from("client_contracts")
-          .select("snapshot")
+          .select("conteudo_html, snapshot")
           .eq("client_id", clientId)
           .eq("tenant_id", tenantId)
           .order("created_at", { ascending: false })
           .limit(1);
 
         const contract = Array.isArray(contractData) ? contractData[0] : contractData;
-        if (contract?.snapshot) {
-          const s = contract.snapshot;
-          const addr = buildAddress([
-            s.delivery_address_street || s.endereco_entrega || s.endereco,
-            s.delivery_address_number || s.numero_entrega || s.numero,
-            s.delivery_address_complement || s.complemento_entrega || s.complemento,
-            s.delivery_address_district || s.bairro_entrega || s.bairro,
-            s.delivery_address_city || s.cidade_entrega || s.cidade,
-            s.delivery_address_state || s.uf_entrega || s.estado || s.uf,
-            s.delivery_address_zip || s.cep_entrega || s.cep,
-          ]);
-          if (addr) {
-            setResolvedClientAddr(addr);
-            setAddrLoading(false);
-            return;
-          }
+        const contractSnapshot = contract?.snapshot || {};
+        const addrFromSnapshot = buildAddress([
+          contractSnapshot.delivery_address_street || contractSnapshot.endereco_entrega || contractSnapshot.endereco,
+          contractSnapshot.delivery_address_number || contractSnapshot.numero_entrega || contractSnapshot.numero,
+          contractSnapshot.delivery_address_complement || contractSnapshot.complemento_entrega || contractSnapshot.complemento,
+          contractSnapshot.delivery_address_district || contractSnapshot.bairro_entrega || contractSnapshot.bairro,
+          contractSnapshot.delivery_address_city || contractSnapshot.cidade_entrega || contractSnapshot.cidade,
+          contractSnapshot.delivery_address_state || contractSnapshot.uf_entrega || contractSnapshot.estado || contractSnapshot.uf,
+          contractSnapshot.delivery_address_zip || contractSnapshot.cep_entrega || contractSnapshot.cep,
+        ]);
+
+        if (addrFromSnapshot) {
+          setResolvedClientAddr(addrFromSnapshot);
+          setAddrLoading(false);
+          return;
         }
 
-        setResolvedClientAddr(null);
+        const html = String(contract?.conteudo_html || "");
+        const match = html.match(/<strong>Endereço de entrega:\/strong>\s*([^<]+)\.?/i) || html.match(/<strong>Endereço:<\/strong>\s*([^<]+)\.?/i);
+        setResolvedClientAddr(match?.[1]?.trim() || null);
       } catch (err) {
         console.warn("[MeasurementSchedule] Failed to fetch client address:", err);
         setResolvedClientAddr(null);
