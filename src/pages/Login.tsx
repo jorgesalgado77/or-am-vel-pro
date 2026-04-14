@@ -230,6 +230,7 @@ export default function Login() {
           .maybeSingle();
 
         if (!cancelled && tenantData?.id) {
+          setResolvedTenantId(tenantData.id);
           const { data: csData } = await supabase
             .from("company_settings" as unknown as "clients")
             .select("company_name, nome_empresa, company_subtitle, logo_url")
