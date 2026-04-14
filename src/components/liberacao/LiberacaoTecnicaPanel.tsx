@@ -205,7 +205,7 @@ export function LiberacaoTecnicaPanel() {
   const [loading, setLoading] = useState(true);
 
   // Filters
-  const [datePreset, setDatePreset] = useState<DatePreset>("mes_atual");
+  const [datePreset, setDatePreset] = useState<DatePreset>("todos");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -278,6 +278,8 @@ export function LiberacaoTecnicaPanel() {
   const dateRange = useMemo(() => {
     const now = new Date();
     switch (datePreset) {
+      case "todos":
+        return { start: new Date("2000-01-01T00:00:00.000Z"), end: new Date("2100-12-31T23:59:59.999Z") };
       case "mes_atual":
         return { start: startOfMonth(now), end: endOfMonth(now) };
       case "mes_anterior": {
@@ -296,7 +298,7 @@ export function LiberacaoTecnicaPanel() {
           end: customEnd ? new Date(customEnd) : endOfMonth(now),
         };
       default:
-        return { start: startOfMonth(now), end: endOfMonth(now) };
+        return { start: new Date("2000-01-01T00:00:00.000Z"), end: new Date("2100-12-31T23:59:59.999Z") };
     }
   }, [datePreset, customStart, customEnd]);
 
@@ -619,7 +621,8 @@ export function LiberacaoTecnicaPanel() {
 
     // Date filter
     result = result.filter(r => {
-      if (!r.dataFechamento) return datePreset === "mes_atual";
+      if (datePreset === "todos") return true;
+      if (!r.dataFechamento) return true;
       const d = new Date(r.dataFechamento);
       return d >= dateRange.start && d <= dateRange.end;
     });
@@ -788,6 +791,7 @@ export function LiberacaoTecnicaPanel() {
               <Select value={datePreset} onValueChange={(v) => { setDatePreset(v as DatePreset); setPage(0); }}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="todos">Todos os períodos</SelectItem>
                   <SelectItem value="mes_atual">Mês Atual</SelectItem>
                   <SelectItem value="mes_anterior">Mês Anterior</SelectItem>
                   <SelectItem value="ultimos_6">Últimos 6 Meses</SelectItem>
