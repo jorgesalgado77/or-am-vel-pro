@@ -1,12 +1,13 @@
 /**
  * TechnicalDashboardCards — Cards for technical roles (técnico, liberador, conferente)
  * Shows: queue position, total scheduled, release ceiling, salary preview
+ * Each card has an eye toggle to mask/unmask sensitive values with ****
  */
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { ListOrdered, Target, Wallet, Info, CalendarDays } from "lucide-react";
+import { ListOrdered, Target, Wallet, Info, CalendarDays, Eye, EyeOff } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/lib/supabaseClient";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
@@ -24,6 +25,41 @@ interface QueueItem {
   assignedTo: string | null;
 }
 
+const MASK = "****";
+const MASK_STORAGE_PREFIX = "tech-card-mask";
+
+function useMasked(cardKey: string, userId?: string) {
+  const storageKey = userId ? `${MASK_STORAGE_PREFIX}:${userId}:${cardKey}` : null;
+  const [masked, setMasked] = useState(() => {
+    if (!storageKey) return false;
+    return localStorage.getItem(storageKey) === "1";
+  });
+  const toggle = useCallback(() => {
+    setMasked((prev) => {
+      const next = !prev;
+      if (storageKey) localStorage.setItem(storageKey, next ? "1" : "0");
+      return next;
+    });
+  }, [storageKey]);
+  return { masked, toggle };
+}
+
+function MaskToggle({ masked, onToggle }: { masked: boolean; onToggle: () => void }) {
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onToggle(); }}
+      className="p-0.5 rounded hover:bg-muted/60 transition-colors"
+      title={masked ? "Mostrar dados" : "Ocultar dados"}
+    >
+      {masked ? (
+        <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+      ) : (
+        <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+      )}
+    </button>
+  );
+}
+
 export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboardCardsProps) {
   const { tetoLiberacao } = useMetasTetos();
   const [queuePosition, setQueuePosition] = useState<number | null>(null);
@@ -36,6 +72,11 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
   const [comissaoPercentual, setComissaoPercentual] = useState(0);
   const [tipoRegime, setTipoRegime] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const maskFila = useMasked("fila", userId);
+  const maskTot = useMasked("tot", userId);
+  const maskTeto = useMasked("teto", userId);
+  const maskSalario = useMasked("salario", userId);
 
   const fetchData = useCallback(async () => {
     if (!userId) return;
@@ -68,7 +109,6 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
       if (!value) return false;
       const v = value.toLowerCase().trim();
       if (!v) return false;
-      // Match by usuarios.id, auth_user_id, email, or name substring
       if (v === userId.toLowerCase()) return true;
       if (authUserId && v === authUserId) return true;
       if (userEmail && v === userEmail) return true;
@@ -126,26 +166,22 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
         .in("tipo", ["medicao_tecnica", "medicao"])
         .gte("data_tarefa", monthStartDate)
         .lt("data_tarefa", nextMonthDate),
-      // Fetch completed measurement requests assigned to this user this month
       (supabase as any)
         .from("measurement_requests")
         .select("id, client_id, nome_cliente, assigned_to, status, updated_at")
         .eq("tenant_id", tenantId)
         .gte("updated_at", monthStartIso),
-      // Fetch contract values from simulations via client_contracts
       supabase
         .from("client_contracts" as any)
         .select("client_id, simulation_id, simulations(valor_final)")
         .eq("tenant_id", tenantId),
     ]);
 
-    // Build a map of contract values from client_tracking
     const trackingMap = new Map<string, number>();
     (trackingData as any[] || []).forEach((t: any) => {
       trackingMap.set(t.client_id, Number(t.valor_contrato) || 0);
     });
 
-    // Build a fallback map from simulations.valor_final (via client_contracts)
     const contractValueMap = new Map<string, number>();
     (contractsData as any[] || []).forEach((c: any) => {
       const val = Number(c.simulations?.valor_final) || 0;
@@ -155,14 +191,12 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
       }
     });
 
-    // Helper to get best available contract value for a client
     const getContractValue = (clientId: string): number => {
       const trackingVal = trackingMap.get(clientId) || 0;
       if (trackingVal > 0) return trackingVal;
       return contractValueMap.get(clientId) || 0;
     };
 
-    // Method 1: client_status_history transitions (em_compras/enviado_compras)
     const liberatedClientIds = new Set<string>();
     (historyData as any[] || []).forEach((h: any) => {
       if (
@@ -173,7 +207,6 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
       }
     });
 
-    // Method 2: measurement_requests assigned to user (all statuses this month)
     (completedMR as any[] || []).forEach((mr: any) => {
       if (matchesUser(mr.assigned_to)) {
         liberatedClientIds.add(mr.client_id);
@@ -213,6 +246,9 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
   const comissaoSobreLiberacao = liberatedValue * (comissaoPercentual / 100);
   const salarioPrevisto = salarioFixo + comissaoSobreLiberacao;
 
+  const m = (val: string | number, isMasked: boolean) => isMasked ? MASK : val;
+  const mCurrency = (val: number, isMasked: boolean) => isMasked ? MASK : formatCurrency(val);
+
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -226,6 +262,7 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
   return (
     <TooltipProvider>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Card 1: Fila de Liberação */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 transition-all duration-200 hover:scale-[1.02] hover:shadow-md cursor-default">
@@ -238,32 +275,35 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
                     <h3 className="text-sm font-semibold text-foreground">Fila de Liberação</h3>
                     <p className="text-[10px] text-muted-foreground">Sua posição na fila</p>
                   </div>
+                  <MaskToggle masked={maskFila.masked} onToggle={maskFila.toggle} />
                   <Info className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>
 
                 <div className="flex items-center justify-between">
                   <div className="text-center flex-1">
-                    <p className="text-3xl font-bold text-primary">{queuePosition !== null ? `${queuePosition}º` : "—"}</p>
+                    <p className="text-3xl font-bold text-primary">
+                      {maskFila.masked ? MASK : (queuePosition !== null ? `${queuePosition}º` : "—")}
+                    </p>
                     <p className="text-[10px] text-muted-foreground">Posição</p>
                   </div>
                   <div className="w-px h-12 bg-border" />
                   <div className="text-center flex-1">
-                    <p className="text-3xl font-bold text-foreground">{queueTotal}</p>
+                    <p className="text-3xl font-bold text-foreground">{m(queueTotal, maskFila.masked)}</p>
                     <p className="text-[10px] text-muted-foreground">Total na Fila</p>
                   </div>
                 </div>
 
-                {queuePosition !== null && queuePosition <= 3 && (
+                {!maskFila.masked && queuePosition !== null && queuePosition <= 3 && (
                   <Badge variant="default" className="w-full justify-center text-xs">
                     🔔 Você é o próximo!
                   </Badge>
                 )}
-                {queuePosition === null && queueTotal > 0 && (
+                {!maskFila.masked && queuePosition === null && queueTotal > 0 && (
                   <Badge variant="secondary" className="w-full justify-center text-xs">
                     Nenhum item atribuído a você
                   </Badge>
                 )}
-                {queueTotal === 0 && (
+                {!maskFila.masked && queueTotal === 0 && (
                   <Badge variant="outline" className="w-full justify-center text-xs">
                     Fila vazia no momento
                   </Badge>
@@ -276,6 +316,7 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
           </TooltipContent>
         </Tooltip>
 
+        {/* Card 2: Total Agendado (TOT) */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Card className="border-secondary/40 bg-gradient-to-br from-secondary/35 to-accent/10 transition-all duration-200 hover:scale-[1.02] hover:shadow-md cursor-default">
@@ -288,11 +329,12 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
                     <h3 className="text-sm font-semibold text-foreground">Total Agendado</h3>
                     <p className="text-[10px] text-muted-foreground">Mês atual • medições com hora</p>
                   </div>
+                  <MaskToggle masked={maskTot.masked} onToggle={maskTot.toggle} />
                   <Info className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>
 
                 <div className="text-center py-2">
-                  <p className="text-3xl font-bold text-foreground">{scheduledCount}</p>
+                  <p className="text-3xl font-bold text-foreground">{m(scheduledCount, maskTot.masked)}</p>
                   <p className="text-[10px] text-muted-foreground">Agendamentos</p>
                 </div>
 
@@ -307,6 +349,7 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
           </TooltipContent>
         </Tooltip>
 
+        {/* Card 3: Teto de Liberação */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Card className="border-accent/30 bg-gradient-to-br from-accent/5 to-accent/10 transition-all duration-200 hover:scale-[1.02] hover:shadow-md cursor-default">
@@ -317,22 +360,23 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
                   </div>
                   <div className="flex-1">
                     <h3 className="text-sm font-semibold text-foreground">Teto de Liberação</h3>
-                    <p className="text-[10px] text-muted-foreground">Mês atual • {liberatedCount} liberações</p>
+                    <p className="text-[10px] text-muted-foreground">Mês atual • {maskTeto.masked ? MASK : liberatedCount} liberações</p>
                   </div>
+                  <MaskToggle masked={maskTeto.masked} onToggle={maskTeto.toggle} />
                   <Info className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div>
-                    <p className="text-sm font-bold text-primary">{formatCurrency(liberatedValue)}</p>
+                    <p className="text-sm font-bold text-primary">{mCurrency(liberatedValue, maskTeto.masked)}</p>
                     <p className="text-[10px] text-muted-foreground">Liberado</p>
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-foreground">{formatCurrency(tetoValue)}</p>
+                    <p className="text-sm font-bold text-foreground">{mCurrency(tetoValue, maskTeto.masked)}</p>
                     <p className="text-[10px] text-muted-foreground">Teto</p>
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-destructive">{formatCurrency(faltaParaTeto)}</p>
+                    <p className="text-sm font-bold text-destructive">{mCurrency(faltaParaTeto, maskTeto.masked)}</p>
                     <p className="text-[10px] text-muted-foreground">Faltante</p>
                   </div>
                 </div>
@@ -340,17 +384,17 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
                 <div className="space-y-1">
                   <div className="flex justify-between text-[10px] text-muted-foreground">
                     <span>Progresso</span>
-                    <span>{tetoPercent.toFixed(1)}%</span>
+                    <span>{maskTeto.masked ? MASK : `${tetoPercent.toFixed(1)}%`}</span>
                   </div>
-                  <Progress value={tetoPercent} className="h-2.5" />
+                  <Progress value={maskTeto.masked ? 0 : tetoPercent} className="h-2.5" />
                 </div>
 
-                {tetoPercent >= 100 && (
+                {!maskTeto.masked && tetoPercent >= 100 && (
                   <Badge variant="default" className="w-full justify-center text-xs bg-green-600">
                     ✅ Teto atingido!
                   </Badge>
                 )}
-                {tetoValue === 0 && (
+                {!maskTeto.masked && tetoValue === 0 && (
                   <p className="text-[10px] text-muted-foreground text-center italic">
                     Nenhum teto configurado para este mês
                   </p>
@@ -363,6 +407,7 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
           </TooltipContent>
         </Tooltip>
 
+        {/* Card 4: Prévia do Salário */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Card className="border-green-500/30 bg-gradient-to-br from-green-500/5 to-green-500/10 transition-all duration-200 hover:scale-[1.02] hover:shadow-md cursor-default">
@@ -377,22 +422,23 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
                       {tipoRegime ? `Regime: ${tipoRegime.toUpperCase()}` : "Mês atual"}
                     </p>
                   </div>
+                  <MaskToggle masked={maskSalario.masked} onToggle={maskSalario.toggle} />
                   <Info className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>
 
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-muted-foreground">Salário Fixo</span>
-                    <span className="text-sm font-semibold text-foreground">{formatCurrency(salarioFixo)}</span>
+                    <span className="text-sm font-semibold text-foreground">{mCurrency(salarioFixo, maskSalario.masked)}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-xs text-muted-foreground">Comissão ({comissaoPercentual}%)</span>
-                    <span className="text-sm font-semibold text-primary">{formatCurrency(comissaoSobreLiberacao)}</span>
+                    <span className="text-xs text-muted-foreground">Comissão ({maskSalario.masked ? MASK : `${comissaoPercentual}%`})</span>
+                    <span className="text-sm font-semibold text-primary">{mCurrency(comissaoSobreLiberacao, maskSalario.masked)}</span>
                   </div>
                   <div className="h-px bg-border" />
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-semibold text-foreground">Total Previsto</span>
-                    <span className="text-lg font-bold text-green-600">{formatCurrency(salarioPrevisto)}</span>
+                    <span className="text-lg font-bold text-green-600">{mCurrency(salarioPrevisto, maskSalario.masked)}</span>
                   </div>
                 </div>
 
