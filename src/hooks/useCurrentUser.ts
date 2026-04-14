@@ -12,6 +12,14 @@ export interface CurrentUser {
   telefone: string | null;
   email: string | null;
   permissoes: CargoPermissoes;
+  // Address fields
+  cep: string | null;
+  endereco: string | null;
+  numero: string | null;
+  complemento: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  uf: string | null;
 }
 
 const DEFAULT_PERMS: CargoPermissoes = {
@@ -91,6 +99,13 @@ export function useCurrentUserLoader() {
       telefone: (user as any).telefone ?? null,
       email: (user as any).email ?? null,
       permissoes,
+      cep: (user as any).cep ?? null,
+      endereco: (user as any).endereco ?? null,
+      numero: (user as any).numero ?? null,
+      complemento: (user as any).complemento ?? null,
+      bairro: (user as any).bairro ?? null,
+      cidade: (user as any).cidade ?? null,
+      uf: (user as any).uf ?? null,
     };
     setCurrentUser(cu);
     localStorage.setItem("current_user_id", userId);
