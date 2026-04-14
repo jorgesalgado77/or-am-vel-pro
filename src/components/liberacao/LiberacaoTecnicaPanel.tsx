@@ -236,7 +236,7 @@ export function LiberacaoTecnicaPanel() {
   const calculateDistances = useCallback(async (tenantId: string, currentRows: LiberacaoRow[]) => {
     try {
       // Get Google Maps API key
-      const { data: apiKeyData } = await supabase
+      const { data: apiKeyData } = await (supabase as any)
         .from("api_keys")
         .select("api_key")
         .eq("tenant_id", tenantId)
@@ -250,7 +250,7 @@ export function LiberacaoTecnicaPanel() {
       const techNames = [...new Set(currentRows.map(r => r.tecnicoResponsavel).filter(Boolean))];
       if (techNames.length === 0) return;
 
-      const { data: usuarios } = await supabase
+      const { data: usuarios } = await (supabase as any)
         .from("usuarios")
         .select("nome_completo, endereco_completo")
         .eq("tenant_id", tenantId)
