@@ -419,7 +419,7 @@ export async function resolveTenantIdByStoreCode(storeCode?: string | null): Pro
         .select("id, codigo_loja")
         .in("codigo_loja", candidates)
         .limit(candidates.length))(),
-      1200,
+      3000,
       { data: null, error: createTimeoutError("tenant_direct_lookup") } as any,
     ),
     withTimeout(
