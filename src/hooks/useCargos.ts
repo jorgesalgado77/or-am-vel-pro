@@ -29,6 +29,7 @@ export interface CargoPermissoes {
   catalogo: boolean;
   medicao: boolean;
   liberacao: boolean;
+  liberacao_tecnica: boolean;
   tutoriais: boolean;
   email: boolean;
   cadastrar_produtos: boolean;
@@ -70,6 +71,7 @@ const DEFAULT_PERMISSOES: CargoPermissoes = {
   catalogo: true,
   medicao: false,
   liberacao: false,
+  liberacao_tecnica: false,
   tutoriais: true,
   email: true,
   cadastrar_produtos: false,
