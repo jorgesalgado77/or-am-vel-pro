@@ -135,6 +135,9 @@ export function LiberacaoTecnicaPanel() {
   // Pedágio modal
   const [pedagioModal, setPedagioModal] = useState<{ open: boolean; row: LiberacaoRow | null }>({ open: false, row: null });
 
+  // Current user context for address-based KM calculation & comissão
+  const { currentUser } = useContext(CurrentUserContext);
+
   // Save column widths to localStorage
   const saveColWidths = useCallback((widths: Record<string, number>) => {
     try { localStorage.setItem(COL_STORAGE_KEY, JSON.stringify(widths)); } catch {}
@@ -204,6 +207,10 @@ export function LiberacaoTecnicaPanel() {
     }
   }, [datePreset, customStart, customEnd]);
 
+  // ──── Build address string helper ────
+  const buildAddressStr = (parts: (string | null | undefined)[]) =>
+    parts.filter(Boolean).join(", ") || "—";
+
   // ──── Fetch data ────
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -211,7 +218,7 @@ export function LiberacaoTecnicaPanel() {
     if (!tenantId) { setLoading(false); return; }
 
     try {
-      // 1. Get tenant info for loja
+      // 1. Tenant info
       const { data: tenantData } = await supabase
         .from("tenants")
         .select("nome_loja, codigo_loja")
@@ -221,7 +228,7 @@ export function LiberacaoTecnicaPanel() {
       const nomeLoja = tenantData?.nome_loja || null;
       const codigoLoja = tenantData?.codigo_loja || null;
 
-      // 2. Get client_tracking records
+      // 2. Client tracking records
       const { data: tracking, error: tErr } = await supabase
         .from("client_tracking")
         .select("*")
@@ -234,18 +241,28 @@ export function LiberacaoTecnicaPanel() {
 
       const clientIds = [...new Set(allTracking.map(t => t.client_id))];
 
-      // 3. Get clients info + measurement_requests in parallel
-      const [clientsRes, mrRes] = await Promise.all([
+      // 3. Get clients, measurement_requests, dealroom_transactions, and usuarios in parallel
+      const [clientsRes, mrRes, dealroomRes, usuariosRes] = await Promise.all([
         supabase
           .from("clients")
-          .select("id, nome, telefone1, email, quantidade_ambientes")
+          .select("id, nome, telefone1, email, quantidade_ambientes, status, vendedor")
           .in("id", clientIds),
         (supabase as any)
           .from("measurement_requests")
-          .select("id, client_id, status, assigned_to, created_at, updated_at, cep_entrega, endereco_entrega, numero_entrega, bairro_entrega, cidade_entrega, uf_entrega")
+          .select("id, client_id, status, assigned_to, created_at, updated_at, cep_entrega, endereco_entrega, numero_entrega, bairro_entrega, cidade_entrega, uf_entrega, snapshot")
           .eq("tenant_id", tenantId)
           .in("client_id", clientIds)
           .order("created_at", { ascending: false }),
+        supabase
+          .from("dealroom_transactions")
+          .select("client_id, nome_vendedor, valor_venda, created_at, numero_contrato")
+          .eq("tenant_id", tenantId)
+          .in("client_id", clientIds)
+          .order("created_at", { ascending: false }),
+        (supabase as any)
+          .from("usuarios")
+          .select("id, nome_completo, cargo_id, comissao_percentual, cep, endereco, numero, complemento, bairro, cidade, uf")
+          .eq("tenant_id", tenantId),
       ]);
 
       const clientsMap = new Map<string, any>();
@@ -256,21 +273,82 @@ export function LiberacaoTecnicaPanel() {
         if (!mrMap.has(mr.client_id)) mrMap.set(mr.client_id, mr);
       });
 
+      const dealroomMap = new Map<string, any>();
+      ((dealroomRes.data || []) as any[]).forEach((dr: any) => {
+        if (dr.client_id && !dealroomMap.has(dr.client_id)) dealroomMap.set(dr.client_id, dr);
+      });
+
+      // Build usuario lookup by id and name
+      const usuarioById = new Map<string, any>();
+      const usuarioByName = new Map<string, any>();
+      ((usuariosRes.data || []) as any[]).forEach((u: any) => {
+        usuarioById.set(u.id, u);
+        if (u.nome_completo) usuarioByName.set(u.nome_completo.toLowerCase().trim(), u);
+      });
+
+      // Get current user's comissao_percentual
+      const currentUserId = currentUser?.id;
+      const currentUserData = currentUserId ? usuarioById.get(currentUserId) : null;
+      const userComissao = currentUserData?.comissao_percentual ?? 0;
+
+      // Build current user address for KM calculation
+      const currentUserAddr = currentUser ? buildAddressStr([
+        currentUser.endereco,
+        currentUser.numero ? `nº ${currentUser.numero}` : null,
+        currentUser.bairro,
+        currentUser.cidade && currentUser.uf ? `${currentUser.cidade}-${currentUser.uf}` : (currentUser.cidade || currentUser.uf),
+        currentUser.cep,
+      ]) : null;
+
       // 4. Build rows
       const mapped: LiberacaoRow[] = allTracking.map((t: any) => {
         const client = clientsMap.get(t.client_id);
         const mr = mrMap.get(t.client_id);
+        const dealroom = dealroomMap.get(t.client_id);
+        const snapshot = mr?.snapshot || {};
 
+        // ── Status: prefer client.status, fallback to tracking.status
+        const rawStatus = client?.status || t.status || "—";
+
+        // ── Vendedor/Projetista: try tracking.projetista → dealroom.nome_vendedor → client.vendedor
+        const vendedorProjetista = t.projetista || dealroom?.nome_vendedor || client?.vendedor || null;
+
+        // ── Endereço de entrega: try measurement_request columns → snapshot → contract snapshot
         const addrParts = [
-          mr?.endereco_entrega,
-          mr?.numero_entrega && `nº ${mr.numero_entrega}`,
-          mr?.bairro_entrega,
-          mr?.cidade_entrega && mr?.uf_entrega ? `${mr.cidade_entrega}-${mr.uf_entrega}` : (mr?.cidade_entrega || mr?.uf_entrega),
+          mr?.endereco_entrega || snapshot?.delivery_address_street || snapshot?.endereco_entrega || snapshot?.endereco,
+          (mr?.numero_entrega || snapshot?.delivery_address_number || snapshot?.numero_entrega || snapshot?.numero) ? `nº ${mr?.numero_entrega || snapshot?.delivery_address_number || snapshot?.numero_entrega || snapshot?.numero}` : null,
+          mr?.bairro_entrega || snapshot?.delivery_address_neighborhood || snapshot?.bairro_entrega || snapshot?.bairro,
+          (() => {
+            const city = mr?.cidade_entrega || snapshot?.delivery_address_city || snapshot?.cidade_entrega || snapshot?.cidade;
+            const uf = mr?.uf_entrega || snapshot?.delivery_address_state || snapshot?.uf_entrega || snapshot?.uf;
+            return city && uf ? `${city}-${uf}` : (city || uf || null);
+          })(),
+          mr?.cep_entrega || snapshot?.delivery_address_zip || snapshot?.cep_entrega || snapshot?.cep,
         ].filter(Boolean);
 
-        const dataFechamento = t.data_fechamento || null;
-        const valorAVista = t.valor_contrato ?? null;
+        const enderecoStr = addrParts.length > 0 ? addrParts.join(", ") : "—";
 
+        // ── Data fechamento
+        const dataFechamento = t.data_fechamento || dealroom?.created_at || null;
+
+        // ── Valor à vista (VB): tracking.valor_contrato → dealroom.valor_venda
+        const valorAVista = t.valor_contrato ?? dealroom?.valor_venda ?? null;
+
+        // ── Comissão: calculate based on current user's percentage
+        const comissaoVal = (valorAVista != null && userComissao > 0)
+          ? Math.round((valorAVista * userComissao / 100) * 100) / 100
+          : (t.comissao_valor ?? null);
+
+        // ── Técnico responsável: resolve assigned_to (UUID or name)
+        let tecnicoNome: string | null = mr?.assigned_to || null;
+        if (tecnicoNome) {
+          const byId = usuarioById.get(tecnicoNome);
+          if (byId) {
+            tecnicoNome = byId.nome_completo;
+          }
+        }
+
+        // ── Dias em liberação
         let diasEmLiberacao: number | null = null;
         let dataFinalizado: string | null = null;
         const isFinal = mr?.status === "concluido" || mr?.status === "finalizado";
@@ -285,7 +363,6 @@ export function LiberacaoTecnicaPanel() {
           if (diasEmLiberacao < 0) diasEmLiberacao = 0;
         }
 
-        // Valor Atualizado and Valor Liberado from tracking (placeholder fields)
         const valorAtualizado = t.valor_atualizado ?? valorAVista;
         const valorLiberado = t.valor_liberado ?? null;
         const saldoPosNeg = (valorAtualizado != null && valorLiberado != null) ? (valorAtualizado - valorLiberado) : null;
@@ -293,39 +370,42 @@ export function LiberacaoTecnicaPanel() {
         return {
           id: t.id,
           clientId: t.client_id,
-          status: t.status || "—",
-          numeroContrato: t.numero_contrato || "—",
+          status: formatStatus(rawStatus),
+          statusRaw: rawStatus,
+          numeroContrato: t.numero_contrato || dealroom?.numero_contrato || "—",
           nomeCliente: t.nome_cliente || client?.nome || "—",
-          endereco: addrParts.join(", ") || "—",
-          km: null, // will be calculated async if API key available
+          endereco: enderecoStr,
+          km: null,
           dataFechamento,
           numAmbientes: client?.quantidade_ambientes ?? t.quantidade_ambientes ?? null,
           valorAVista,
           valorAtualizado,
           valorLiberado,
           saldoPosNeg,
-          comissao: t.comissao_valor ?? null,
+          comissao: comissaoVal,
           dataMedicao: mr?.created_at || null,
           prazoLiberacao: null,
           dataFinalizado,
           diasEmLiberacao,
-          tecnicoResponsavel: mr?.assigned_to || null,
+          tecnicoResponsavel: tecnicoNome,
           loja: nomeLoja,
           codigoLoja,
-          vendedorProjetista: t.projetista || null,
+          vendedorProjetista,
         };
       });
 
       setRows(mapped);
 
-      // 5. Try to calculate KM distances asynchronously
-      calculateDistances(tenantId, mapped);
+      // 5. Calculate KM using current user's address as base
+      if (currentUserAddr && currentUserAddr !== "—") {
+        calculateDistances(tenantId, mapped, currentUserAddr);
+      }
     } catch (err) {
       console.error("LiberacaoTecnicaPanel fetch error", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentUser]);
 
   // Calculate KM distances using Google Maps API
   const calculateDistances = useCallback(async (tenantId: string, currentRows: LiberacaoRow[]) => {
