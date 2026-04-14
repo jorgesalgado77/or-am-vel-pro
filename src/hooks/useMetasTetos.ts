@@ -34,16 +34,21 @@ export function useMetasTetos(month?: string) {
       .select("*")
       .eq("tenant_id", tenantId)
       .eq("month", targetMonth)
-      .in("goal_type", ["meta_loja", "meta_vendedor", "teto_liberacao", "custom"]);
+      .or("goal_type.in.(meta_loja,meta_vendedor,teto_liberacao,custom),goal_type.like.custom:*");
 
     if (!error && data && (data as any[]).length > 0) {
-      setMetas((data as any[]).map((d: any) => ({
-        id: d.id,
-        tipo: d.goal_type,
-        label: d.user_id || d.goal_type,
-        valor: d.target_value,
-        mes_referencia: d.month,
-      })));
+      setMetas((data as any[]).map((d: any) => {
+        const goalType = d.goal_type as string;
+        const isCustom = goalType.startsWith("custom");
+        const customLabel = goalType.startsWith("custom:") ? goalType.substring(7) : "";
+        return {
+          id: d.id,
+          tipo: isCustom ? "custom" : goalType,
+          label: customLabel || goalType,
+          valor: d.target_value,
+          mes_referencia: d.month,
+        };
+      }));
     } else {
       // Fallback localStorage
       const key = `metas_tetos_${tenantId}_${targetMonth}`;
