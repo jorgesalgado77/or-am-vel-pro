@@ -129,184 +129,185 @@ export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onCancel(); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {effectiveIsReschedule ? <><RefreshCw className="h-5 w-5" /> Reagendar Medição</> : <>📐 Agendar Medição</>}
-          </DialogTitle>
-          <p className="text-sm text-muted-foreground">
-            Cliente: <span className="font-semibold text-foreground">{clientName}</span>
-          </p>
-        </DialogHeader>
-
-        {/* Address Section */}
-        <div className="rounded-lg border p-3 space-y-2.5">
-          {/* Client delivery address */}
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5">
-              <Home className="h-3.5 w-3.5 text-primary" />
-              <span className="text-xs font-semibold">Endereço de Entrega — Cliente</span>
-            </div>
-            <p className="text-xs text-muted-foreground pl-5">
-              {clientAddress || <span className="italic">Endereço não cadastrado</span>}
+      <DialogContent className="w-[calc(100vw-1rem)] max-w-md gap-0 overflow-hidden p-0 sm:w-full">
+        <div className="flex max-h-[calc(100dvh-1rem)] flex-col sm:max-h-[calc(100dvh-2rem)]">
+          <DialogHeader className="shrink-0 border-b px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-5">
+            <DialogTitle className="flex items-center gap-2 pr-8 text-base sm:text-lg">
+              {effectiveIsReschedule ? <><RefreshCw className="h-5 w-5" /> Reagendar Medição</> : <>📐 Agendar Medição</>}
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Cliente: <span className="font-semibold text-foreground break-words">{clientName}</span>
             </p>
-          </div>
+          </DialogHeader>
 
-          {/* Technician base address */}
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5">
-              <Navigation className="h-3.5 w-3.5 text-emerald-500" />
-              <span className="text-xs font-semibold">Base — Ponto de Partida</span>
-            </div>
-            <p className="text-xs text-muted-foreground pl-5">
-              {technicianAddress || <span className="italic">Endereço não cadastrado</span>}
-            </p>
-          </div>
-
-          {/* KM Distance */}
-          <div className="border-t pt-2 space-y-1.5">
-            <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-primary" />
-              <span className="text-sm font-semibold">Distância (ida e volta)</span>
-            </div>
-            {kmLoading ? (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Calculando distância...
-              </div>
-            ) : kmResult ? (
-              <div className="flex items-center gap-3">
-                <Badge className="text-sm font-bold bg-primary/15 text-primary border-primary/30" variant="outline">
-                  🚗 {kmResult.km} km
-                </Badge>
-                <span className="text-xs text-muted-foreground">Tempo estimado (ida): {kmResult.duration}</span>
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                {kmError || (!googleMapsKey ? "Google Maps API não configurada. Configure em Configurações > APIs." : "Aguardando...")}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="space-y-4 py-2">
-          {effectiveIsReschedule && (
-            <div className="space-y-2">
-              <Label className="text-destructive">Motivo do Reagendamento *</Label>
-              <Textarea
-                placeholder="Descreva o motivo do reagendamento..."
-                value={rescheduleReason}
-                onChange={(e) => setRescheduleReason(e.target.value)}
-                rows={2}
-                className="border-destructive/30 focus-visible:ring-destructive/30"
-              />
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <Label>Data da Medição *</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !date && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {date ? format(date, "PPP", { locale: ptBR }) : "Selecione a data"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={date}
-                  onSelect={setDate}
-                  disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
-                  initialFocus
-                  className={cn("p-3 pointer-events-auto")}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Horário *</Label>
-            <div className="relative">
-              <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Observações</Label>
-            <Textarea
-              placeholder="Informações adicionais sobre a medição..."
-              value={observations}
-              onChange={(e) => setObservations(e.target.value)}
-              rows={3}
-            />
-          </div>
-
-          {/* Schedule history */}
-          {hasHistory && (
-            <div className="space-y-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-xs gap-1.5 px-0 text-muted-foreground hover:text-foreground"
-                onClick={() => setShowHistory(!showHistory)}
-              >
-                <History className="h-3.5 w-3.5" />
-                Histórico ({history.length} agendamento{history.length > 1 ? "s" : ""})
-              </Button>
-              {showHistory && (
-                <ScrollArea className="max-h-40">
-                  <div className="space-y-2">
-                    {history.map((h, i) => (
-                      <div key={h.id || i} className="text-xs border rounded-md p-2 space-y-1 bg-muted/30">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium">
-                            {h.date} às {h.time}
-                          </span>
-                          {i === 0 && <Badge variant="outline" className="text-[10px] px-1.5 py-0">Último</Badge>}
-                        </div>
-                        {h.reason && (
-                          <p className="text-destructive/80">
-                            <span className="font-medium">Motivo:</span> {h.reason}
-                          </p>
-                        )}
-                        {h.observations && <p className="text-muted-foreground">{h.observations}</p>}
-                        <p className="text-muted-foreground/60">
-                          por {h.created_by} em {h.created_at ? format(new Date(h.created_at), "dd/MM/yy HH:mm") : "—"}
-                        </p>
-                      </div>
-                    ))}
+          <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+            <div className="space-y-4 pb-1">
+              <div className="rounded-lg border p-3 space-y-2.5">
+                <div className="space-y-1">
+                  <div className="flex items-start gap-1.5">
+                    <Home className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                    <span className="text-xs font-semibold leading-relaxed">Endereço de Entrega — Cliente</span>
                   </div>
-                </ScrollArea>
+                  <p className="break-words pl-5 text-xs text-muted-foreground">
+                    {clientAddress || <span className="italic">Endereço não cadastrado</span>}
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-start gap-1.5">
+                    <Navigation className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                    <span className="text-xs font-semibold leading-relaxed">Base — Ponto de Partida</span>
+                  </div>
+                  <p className="break-words pl-5 text-xs text-muted-foreground">
+                    {technicianAddress || <span className="italic">Endereço não cadastrado</span>}
+                  </p>
+                </div>
+
+                <div className="border-t pt-2 space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 shrink-0 text-primary" />
+                    <span className="text-sm font-semibold">Distância (ida e volta)</span>
+                  </div>
+                  {kmLoading ? (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Calculando distância...
+                    </div>
+                  ) : kmResult ? (
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                      <Badge className="w-fit border-primary/30 bg-primary/15 text-sm font-bold text-primary" variant="outline">
+                        🚗 {kmResult.km} km
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">Tempo estimado (ida): {kmResult.duration}</span>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground break-words">
+                      {kmError || (!googleMapsKey ? "Google Maps API não configurada. Configure em Configurações > APIs." : "Aguardando...")}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {effectiveIsReschedule && (
+                <div className="space-y-2">
+                  <Label className="text-destructive">Motivo do Reagendamento *</Label>
+                  <Textarea
+                    placeholder="Descreva o motivo do reagendamento..."
+                    value={rescheduleReason}
+                    onChange={(e) => setRescheduleReason(e.target.value)}
+                    rows={2}
+                    className="border-destructive/30 focus-visible:ring-destructive/30"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>Data da Medição *</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "h-auto min-h-11 w-full justify-start py-3 text-left font-normal",
+                        !date && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                      <span className="truncate">{date ? format(date, "PPP", { locale: ptBR }) : "Selecione a data"}</span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto max-w-[calc(100vw-2rem)] p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={date}
+                      onSelect={setDate}
+                      disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
+                      initialFocus
+                      className={cn("pointer-events-auto p-3")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Horário *</Label>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    type="time"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    className="h-12 pl-10"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Observações</Label>
+                <Textarea
+                  placeholder="Informações adicionais sobre a medição..."
+                  value={observations}
+                  onChange={(e) => setObservations(e.target.value)}
+                  rows={4}
+                  className="min-h-[112px] resize-none"
+                />
+              </div>
+
+              {hasHistory && (
+                <div className="space-y-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="px-0 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowHistory(!showHistory)}
+                  >
+                    <History className="h-3.5 w-3.5" />
+                    Histórico ({history.length} agendamento{history.length > 1 ? "s" : ""})
+                  </Button>
+                  {showHistory && (
+                    <ScrollArea className="max-h-40">
+                      <div className="space-y-2">
+                        {history.map((h, i) => (
+                          <div key={h.id || i} className="space-y-1 rounded-md border bg-muted/30 p-2 text-xs">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium break-words">
+                                {h.date} às {h.time}
+                              </span>
+                              {i === 0 && <Badge variant="outline" className="px-1.5 py-0 text-[10px]">Último</Badge>}
+                            </div>
+                            {h.reason && (
+                              <p className="text-destructive/80 break-words">
+                                <span className="font-medium">Motivo:</span> {h.reason}
+                              </p>
+                            )}
+                            {h.observations && <p className="text-muted-foreground break-words">{h.observations}</p>}
+                            <p className="text-muted-foreground/60 break-words">
+                              por {h.created_by} em {h.created_at ? format(new Date(h.created_at), "dd/MM/yy HH:mm") : "—"}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  )}
+                </div>
               )}
             </div>
-          )}
-        </div>
+          </div>
 
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={onCancel} disabled={saving}>
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleConfirm}
-            disabled={!date || saving || (effectiveIsReschedule && !rescheduleReason.trim())}
-          >
-            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {effectiveIsReschedule ? "Confirmar Reagendamento" : "Confirmar Agendamento"}
-          </Button>
-        </DialogFooter>
+          <DialogFooter className="shrink-0 border-t bg-background px-4 py-3 sm:px-6">
+            <Button variant="outline" onClick={onCancel} disabled={saving} className="w-full sm:w-auto">
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleConfirm}
+              disabled={!date || saving || (effectiveIsReschedule && !rescheduleReason.trim())}
+              className="w-full sm:w-auto"
+            >
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {effectiveIsReschedule ? "Confirmar Reagendamento" : "Confirmar Agendamento"}
+            </Button>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
