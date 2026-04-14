@@ -78,7 +78,7 @@ export function TaskClientInfo({ taskTitle, tenantId }: Props) {
             .limit(1),
           (supabase as any)
             .from("measurement_requests")
-            .select("id, cep_entrega, endereco_entrega, numero_entrega, complemento_entrega, bairro_entrega, cidade_entrega, uf_entrega")
+            .select("id, delivery_address, client_snapshot")
             .eq("client_id", client.id)
             .eq("tenant_id", tenantId)
             .order("created_at", { ascending: false })
@@ -94,17 +94,29 @@ export function TaskClientInfo({ taskTitle, tenantId }: Props) {
         const mr = mrRes.data?.[0];
         const tenant = tenantRes.data;
 
+        // Extract address from delivery_address JSON or client_snapshot fallback
+        const addr = mr?.delivery_address || {};
+        const snapshot = mr?.client_snapshot || {};
+
+        const cep = addr.cep || snapshot.delivery_address_zip || snapshot.cep_entrega || snapshot.cep || "";
+        const street = addr.street || snapshot.delivery_address_street || snapshot.endereco_entrega || snapshot.endereco || "";
+        const num = addr.number || snapshot.delivery_address_number || snapshot.numero_entrega || snapshot.numero || "";
+        const compl = addr.complement || snapshot.delivery_address_complement || snapshot.complemento_entrega || snapshot.complemento || "";
+        const district = addr.district || snapshot.delivery_address_district || snapshot.bairro_entrega || snapshot.bairro || "";
+        const city = addr.city || snapshot.delivery_address_city || snapshot.cidade_entrega || snapshot.cidade || "";
+        const state = addr.state || snapshot.delivery_address_state || snapshot.uf_entrega || snapshot.estado || snapshot.uf || "";
+
         setInfo({
           nome: client.nome,
           telefone1: client.telefone1,
           email: client.email,
-          cep_entrega: mr?.cep_entrega || "",
-          endereco_entrega: mr?.endereco_entrega || "",
-          numero_entrega: mr?.numero_entrega || "",
-          complemento_entrega: mr?.complemento_entrega || "",
-          bairro_entrega: mr?.bairro_entrega || "",
-          cidade_entrega: mr?.cidade_entrega || "",
-          uf_entrega: mr?.uf_entrega || "",
+          cep_entrega: cep,
+          endereco_entrega: street,
+          numero_entrega: num,
+          complemento_entrega: compl,
+          bairro_entrega: district,
+          cidade_entrega: city,
+          uf_entrega: state,
           data_fechamento: tracking?.data_fechamento || null,
           valor_contrato: tracking?.valor_contrato || null,
           numero_contrato: tracking?.numero_contrato || null,
