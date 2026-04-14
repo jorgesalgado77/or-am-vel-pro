@@ -2,7 +2,7 @@
  * LiberacaoTecnicaPanel — Full panel for the "Liberação Técnica" module.
  * Shows a ListView of clients in the liberation phase with filters, KPIs and actions.
  */
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, useContext } from "react";
 import { format, differenceInDays, subMonths, startOfMonth, endOfMonth, startOfYear, endOfYear, subYears } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -29,6 +29,32 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { calculateRoundTripKm } from "@/hooks/useGoogleMapsKey";
 import { PedagioModal } from "./PedagioModal";
+import { CurrentUserContext } from "@/hooks/useCurrentUser";
+
+// ──────── Status mapping ────────
+const STATUS_LABELS: Record<string, string> = {
+  novo: "Novo",
+  em_negociacao: "Em Negociação",
+  em_medicao: "Em Medição",
+  em_andamento: "Em Andamento",
+  aguardando_medida: "Aguardando Medida",
+  medida_agendada: "Medida Agendada",
+  em_execucao: "Em Execução",
+  concluido: "Concluído",
+  finalizado: "Finalizado",
+  perdido: "Perdido",
+  cancelado: "Cancelado",
+  enviado_compras: "Enviado Compras",
+  venda_fechada: "Venda Fechada",
+  em_liberacao: "Em Liberação",
+  em_montagem: "Em Montagem",
+  entregue: "Entregue",
+};
+
+function formatStatus(raw: string): string {
+  if (!raw || raw === "—") return "—";
+  return STATUS_LABELS[raw] || raw.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
 
 // ──────── Types ────────
 
@@ -36,6 +62,7 @@ interface LiberacaoRow {
   id: string;
   clientId: string;
   status: string;
+  statusRaw: string;
   numeroContrato: string;
   nomeCliente: string;
   endereco: string;
