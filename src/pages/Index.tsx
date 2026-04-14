@@ -278,7 +278,7 @@ export default function Index() {
   );
 
   // Bridge for legacy CurrentUserContext
-  const currentUserCompat = authUser ? {
+  const currentUserCompat: CurrentUser | null = authUser ? {
     id: authUser.id,
     nome_completo: authUser.nome_completo,
     apelido: authUser.apelido,
@@ -288,6 +288,13 @@ export default function Index() {
     telefone: authUser.telefone,
     email: authUser.email,
     permissoes: authUser.permissoes,
+    cep: (authUser as any).cep ?? null,
+    endereco: (authUser as any).endereco ?? null,
+    numero: (authUser as any).numero ?? null,
+    complemento: (authUser as any).complemento ?? null,
+    bairro: (authUser as any).bairro ?? null,
+    cidade: (authUser as any).cidade ?? null,
+    uf: (authUser as any).uf ?? null,
   } : null;
 
   return (
