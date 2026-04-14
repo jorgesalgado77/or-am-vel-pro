@@ -177,7 +177,7 @@ interface LiberacaoRow {
   vendedorProjetista: string | null;
 }
 
-type DatePreset = "mes_atual" | "mes_anterior" | "ultimos_6" | "ano_anterior" | "personalizado";
+type DatePreset = "todos" | "mes_atual" | "mes_anterior" | "ultimos_6" | "ano_anterior" | "personalizado";
 type SortField = "nomeCliente" | "dataFechamento" | "diasEmLiberacao" | "valorAVista" | "saldoPosNeg";
 type SortDir = "asc" | "desc";
 
