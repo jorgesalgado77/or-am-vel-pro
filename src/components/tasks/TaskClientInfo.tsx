@@ -7,6 +7,9 @@ import { Separator } from "@/components/ui/separator";
 import { MapPin, User, Phone, Mail, Calendar, DollarSign, FileText, Loader2, Store, Hash } from "lucide-react";
 import { formatCurrency } from "@/lib/financing";
 import { format } from "date-fns";
+import { MeasurementRequestModal } from "@/components/kanban/MeasurementRequestModal";
+import type { Client } from "@/components/kanban/kanbanTypes";
+import type { ClientTrackingRecord } from "@/hooks/useClientTracking";
 
 interface ClientInfo {
   nome: string;
@@ -48,6 +51,9 @@ function extractClientName(title: string): string | null {
 export function TaskClientInfo({ taskTitle, tenantId }: Props) {
   const [info, setInfo] = useState<ClientInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [measurementModalOpen, setMeasurementModalOpen] = useState(false);
+  const [fullClient, setFullClient] = useState<Client | null>(null);
+  const [trackingRecord, setTrackingRecord] = useState<ClientTrackingRecord | null>(null);
 
   useEffect(() => {
     if (!tenantId || !taskTitle) { setLoading(false); return; }
@@ -60,19 +66,20 @@ export function TaskClientInfo({ taskTitle, tenantId }: Props) {
         // Find client
         const { data: clients } = await supabase
           .from("clients")
-          .select("id, nome, telefone1, email")
+          .select("*")
           .eq("tenant_id", tenantId)
           .ilike("nome", `%${clientName}%`)
           .limit(1);
 
         if (!clients || clients.length === 0) { setLoading(false); return; }
         const client = clients[0];
+        setFullClient(client as Client);
 
         // Fetch tracking, measurement_request, and tenant in parallel
         const [trackingRes, mrRes, tenantRes] = await Promise.all([
           supabase
             .from("client_tracking")
-            .select("data_fechamento, valor_contrato, numero_contrato")
+            .select("*")
             .eq("client_id", client.id)
             .eq("tenant_id", tenantId)
             .limit(1),
@@ -93,6 +100,7 @@ export function TaskClientInfo({ taskTitle, tenantId }: Props) {
         const tracking = trackingRes.data?.[0];
         const mr = mrRes.data?.[0];
         const tenant = tenantRes.data;
+        if (tracking) setTrackingRecord(tracking as ClientTrackingRecord);
 
         // Extract address from delivery_address JSON or client_snapshot fallback
         const addr = mr?.delivery_address || {};
@@ -268,16 +276,24 @@ export function TaskClientInfo({ taskTitle, tenantId }: Props) {
       {/* Action button */}
       {info.measurementRequestId && (
         <Button
-          variant="outline"
           size="sm"
-          className="gap-1.5 w-full"
-          onClick={() => {
-            window.open(`/app?view=kanban&clientId=${info.clientId}`, "_blank");
-          }}
+          className="gap-1.5 w-full bg-primary text-primary-foreground hover:bg-primary/90"
+          onClick={() => setMeasurementModalOpen(true)}
         >
           <FileText className="h-3.5 w-3.5" />
           Abrir Solicitação de Medição
         </Button>
+      )}
+
+      {/* Measurement Request Modal */}
+      {fullClient && trackingRecord && (
+        <MeasurementRequestModal
+          open={measurementModalOpen}
+          onOpenChange={setMeasurementModalOpen}
+          client={fullClient}
+          tracking={trackingRecord}
+          lastSim={undefined}
+        />
       )}
 
       <Separator />
