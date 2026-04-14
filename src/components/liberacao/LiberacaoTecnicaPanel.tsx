@@ -61,7 +61,24 @@ type DatePreset = "mes_atual" | "mes_anterior" | "ultimos_6" | "ano_anterior" | 
 type SortField = "nomeCliente" | "dataFechamento" | "diasEmLiberacao" | "valorAVista" | "saldoPosNeg";
 type SortDir = "asc" | "desc";
 
-// ──────── Component ────────
+// ──── Column width defaults & storage key ────
+const COL_STORAGE_KEY = "liberacao_col_widths";
+const DEFAULT_COL_WIDTHS: Record<string, number> = {
+  status: 80, contrato: 100, loja: 130, vendedor: 120, nome: 150, endereco: 180,
+  km: 65, fechamento: 100, amb: 60, vb: 100, vatualizado: 100, vliberado: 100,
+  saldo: 90, comissao: 90, dtMedicao: 95, prazo: 70, finalizado: 95, dias: 65,
+  tecnico: 110, acoes: 40,
+};
+
+function loadColWidths(): Record<string, number> {
+  try {
+    const saved = localStorage.getItem(COL_STORAGE_KEY);
+    if (saved) return { ...DEFAULT_COL_WIDTHS, ...JSON.parse(saved) };
+  } catch {}
+  return { ...DEFAULT_COL_WIDTHS };
+}
+
+// ──── Component ────
 
 export function LiberacaoTecnicaPanel() {
   const [rows, setRows] = useState<LiberacaoRow[]>([]);
@@ -83,6 +100,56 @@ export function LiberacaoTecnicaPanel() {
   // Pagination
   const PAGE_SIZE = 30;
   const [page, setPage] = useState(0);
+
+  // Column widths (resizable)
+  const [colWidths, setColWidths] = useState<Record<string, number>>(loadColWidths);
+  const resizingRef = useRef<{ col: string; startX: number; startW: number } | null>(null);
+
+  // Pedágio modal
+  const [pedagioModal, setPedagioModal] = useState<{ open: boolean; row: LiberacaoRow | null }>({ open: false, row: null });
+
+  // Save column widths to localStorage
+  const saveColWidths = useCallback((widths: Record<string, number>) => {
+    try { localStorage.setItem(COL_STORAGE_KEY, JSON.stringify(widths)); } catch {}
+  }, []);
+
+  const resetColWidths = () => {
+    const defaults = { ...DEFAULT_COL_WIDTHS };
+    setColWidths(defaults);
+    localStorage.removeItem(COL_STORAGE_KEY);
+    toast.success("Largura das colunas restauradas ao padrão");
+  };
+
+  // Mouse handlers for column resize
+  const onResizeStart = useCallback((col: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    resizingRef.current = { col, startX: e.clientX, startW: colWidths[col] || DEFAULT_COL_WIDTHS[col] || 100 };
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!resizingRef.current) return;
+      const diff = ev.clientX - resizingRef.current.startX;
+      const newW = Math.max(40, resizingRef.current.startW + diff);
+      setColWidths(prev => {
+        const updated = { ...prev, [resizingRef.current!.col]: newW };
+        return updated;
+      });
+    };
+
+    const onMouseUp = () => {
+      if (resizingRef.current) {
+        setColWidths(prev => {
+          saveColWidths(prev);
+          return prev;
+        });
+      }
+      resizingRef.current = null;
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  }, [colWidths, saveColWidths]);
 
   // ──── Date range resolver ────
   const dateRange = useMemo(() => {
