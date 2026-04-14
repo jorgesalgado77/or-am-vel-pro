@@ -156,7 +156,6 @@ export function mapRpcAppUser(userRow: any, authUserId?: string | null): AppUser
     cidade: userRow.cidade ?? null,
     uf: userRow.uf ?? null,
   };
-  };
 }
 
 export async function buildFallbackUserFromAuth(
