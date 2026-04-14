@@ -1019,6 +1019,10 @@ export function LiberacaoTecnicaPanel() {
                     <ResizableHead col="comissao" className="text-right hidden md:table-cell">Comissão</ResizableHead>
                     <ResizableHead col="dtMedicao" className="hidden lg:table-cell">Dt. Medição</ResizableHead>
                     <ResizableHead col="prazo" className="text-center hidden xl:table-cell">Prazo</ResizableHead>
+                    <ResizableHead col="pzEntrega" className="text-center hidden xl:table-cell">Pz. Entrega Loja</ResizableHead>
+                    <ResizableHead col="pzLibTec" className="text-center hidden xl:table-cell">Pz. Lib. Técnica</ResizableHead>
+                    <ResizableHead col="pzMontagem" className="text-center hidden xl:table-cell">Pz. Montagem</ResizableHead>
+                    <ResizableHead col="pzAssist" className="text-center hidden xl:table-cell">Pz. Assistência</ResizableHead>
                     <ResizableHead col="finalizado" className="hidden xl:table-cell">Finalizado</ResizableHead>
                     <ResizableHead col="dias" className="text-center">
                       <SortHeader field="diasEmLiberacao">Dias</SortHeader>
