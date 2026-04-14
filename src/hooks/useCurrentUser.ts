@@ -39,6 +39,7 @@ const DEFAULT_PERMS: CargoPermissoes = {
   catalogo: true,
   medicao: true,
   liberacao: true,
+  liberacao_tecnica: true,
   tutoriais: true,
   email: true,
   cadastrar_produtos: true,

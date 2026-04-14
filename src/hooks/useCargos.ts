@@ -73,7 +73,6 @@ const DEFAULT_PERMISSOES: CargoPermissoes = {
   liberacao: false,
   liberacao_tecnica: false,
   tutoriais: true,
-  tutoriais: true,
   email: true,
   cadastrar_produtos: false,
   dash_ia_auto: true,
