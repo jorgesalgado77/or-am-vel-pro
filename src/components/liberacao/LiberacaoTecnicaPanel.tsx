@@ -139,6 +139,20 @@ function extractAddressFromHtml(html: string | null | undefined) {
   return match?.[1]?.trim() || null;
 }
 
+function extractContractNumberFromHtml(html: string | null | undefined) {
+  const content = String(html || "");
+  const match = content.match(/<strong>(?:N[úu]mero do Contrato|Nº do Contrato|Contrato):?<\/strong>\s*([^<]+)\.?/i)
+    || content.match(/contrato\s*(?:n[º°o]\s*)?[:#-]?\s*([\w./-]+)/i);
+  return match?.[1]?.trim() || null;
+}
+
+function resolveSimulationValue(sim: any): number | null {
+  if (!sim) return null;
+  const direct = Number(sim.valor_com_desconto) || Number(sim.valor_final) || 0;
+  if (direct > 0) return direct;
+  return computeValorComDesconto(sim) || (Number(sim.valor_tela) || null);
+}
+
 function resolveOperationalStatus(clientStatus?: string | null, trackingStatus?: string | null, requestStatus?: string | null) {
   const client = String(clientStatus || "").trim();
   const tracking = String(trackingStatus || "").trim();
