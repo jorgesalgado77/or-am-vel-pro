@@ -127,7 +127,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     });
     setContractDateByClient(dateMap);
 
-    let trackQuery = supabase.from("client_tracking").select("client_id, valor_contrato, data_fechamento, created_at");
+    let trackQuery = supabase.from("client_tracking").select("client_id, valor_contrato, data_fechamento, created_at, status");
     if (tenantId) trackQuery = trackQuery.eq("tenant_id", tenantId);
     const { data: trackData } = await trackQuery;
 
@@ -140,22 +140,47 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       });
     }
 
+    // Also fetch simulation values for contract clients to use as fallback
+    let simFallbackMap = new Map<string, number>();
+    if (cIds.size > 0) {
+      const cIdArr = Array.from(cIds);
+      const { data: simData } = await supabase
+        .from("simulations")
+        .select("client_id, valor_final, valor_com_desconto, valor_tela, desconto1, desconto2, desconto3, created_at")
+        .in("client_id", cIdArr)
+        .order("created_at", { ascending: false });
+      if (simData) {
+        (simData as any[]).forEach(s => {
+          if (!simFallbackMap.has(s.client_id)) {
+            // Calculate valor à vista if valor_com_desconto not available
+            let val = Number(s.valor_com_desconto) || Number(s.valor_final) || 0;
+            if (val === 0 && s.valor_tela) {
+              val = Number(s.valor_tela);
+              if (s.desconto1) val *= (1 - Number(s.desconto1) / 100);
+              if (s.desconto2) val *= (1 - Number(s.desconto2) / 100);
+              if (s.desconto3) val *= (1 - Number(s.desconto3) / 100);
+            }
+            simFallbackMap.set(s.client_id, val);
+          }
+        });
+      }
+    }
+
     const all: { valor_contrato: number; dateRef: string; clientId: string }[] = [];
     cIds.forEach(clientId => {
       const tracked = trackMap.get(clientId);
-      // Use contract created_at as date reference
       const contractDate = dateMap.get(clientId) || new Date().toISOString();
-      // Resolve valor: tracking > lastSims > 0
+      // Resolve valor: tracking > simulation > lastSims > 0
       const simValue = lastSims[clientId];
-      const simValor = simValue ? (simValue.valor_com_desconto || simValue.valor_final) : 0;
+      const simValor = simFallbackMap.get(clientId) || (simValue ? (simValue.valor_com_desconto || simValue.valor_final) : 0);
+
+      // Best date: data_fechamento > tracking.created_at > contract.created_at
+      const bestDate = tracked?.dateRef || contractDate;
 
       if (tracked) {
-        // Use tracking data, but fallback to sim value if tracking valor is 0
         const valor = tracked.valor_contrato > 0 ? tracked.valor_contrato : simValor;
-        // Always use CONTRACT date as the period reference (not tracking date)
-        all.push({ valor_contrato: valor, dateRef: contractDate, clientId });
+        all.push({ valor_contrato: valor, dateRef: bestDate, clientId });
       } else {
-        // No tracking record — use contract date and sim value
         all.push({ valor_contrato: simValor, dateRef: contractDate, clientId });
       }
     });

@@ -73,18 +73,23 @@ export function MetasTetosTab() {
       .select("*")
       .eq("tenant_id", tenantId)
       .eq("month", selectedMonth)
-      .in("goal_type", ["meta_loja", "meta_vendedor", "teto_liberacao", "custom"]);
+      .or("goal_type.in.(meta_loja,meta_vendedor,teto_liberacao,custom),goal_type.like.custom:*");
 
     if (!error && data && (data as any[]).length > 0) {
-      setMetas((data as any[]).map((d: any) => ({
-        id: d.id,
-        tenant_id: d.tenant_id,
-        tipo: d.goal_type,
-        label: d.user_id || TIPO_CONFIG[d.goal_type]?.label || "Meta",
-        valor: d.target_value,
-        mes_referencia: d.month,
-        created_at: d.created_at,
-      })));
+      setMetas((data as any[]).map((d: any) => {
+        const goalType = d.goal_type as string;
+        const isCustom = goalType.startsWith("custom");
+        const customLabel = goalType.startsWith("custom:") ? goalType.substring(7) : "";
+        return {
+          id: d.id,
+          tenant_id: d.tenant_id,
+          tipo: isCustom ? "custom" as const : goalType as MetaTeto["tipo"],
+          label: customLabel || TIPO_CONFIG[goalType]?.label || "Meta",
+          valor: d.target_value,
+          mes_referencia: d.month,
+          created_at: d.created_at,
+        };
+      }));
     } else {
       // Fallback to localStorage
       const stored = localStorage.getItem(storageKey(tenantId));
@@ -107,12 +112,17 @@ export function MetasTetosTab() {
 
     const label = form.label || TIPO_CONFIG[form.tipo]?.label || "Meta";
 
-    const payload = {
+    // For custom metas, encode the label into goal_type as "custom:LabelName"
+    const goalType = form.tipo === "custom" && form.label
+      ? `custom:${form.label}`
+      : form.tipo;
+
+    const payload: Record<string, unknown> = {
       tenant_id: tenantId,
-      user_id: label,
-      goal_type: form.tipo,
+      goal_type: goalType,
       target_value: form.valor,
       month: selectedMonth,
+      user_id: null,
     };
 
     let error;

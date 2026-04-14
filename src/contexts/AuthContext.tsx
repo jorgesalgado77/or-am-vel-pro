@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabaseClient";
 import type { CargoPermissoes } from "@/hooks/useCargos";
 import { logLoginDiagnostic } from "@/services/system/SystemDiagnosticsService";
 import { logAudit } from "@/services/auditService";
-import { initializeTheme, resetToDefaultTheme } from "@/lib/colorThemes";
+import { initializeTheme, resetToDefaultTheme, applyTheme } from "@/lib/colorThemes";
 import type { Session, User as SupabaseAuthUser } from "@supabase/supabase-js";
 import { InactivityWarningDialog } from "@/components/InactivityWarningDialog";
 
@@ -61,6 +61,24 @@ function normalizeProfileLabel(value: string | null | undefined) {
 function isGenericProfileLabel(value: string | null | undefined) {
   const normalized = normalizeProfileLabel(value);
   return !normalized || normalized === "admin" || normalized === "admin master" || normalized === "usuário" || normalized === "usuario";
+}
+
+/** Load color theme from DB (usuarios.color_theme), fallback to localStorage */
+async function loadAndApplyUserTheme(authUserId: string) {
+  try {
+    const { data } = await supabase
+      .from("usuarios")
+      .select("color_theme")
+      .eq("auth_user_id", authUserId)
+      .maybeSingle();
+    const dbTheme = (data as any)?.color_theme;
+    if (dbTheme && dbTheme !== "default") {
+      applyTheme(dbTheme);
+      return;
+    }
+  } catch { /* silent */ }
+  // Fallback to localStorage
+  initializeTheme();
 }
 
 function getProfileCompletenessScore(appUser: AppUser | null | undefined) {
@@ -183,7 +201,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       userRef.current = stableUser;
       setUser(stableUser);
       syncGlobalState(stableUser);
-      initializeTheme();
+      // Load color theme: try from DB first, then localStorage
+      loadAndApplyUserTheme(sess.user.id);
     } else {
       const fallbackUser = await buildFallbackUserFromAuth(sess.user);
 
@@ -197,7 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userRef.current = stableUser;
         setUser(stableUser);
         syncGlobalState(stableUser);
-        initializeTheme();
+        loadAndApplyUserTheme(sess.user.id);
         void hydrateUserFromDatabase(sess.user, "fallback_recovery");
       } else {
         currentAuthIdRef.current = null;
