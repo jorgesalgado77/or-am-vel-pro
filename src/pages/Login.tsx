@@ -202,6 +202,7 @@ export default function Login() {
     let cancelled = false;
     const formattedCode = digits.replace(/(\d{3})(\d{3})/, "$1.$2");
 
+    setTenantLoading(true);
     (async () => {
       try {
         // Strategy 1: RPC resolve_tenant_info_by_code (returns {nome, subtitulo})
