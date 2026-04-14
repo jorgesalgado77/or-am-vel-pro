@@ -40,6 +40,7 @@ export default function Login() {
   const [forgotLoading, setForgotLoading] = useState(false);
   const [planBlocked, setPlanBlocked] = useState<PlanBlockInfo | null>(null);
   const [tenantInfo, setTenantInfo] = useState<{ nome: string; subtitulo: string; logo_url?: string | null } | null>(null);
+  const [resolvedTenantId, setResolvedTenantId] = useState<string | null>(null);
   const [highlightForgotPassword, setHighlightForgotPassword] = useState(false);
 
 
@@ -65,7 +66,7 @@ export default function Login() {
 
     try {
       const { user, error } = await withTimeout(
-        login(normalizedEmail, senha, codigoDigits),
+        login(normalizedEmail, senha, codigoDigits, resolvedTenantId),
         12000,
         { user: null, error: "Tempo de login excedido. Tente novamente." },
       );
@@ -193,6 +194,7 @@ export default function Login() {
 
     if (digits.length < 6) {
       setTenantInfo(null);
+      setResolvedTenantId(null);
       return;
     }
 
@@ -209,6 +211,7 @@ export default function Login() {
         if (!cancelled && row && typeof row === "object") {
           const r = row as Record<string, string>;
           if (r.nome || r.company_name || r.nome_empresa || r.nome_loja) {
+            if (r.id || r.tenant_id) setResolvedTenantId(r.id || r.tenant_id);
             setTenantInfo({
               nome: r.nome || r.company_name || r.nome_empresa || r.nome_loja,
               subtitulo: r.subtitulo || r.company_subtitle || "",
@@ -227,6 +230,7 @@ export default function Login() {
           .maybeSingle();
 
         if (!cancelled && tenantData?.id) {
+          setResolvedTenantId(tenantData.id);
           const { data: csData } = await supabase
             .from("company_settings" as unknown as "clients")
             .select("company_name, nome_empresa, company_subtitle, logo_url")
@@ -255,6 +259,7 @@ export default function Login() {
         const tid = typeof resolved === "string" ? resolved : (resolved as Record<string, string>)?.tenant_id || (resolved as Record<string, string>)?.id;
 
         if (!cancelled && tid) {
+          setResolvedTenantId(tid);
           const { data: csData3 } = await supabase
             .from("company_settings" as unknown as "clients")
             .select("company_name, nome_empresa, company_subtitle, logo_url")
