@@ -445,44 +445,54 @@ export async function resolveTenantIdByStoreCode(storeCode?: string | null): Pro
   if (digits.length !== 6) return null;
 
   const maskedCode = `${digits.slice(0, 3)}.${digits.slice(3)}`;
-  const candidates = Array.from(new Set([digits, maskedCode]));
 
-  const [directResult, rpcResult] = await Promise.all([
-    withTimeout(
-      (async () => await supabase
-        .from("tenants")
-        .select("id, codigo_loja")
-        .in("codigo_loja", candidates)
-        .limit(candidates.length))(),
-      3000,
-      { data: null, error: createTimeoutError("tenant_direct_lookup") } as any,
-    ),
-    withTimeout(
-      (supabase as any).rpc("resolve_tenant_by_code", { p_code: maskedCode }),
-      3000,
-      { data: null, error: createTimeoutError("tenant_rpc_lookup") } as any,
-    ),
-  ]);
+  // Strategy 1: RPC resolve_tenant_by_code (SECURITY DEFINER, bypasses RLS)
+  try {
+    const { data: rpcData, error: rpcErr } = await (supabase as any)
+      .rpc("resolve_tenant_by_code", { p_code: maskedCode });
 
-  if (directResult.error) {
-    console.warn("[Auth:TenantResolve] ❌ Strategy 1 (direct query) FALHOU:", directResult.error.message);
-  }
-
-  const tenant = directResult.data?.find((row) => (row.codigo_loja ?? "").replace(/\D/g, "") === digits);
-  if (tenant) {
-    return tenant.id;
-  }
-
-  const rpcData = rpcResult.data;
-  const rpcError = rpcResult.error;
-  if (rpcError) {
-    console.warn("[Auth:TenantResolve] ❌ Strategy 2 FALHOU:", rpcError.message);
-  } else if (rpcData) {
-    const resolvedId = typeof rpcData === "string" ? rpcData : rpcData?.tenant_id ?? rpcData?.id ?? null;
-    if (resolvedId) {
-      return resolvedId;
+    if (!rpcErr && rpcData) {
+      const resolvedId = typeof rpcData === "string" ? rpcData : rpcData?.tenant_id ?? rpcData?.id ?? null;
+      if (resolvedId) return resolvedId;
+    } else if (rpcErr) {
+      console.warn("[Auth:TenantResolve] ❌ RPC resolve_tenant_by_code failed:", rpcErr.message);
     }
+  } catch (e) {
+    console.warn("[Auth:TenantResolve] ❌ RPC not available:", e);
   }
+
+  // Strategy 2: RPC resolve_tenant_info_by_code
+  try {
+    const { data: rpcInfo, error: rpcErr2 } = await (supabase as any)
+      .rpc("resolve_tenant_info_by_code", { p_code: maskedCode });
+
+    if (!rpcErr2) {
+      const row = Array.isArray(rpcInfo) ? rpcInfo[0] : rpcInfo;
+      if (row && typeof row === "object") {
+        const tid = (row as any).id || (row as any).tenant_id;
+        if (tid) return tid;
+      }
+    }
+  } catch {}
+
+  // Strategy 3: Direct query (works only if RLS allows)
+  const candidates = Array.from(new Set([digits, maskedCode]));
+  const { data: directData, error: directErr } = await withTimeout(
+    (async () => await supabase
+      .from("tenants")
+      .select("id, codigo_loja")
+      .in("codigo_loja", candidates)
+      .limit(candidates.length))(),
+    3000,
+    { data: null, error: createTimeoutError("tenant_direct_lookup") } as any,
+  );
+
+  if (directErr) {
+    console.warn("[Auth:TenantResolve] ❌ Direct query failed:", directErr.message);
+  }
+
+  const tenant = directData?.find((row: any) => (row.codigo_loja ?? "").replace(/\D/g, "") === digits);
+  if (tenant) return tenant.id;
 
   return null;
 }
