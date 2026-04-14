@@ -79,7 +79,7 @@ export function TaskClientInfo({ taskTitle, tenantId }: Props) {
         const [trackingRes, mrRes, tenantRes] = await Promise.all([
           supabase
             .from("client_tracking")
-            .select("data_fechamento, valor_contrato, numero_contrato")
+            .select("*")
             .eq("client_id", client.id)
             .eq("tenant_id", tenantId)
             .limit(1),
