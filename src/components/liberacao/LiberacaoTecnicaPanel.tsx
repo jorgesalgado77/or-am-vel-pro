@@ -2,12 +2,12 @@
  * LiberacaoTecnicaPanel — Full panel for the "Liberação Técnica" module.
  * Shows a ListView of clients in the liberation phase with filters, KPIs and actions.
  */
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { format, differenceInDays, subMonths, startOfMonth, endOfMonth, startOfYear, endOfYear, subYears } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   ShieldCheck, Search, Filter, ChevronDown, FileText, BarChart3, ShoppingCart,
-  CalendarDays, ArrowUpDown, Loader2, MapPin, DollarSign,
+  CalendarDays, ArrowUpDown, Loader2, MapPin, DollarSign, RotateCcw,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,7 @@ import { formatCurrency } from "@/lib/financing";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { calculateRoundTripKm } from "@/hooks/useGoogleMapsKey";
+import { PedagioModal } from "./PedagioModal";
 
 // ──────── Types ────────
 
