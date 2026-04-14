@@ -12,6 +12,14 @@ export interface CurrentUser {
   telefone: string | null;
   email: string | null;
   permissoes: CargoPermissoes;
+  // Address fields
+  cep: string | null;
+  endereco: string | null;
+  numero: string | null;
+  complemento: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  uf: string | null;
 }
 
 const DEFAULT_PERMS: CargoPermissoes = {
