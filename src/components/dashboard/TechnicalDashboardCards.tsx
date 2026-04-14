@@ -145,14 +145,12 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
       { data: trackingData },
       { data: historyData },
       { data: scheduledTasks },
-      { data: completedMR },
-      { data: contractsData },
+      { data: allMR },
     ] = await Promise.all([
       supabase
         .from("client_tracking")
         .select("client_id, valor_contrato, updated_at")
-        .eq("tenant_id", tenantId)
-        .gte("updated_at", monthStartIso),
+        .eq("tenant_id", tenantId),
       supabase
         .from("client_status_history" as any)
         .select("client_id, novo_status, created_at, alterado_por")
@@ -166,61 +164,57 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
         .in("tipo", ["medicao_tecnica", "medicao"])
         .gte("data_tarefa", monthStartDate)
         .lt("data_tarefa", nextMonthDate),
+      // Fetch ALL measurement requests with valor_venda_avista
       (supabase as any)
         .from("measurement_requests")
-        .select("id, client_id, nome_cliente, assigned_to, status, updated_at")
-        .eq("tenant_id", tenantId)
-        .gte("updated_at", monthStartIso),
-      supabase
-        .from("client_contracts" as any)
-        .select("client_id, simulation_id, simulations(valor_final)")
+        .select("id, client_id, nome_cliente, assigned_to, status, valor_venda_avista, updated_at, created_at")
         .eq("tenant_id", tenantId),
     ]);
 
+    // Build tracking map for fallback values
     const trackingMap = new Map<string, number>();
     (trackingData as any[] || []).forEach((t: any) => {
       trackingMap.set(t.client_id, Number(t.valor_contrato) || 0);
     });
 
-    const contractValueMap = new Map<string, number>();
-    (contractsData as any[] || []).forEach((c: any) => {
-      const val = Number(c.simulations?.valor_final) || 0;
-      if (val > 0) {
-        const existing = contractValueMap.get(c.client_id) || 0;
-        if (val > existing) contractValueMap.set(c.client_id, val);
+    // PRIMARY: Sum valor_venda_avista from ALL measurement_requests assigned to this user
+    let totalValorAvista = 0;
+    let assignedMRCount = 0;
+    (allMR as any[] || []).forEach((mr: any) => {
+      if (matchesUser(mr.assigned_to)) {
+        totalValorAvista += Number(mr.valor_venda_avista) || 0;
+        assignedMRCount++;
       }
     });
 
-    const getContractValue = (clientId: string): number => {
-      const trackingVal = trackingMap.get(clientId) || 0;
-      if (trackingVal > 0) return trackingVal;
-      return contractValueMap.get(clientId) || 0;
-    };
+    // SECONDARY: Also add client_status_history transitions (em_compras/enviado_compras) 
+    // for clients NOT already counted via measurement_requests
+    const mrClientIds = new Set<string>();
+    (allMR as any[] || []).forEach((mr: any) => {
+      if (matchesUser(mr.assigned_to)) mrClientIds.add(mr.client_id);
+    });
 
-    const liberatedClientIds = new Set<string>();
+    const historyClientIds = new Set<string>();
     (historyData as any[] || []).forEach((h: any) => {
       if (
         (h.novo_status === "em_compras" || h.novo_status === "enviado_compras") &&
-        matchesUser(h.alterado_por)
+        matchesUser(h.alterado_por) &&
+        !mrClientIds.has(h.client_id)
       ) {
-        liberatedClientIds.add(h.client_id);
+        historyClientIds.add(h.client_id);
       }
     });
 
-    (completedMR as any[] || []).forEach((mr: any) => {
-      if (matchesUser(mr.assigned_to)) {
-        liberatedClientIds.add(mr.client_id);
-      }
+    // Add tracking values for history-only clients
+    historyClientIds.forEach((cid) => {
+      totalValorAvista += trackingMap.get(cid) || 0;
     });
 
-    let totalLiberated = 0;
-    liberatedClientIds.forEach((cid) => {
-      totalLiberated += getContractValue(cid);
-    });
+    const totalLiberatedCount = assignedMRCount + historyClientIds.size;
 
     setScheduledCount(((scheduledTasks as any[]) || []).filter((task) => Boolean(task?.data_tarefa && task?.horario)).length);
-    setLiberatedValue(totalLiberated);
-    setLiberatedCount(liberatedClientIds.size);
+    setLiberatedValue(totalValorAvista);
+    setLiberatedCount(totalLiberatedCount);
     setLoading(false);
   }, [userId, userName]);
 
