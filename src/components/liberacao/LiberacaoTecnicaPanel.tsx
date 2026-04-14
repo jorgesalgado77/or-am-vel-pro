@@ -407,10 +407,9 @@ export function LiberacaoTecnicaPanel() {
     }
   }, [currentUser]);
 
-  // Calculate KM distances using Google Maps API
-  const calculateDistances = useCallback(async (tenantId: string, currentRows: LiberacaoRow[]) => {
+  // Calculate KM distances using Google Maps API (uses current user's address as base)
+  const calculateDistances = useCallback(async (tenantId: string, currentRows: LiberacaoRow[], baseAddress: string) => {
     try {
-      // Get Google Maps API key
       const { data: apiKeyData } = await (supabase as any)
         .from("api_keys")
         .select("api_key")
@@ -421,29 +420,11 @@ export function LiberacaoTecnicaPanel() {
 
       if (!apiKeyData?.api_key) return;
 
-      // Get user addresses for technicians
-      const techNames = [...new Set(currentRows.map(r => r.tecnicoResponsavel).filter(Boolean))];
-      if (techNames.length === 0) return;
-
-      const { data: usuarios } = await (supabase as any)
-        .from("usuarios")
-        .select("nome_completo, endereco_completo")
-        .eq("tenant_id", tenantId)
-        .in("nome_completo", techNames);
-
-      const techAddrMap = new Map<string, string>();
-      (usuarios || []).forEach((u: any) => {
-        if (u.endereco_completo) techAddrMap.set(u.nome_completo, u.endereco_completo);
-      });
-
-      // Calculate distances for rows with addresses
       const updates: { id: string; km: number }[] = [];
       for (const row of currentRows) {
-        if (!row.tecnicoResponsavel || !row.endereco || row.endereco === "—") continue;
-        const baseAddr = techAddrMap.get(row.tecnicoResponsavel);
-        if (!baseAddr) continue;
+        if (!row.endereco || row.endereco === "—") continue;
 
-        const result = await calculateRoundTripKm(apiKeyData.api_key, baseAddr, row.endereco);
+        const result = await calculateRoundTripKm(apiKeyData.api_key, baseAddress, row.endereco);
         if (result) {
           updates.push({ id: row.id, km: result.km });
         }
