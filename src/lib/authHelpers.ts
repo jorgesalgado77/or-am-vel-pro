@@ -424,7 +424,7 @@ export async function resolveTenantIdByStoreCode(storeCode?: string | null): Pro
     ),
     withTimeout(
       (supabase as any).rpc("resolve_tenant_by_code", { p_code: maskedCode }),
-      1200,
+      3000,
       { data: null, error: createTimeoutError("tenant_rpc_lookup") } as any,
     ),
   ]);
