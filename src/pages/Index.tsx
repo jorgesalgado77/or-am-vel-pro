@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { AppSidebar } from "@/components/AppSidebar";
 import { PlanBanner } from "@/components/PlanBanner";
+import { GlobalCardToggle } from "@/components/ui/GlobalCardToggle";
 import Login from "@/pages/Login";
 
 // Lazy load heavy view components via module paths
@@ -331,6 +332,7 @@ export default function Index() {
             }}
           />
 
+          <GlobalCardToggle />
           <main className={cn(
             "flex-1 min-w-0 transition-all duration-300",
             // Mobile: full width, no margin; Desktop: offset by sidebar width
