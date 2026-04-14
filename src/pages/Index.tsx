@@ -331,6 +331,7 @@ export default function Index() {
             }}
           />
 
+          <GlobalCardToggle />
           <main className={cn(
             "flex-1 min-w-0 transition-all duration-300",
             // Mobile: full width, no margin; Desktop: offset by sidebar width
