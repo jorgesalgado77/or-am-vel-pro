@@ -436,9 +436,28 @@ export default function Login() {
                     onChange={(e) => setCodigoLoja(maskCodigoLoja(e.target.value))}
                     placeholder="000.000"
                     maxLength={7}
-                    className="pl-10 h-11 sm:h-12 bg-white/5 border-white/10 text-white placeholder:text-white/25 focus:border-[hsl(var(--primary))] focus:ring-[hsl(var(--primary)/0.3)] rounded-xl transition-all text-base"
+                    className="pl-10 pr-10 h-11 sm:h-12 bg-white/5 border-white/10 text-white placeholder:text-white/25 focus:border-[hsl(var(--primary))] focus:ring-[hsl(var(--primary)/0.3)] rounded-xl transition-all text-base"
                     autoComplete="off"
                   />
+                  {unmask(codigoLoja).length === 6 && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      {tenantLoading ? (
+                        <Loader2 className="h-4 w-4 text-white/50 animate-spin" />
+                      ) : resolvedTenantId ? (
+                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 400, damping: 15 }}>
+                          <div className="h-5 w-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                            <svg className="h-3 w-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                          </div>
+                        </motion.div>
+                      ) : (
+                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
+                          <div className="h-5 w-5 rounded-full bg-red-500/20 flex items-center justify-center">
+                            <svg className="h-3 w-3 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                          </div>
+                        </motion.div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
