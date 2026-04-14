@@ -108,6 +108,10 @@ export function TaskCreateModal({ open, onClose, onSave, editingTask, currentUse
     setSaving(true);
     try {
       const responsavelNome = usuarios.find(u => u.id === responsavelId)?.nome_completo || currentUserName || null;
+      // If date and time are set, move to "em_execucao" automatically
+      const resolvedStatus = (dataTarefa && horario)
+        ? "em_execucao"
+        : (editingTask?.status || "nova");
       await onSave({
         ...(editingTask ? { id: editingTask.id } : {}),
         titulo: titulo.trim(),
@@ -115,7 +119,7 @@ export function TaskCreateModal({ open, onClose, onSave, editingTask, currentUse
         data_tarefa: dataTarefa,
         horario: horario || null,
         tipo,
-        status: editingTask?.status || "nova",
+        status: resolvedStatus,
         responsavel_id: responsavelId || currentUserId || null,
         responsavel_nome: responsavelNome,
         criado_por: currentUserId || null,
