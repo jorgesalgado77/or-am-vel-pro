@@ -1034,7 +1034,7 @@ export function LiberacaoTecnicaPanel() {
                 <TableBody>
                   {paginatedRows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={20} className="text-center py-10 text-muted-foreground text-sm">
+                      <TableCell colSpan={24} className="text-center py-10 text-muted-foreground text-sm">
                         Nenhum registro encontrado
                       </TableCell>
                     </TableRow>
