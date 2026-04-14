@@ -29,6 +29,7 @@ export interface CargoPermissoes {
   catalogo: boolean;
   medicao: boolean;
   liberacao: boolean;
+  liberacao_tecnica: boolean;
   tutoriais: boolean;
   email: boolean;
   cadastrar_produtos: boolean;
