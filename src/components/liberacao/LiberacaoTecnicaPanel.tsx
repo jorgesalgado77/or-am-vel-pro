@@ -488,11 +488,27 @@ export function LiberacaoTecnicaPanel() {
         };
       });
 
-      setRows(mapped);
+      // Filter: only show rows where the logged-in user is the responsible (técnico/liberador/conferente)
+      const filteredByResponsible = currentUser
+        ? mapped.filter((row) => {
+            if (!row.tecnicoResponsavel) return false;
+            const normalizedTecnico = normalizeValue(row.tecnicoResponsavel);
+            const normalizedNome = normalizeValue(currentUser.nome_completo);
+            const normalizedApelido = currentUser.apelido ? normalizeValue(currentUser.apelido) : "";
+            // Match by name, nickname, or user ID
+            return (
+              row.tecnicoResponsavel === currentUser.id ||
+              normalizedTecnico === normalizedNome ||
+              (normalizedApelido && normalizedTecnico === normalizedApelido)
+            );
+          })
+        : [];
+
+      setRows(filteredByResponsible);
 
       // 5. Calculate KM using current user's address as base
       if (currentUserAddr && currentUserAddr !== "—") {
-        calculateDistances(tenantId, mapped, currentUserAddr);
+        calculateDistances(tenantId, filteredByResponsible, currentUserAddr);
       }
     } catch (err) {
       console.error("LiberacaoTecnicaPanel fetch error", err);
