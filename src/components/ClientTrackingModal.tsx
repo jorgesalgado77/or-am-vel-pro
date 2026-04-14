@@ -30,6 +30,11 @@ interface TrackingData {
   data_fechamento: string | null;
   projetista: string | null;
   status: string;
+  tipo_contrato?: string | null;
+  prazo_entrega_loja?: string | null;
+  prazo_liberacao_tecnica?: string | null;
+  prazo_inicio_montagem?: string | null;
+  prazo_assistencia_tecnica?: string | null;
 }
 
 interface Message {
