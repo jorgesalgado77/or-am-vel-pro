@@ -205,25 +205,68 @@ export default function Login() {
     setTenantLoading(true);
     (async () => {
       try {
-        // Strategy 1: RPC resolve_tenant_info_by_code (returns {nome, subtitulo})
-        const { data: rpcInfo } = await (supabase as unknown as { rpc: (fn: string, params: Record<string, string>) => Promise<{ data: unknown }> })
-          .rpc("resolve_tenant_info_by_code", { p_code: formattedCode });
+        // Strategy 1: RPC resolve_tenant_info_by_code (SECURITY DEFINER, bypasses RLS)
+        try {
+          const { data: rpcInfo, error: rpcErr } = await (supabase as any)
+            .rpc("resolve_tenant_info_by_code", { p_code: formattedCode });
 
-        const row = Array.isArray(rpcInfo) ? rpcInfo[0] : rpcInfo;
-        if (!cancelled && row && typeof row === "object") {
-          const r = row as Record<string, string>;
-          if (r.nome || r.company_name || r.nome_empresa || r.nome_loja) {
-            if (r.id || r.tenant_id) setResolvedTenantId(r.id || r.tenant_id);
-            setTenantInfo({
-              nome: r.nome || r.company_name || r.nome_empresa || r.nome_loja,
-              subtitulo: r.subtitulo || r.company_subtitle || "",
-              logo_url: r.logo_url || null,
-            });
-            return;
+          if (!rpcErr) {
+            const row = Array.isArray(rpcInfo) ? rpcInfo[0] : rpcInfo;
+            if (!cancelled && row && typeof row === "object") {
+              const r = row as Record<string, string>;
+              if (r.nome || r.company_name || r.nome_empresa || r.nome_loja) {
+                if (r.id || r.tenant_id) setResolvedTenantId(r.id || r.tenant_id);
+                setTenantInfo({
+                  nome: r.nome || r.company_name || r.nome_empresa || r.nome_loja,
+                  subtitulo: r.subtitulo || r.company_subtitle || "",
+                  logo_url: r.logo_url || null,
+                });
+                return;
+              }
+            }
+          } else {
+            console.warn("[Login] RPC resolve_tenant_info_by_code failed:", rpcErr.message);
           }
+        } catch (e) {
+          console.warn("[Login] RPC resolve_tenant_info_by_code not available:", e);
         }
 
-        // Strategy 2: Direct query tenants → company_settings
+        // Strategy 2: RPC resolve_tenant_by_code (SECURITY DEFINER)
+        try {
+          const { data: rpcData, error: rpcErr2 } = await (supabase as any)
+            .rpc("resolve_tenant_by_code", { p_code: formattedCode });
+
+          if (!rpcErr2 && rpcData) {
+            const tid = typeof rpcData === "string" ? rpcData : (Array.isArray(rpcData) ? rpcData[0] : rpcData);
+            const tenantId = typeof tid === "string" ? tid : tid?.tenant_id || tid?.id;
+
+            if (!cancelled && tenantId) {
+              setResolvedTenantId(tenantId);
+              const { data: csData } = await supabase
+                .from("company_settings" as unknown as "clients")
+                .select("company_name, nome_empresa, company_subtitle, logo_url")
+                .eq("tenant_id", tenantId)
+                .maybeSingle();
+
+              const cs = csData as unknown as { company_name?: string; nome_empresa?: string; company_subtitle?: string; logo_url?: string } | null;
+
+              if (!cancelled) {
+                setTenantInfo({
+                  nome: cs?.company_name || cs?.nome_empresa || "Loja",
+                  subtitulo: cs?.company_subtitle || "",
+                  logo_url: cs?.logo_url || null,
+                });
+              }
+              return;
+            }
+          } else {
+            console.warn("[Login] RPC resolve_tenant_by_code failed:", rpcErr2?.message);
+          }
+        } catch (e) {
+          console.warn("[Login] RPC resolve_tenant_by_code not available:", e);
+        }
+
+        // Strategy 3: Direct query tenants (works only if RLS allows anon read)
         const { data: tenantData } = await supabase
           .from("tenants")
           .select("id, nome_loja")
@@ -254,32 +297,7 @@ export default function Login() {
           }
         }
 
-        // Strategy 3: RPC resolve_tenant_by_code → fetch name
-        const { data: rpcData } = await (supabase as unknown as { rpc: (fn: string, params: Record<string, string>) => Promise<{ data: unknown }> })
-          .rpc("resolve_tenant_by_code", { p_code: formattedCode });
-        const resolved = Array.isArray(rpcData) ? rpcData[0] : rpcData;
-        const tid = typeof resolved === "string" ? resolved : (resolved as Record<string, string>)?.tenant_id || (resolved as Record<string, string>)?.id;
-
-        if (!cancelled && tid) {
-          setResolvedTenantId(tid);
-          const { data: csData3 } = await supabase
-            .from("company_settings" as unknown as "clients")
-            .select("company_name, nome_empresa, company_subtitle, logo_url")
-            .eq("tenant_id", tid)
-            .maybeSingle();
-
-          const cs3 = csData3 as unknown as { company_name?: string; nome_empresa?: string; company_subtitle?: string; logo_url?: string } | null;
-
-          if (!cancelled) {
-            setTenantInfo({
-              nome: cs3?.company_name || cs3?.nome_empresa || "Loja",
-              subtitulo: cs3?.company_subtitle || "",
-              logo_url: cs3?.logo_url || null,
-            });
-          }
-        } else if (!cancelled) {
-          setTenantInfo(null);
-        }
+        if (!cancelled) setTenantInfo(null);
       } catch (err) {
         console.warn("[Login] Branding fetch failed:", err);
         if (!cancelled) setTenantInfo(null);
