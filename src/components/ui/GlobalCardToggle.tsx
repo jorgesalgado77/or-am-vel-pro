@@ -69,7 +69,7 @@ export function GlobalCardToggle() {
           variant="outline"
           size="icon"
           onClick={toggleAll}
-          className="fixed bottom-20 right-4 z-40 h-9 w-9 rounded-full shadow-lg border-border/60 bg-card/90 backdrop-blur-sm hover:bg-muted"
+          className="fixed bottom-6 left-4 z-40 h-9 w-9 rounded-full shadow-lg border-border/60 bg-card/90 backdrop-blur-sm hover:bg-muted"
           aria-label={allCollapsed ? "Expandir todos os cards" : "Recolher todos os cards"}
         >
           {allCollapsed ? (
