@@ -474,8 +474,19 @@ export function LiberacaoTecnicaPanel() {
   };
 
   const handleInformarPedagios = (row: LiberacaoRow) => {
-    toast.info(`Informar pedágios para ${row.nomeCliente} — funcionalidade em desenvolvimento`);
+    setPedagioModal({ open: true, row });
   };
+
+  // Resizable header helper
+  const ResizableHead = ({ col, children, className, style: extraStyle }: { col: string; children: React.ReactNode; className?: string; style?: React.CSSProperties }) => (
+    <TableHead className={cn("relative select-none", className)} style={{ width: colWidths[col], minWidth: 40, ...extraStyle }}>
+      {children}
+      <div
+        className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 z-10"
+        onMouseDown={e => onResizeStart(col, e)}
+      />
+    </TableHead>
+  );
 
   // ──── KPI summary ────
   const kpis = useMemo(() => {
