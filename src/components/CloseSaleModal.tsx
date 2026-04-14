@@ -485,6 +485,28 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                     <Input value={form.responsavel_venda} onChange={e => updateField("responsavel_venda", e.target.value)} className={`mt-1 h-9 text-sm ${errorClass("responsavel_venda")}`} />
                   </div>
                 </div>
+                {/* Prazos do tipo de contrato selecionado */}
+                {form.tipo_contrato && (() => {
+                  const ct = contractTypes.find(t => t.nome === form.tipo_contrato);
+                  if (!ct) return null;
+                  const prazos = [
+                    { label: "Prazo Entrega Loja", value: ct.prazo_entrega },
+                    { label: "Prazo Liberação Técnica", value: ct.prazo_liberacao_tecnica },
+                    { label: "Prazo Início Montagem", value: ct.prazo_inicio_montagem },
+                    { label: "Prazo Assistência Técnica", value: ct.prazo_assistencia_tecnica },
+                  ].filter(p => p.value);
+                  if (prazos.length === 0) return null;
+                  return (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2 p-2 rounded-md bg-muted/30 border border-border/50">
+                      {prazos.map(p => (
+                        <div key={p.label} className="text-xs">
+                          <span className="text-muted-foreground">{p.label}: </span>
+                          <span className="font-medium text-foreground">{p.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
 
