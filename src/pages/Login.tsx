@@ -66,7 +66,7 @@ export default function Login() {
 
     try {
       const { user, error } = await withTimeout(
-        login(normalizedEmail, senha, codigoDigits),
+        login(normalizedEmail, senha, codigoDigits, resolvedTenantId),
         12000,
         { user: null, error: "Tempo de login excedido. Tente novamente." },
       );
