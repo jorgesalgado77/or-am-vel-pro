@@ -508,7 +508,7 @@ export function LiberacaoTecnicaPanel() {
 
       // 5. Calculate KM using current user's address as base
       if (currentUserAddr && currentUserAddr !== "—") {
-        calculateDistances(tenantId, mapped, currentUserAddr);
+        calculateDistances(tenantId, filteredByResponsible, currentUserAddr);
       }
     } catch (err) {
       console.error("LiberacaoTecnicaPanel fetch error", err);
