@@ -14,6 +14,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/lib/supabaseClient";
 import { useGoogleMapsKey, calculateRoundTripKm } from "@/hooks/useGoogleMapsKey";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 export interface MeasurementScheduleData {
   date: string; // YYYY-MM-DD
@@ -45,7 +46,13 @@ interface Props {
   onCancel: () => void;
 }
 
-export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId, isReschedule, clientAddress, technicianAddress, onConfirm, onCancel }: Props) {
+/** Build a single-line address from parts */
+function buildAddress(parts: (string | null | undefined)[]): string | null {
+  const cleaned = parts.filter(Boolean).join(", ");
+  return cleaned || null;
+}
+
+export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId, isReschedule, clientAddress: clientAddressProp, technicianAddress: technicianAddressProp, onConfirm, onCancel }: Props) {
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [time, setTime] = useState("09:00");
   const [observations, setObservations] = useState("");
@@ -57,7 +64,106 @@ export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId
   const [kmLoading, setKmLoading] = useState(false);
   const [kmError, setKmError] = useState<string | null>(null);
 
+  // Resolved addresses (from props or fetched from DB)
+  const [resolvedClientAddr, setResolvedClientAddr] = useState<string | null>(null);
+  const [resolvedTechAddr, setResolvedTechAddr] = useState<string | null>(null);
+  const [addrLoading, setAddrLoading] = useState(false);
+
+  const { currentUser } = useCurrentUser();
   const { googleMapsKey } = useGoogleMapsKey(tenantId || null);
+
+  // Fetch addresses from DB when dialog opens
+  useEffect(() => {
+    if (!open) return;
+
+    // Technician address from currentUser
+    const techAddr = technicianAddressProp || (() => {
+      if (!currentUser) return null;
+      const u = currentUser;
+      if (!u.endereco && !u.cidade) return null;
+      return buildAddress([u.endereco, u.numero, u.complemento, u.bairro, u.cidade, u.uf, u.cep]);
+    })();
+    setResolvedTechAddr(techAddr);
+
+    // Client address
+    if (clientAddressProp) {
+      setResolvedClientAddr(clientAddressProp);
+      return;
+    }
+
+    if (!clientId || !tenantId) {
+      setResolvedClientAddr(null);
+      return;
+    }
+
+    // Fetch client address from measurement_requests or client_contracts
+    setAddrLoading(true);
+    (async () => {
+      try {
+        // Strategy 1: measurement_requests (most likely has address)
+        const { data: mrData } = await (supabase as any)
+          .from("measurement_requests")
+          .select("delivery_address_zip, delivery_address_street, delivery_address_number, delivery_address_complement, delivery_address_district, delivery_address_city, delivery_address_state, endereco_entrega, numero_entrega, complemento_entrega, bairro_entrega, cidade_entrega, uf_entrega, cep_entrega")
+          .eq("client_id", clientId)
+          .eq("tenant_id", tenantId)
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        const mr = Array.isArray(mrData) ? mrData[0] : mrData;
+        if (mr) {
+          const addr = buildAddress([
+            mr.delivery_address_street || mr.endereco_entrega,
+            mr.delivery_address_number || mr.numero_entrega,
+            mr.delivery_address_complement || mr.complemento_entrega,
+            mr.delivery_address_district || mr.bairro_entrega,
+            mr.delivery_address_city || mr.cidade_entrega,
+            mr.delivery_address_state || mr.uf_entrega,
+            mr.delivery_address_zip || mr.cep_entrega,
+          ]);
+          if (addr) {
+            setResolvedClientAddr(addr);
+            setAddrLoading(false);
+            return;
+          }
+        }
+
+        // Strategy 2: client_contracts snapshot
+        const { data: contractData } = await (supabase as any)
+          .from("client_contracts")
+          .select("snapshot")
+          .eq("client_id", clientId)
+          .eq("tenant_id", tenantId)
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        const contract = Array.isArray(contractData) ? contractData[0] : contractData;
+        if (contract?.snapshot) {
+          const s = contract.snapshot;
+          const addr = buildAddress([
+            s.delivery_address_street || s.endereco_entrega || s.endereco,
+            s.delivery_address_number || s.numero_entrega || s.numero,
+            s.delivery_address_complement || s.complemento_entrega || s.complemento,
+            s.delivery_address_district || s.bairro_entrega || s.bairro,
+            s.delivery_address_city || s.cidade_entrega || s.cidade,
+            s.delivery_address_state || s.uf_entrega || s.estado || s.uf,
+            s.delivery_address_zip || s.cep_entrega || s.cep,
+          ]);
+          if (addr) {
+            setResolvedClientAddr(addr);
+            setAddrLoading(false);
+            return;
+          }
+        }
+
+        setResolvedClientAddr(null);
+      } catch (err) {
+        console.warn("[MeasurementSchedule] Failed to fetch client address:", err);
+        setResolvedClientAddr(null);
+      } finally {
+        setAddrLoading(false);
+      }
+    })();
+  }, [open, clientId, tenantId, clientAddressProp, technicianAddressProp, currentUser]);
 
   // Fetch schedule history
   useEffect(() => {
@@ -86,17 +192,23 @@ export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId
     }
   }, [open]);
 
-  // Calculate KM when dialog opens
+  // Calculate KM when addresses are resolved
   useEffect(() => {
-    if (!open || !googleMapsKey || !clientAddress || !technicianAddress) {
-      if (open && (!clientAddress || !technicianAddress)) {
-        setKmError("Endereço do cliente ou técnico não cadastrado");
+    if (!open || !googleMapsKey || addrLoading) return;
+
+    if (!resolvedClientAddr || !resolvedTechAddr) {
+      if (!addrLoading) {
+        const missing: string[] = [];
+        if (!resolvedClientAddr) missing.push("cliente");
+        if (!resolvedTechAddr) missing.push("técnico");
+        setKmError(`Endereço do ${missing.join(" e ")} não cadastrado`);
       }
       return;
     }
+
     setKmLoading(true);
     setKmError(null);
-    calculateRoundTripKm(googleMapsKey, technicianAddress, clientAddress)
+    calculateRoundTripKm(googleMapsKey, resolvedTechAddr, resolvedClientAddr)
       .then(result => {
         if (result) {
           setKmResult(result);
@@ -105,7 +217,7 @@ export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId
         }
       })
       .finally(() => setKmLoading(false));
-  }, [open, googleMapsKey, clientAddress, technicianAddress]);
+  }, [open, googleMapsKey, resolvedClientAddr, resolvedTechAddr, addrLoading]);
 
   const hasHistory = history.length > 0;
   const effectiveIsReschedule = isReschedule || hasHistory;
@@ -149,7 +261,13 @@ export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId
                     <span className="text-xs font-semibold leading-relaxed">Endereço de Entrega — Cliente</span>
                   </div>
                   <p className="break-words pl-5 text-xs text-muted-foreground">
-                    {clientAddress || <span className="italic">Endereço não cadastrado</span>}
+                    {addrLoading ? (
+                      <span className="flex items-center gap-1.5"><Loader2 className="h-3 w-3 animate-spin" /> Buscando endereço...</span>
+                    ) : resolvedClientAddr ? (
+                      resolvedClientAddr
+                    ) : (
+                      <span className="italic">Endereço não cadastrado</span>
+                    )}
                   </p>
                 </div>
 
@@ -159,7 +277,7 @@ export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId
                     <span className="text-xs font-semibold leading-relaxed">Base — Ponto de Partida</span>
                   </div>
                   <p className="break-words pl-5 text-xs text-muted-foreground">
-                    {technicianAddress || <span className="italic">Endereço não cadastrado</span>}
+                    {resolvedTechAddr || <span className="italic">Endereço não cadastrado</span>}
                   </p>
                 </div>
 
@@ -168,7 +286,7 @@ export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId
                     <MapPin className="h-4 w-4 shrink-0 text-primary" />
                     <span className="text-sm font-semibold">Distância (ida e volta)</span>
                   </div>
-                  {kmLoading ? (
+                  {kmLoading || addrLoading ? (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Loader2 className="h-3.5 w-3.5 animate-spin" /> Calculando distância...
                     </div>
