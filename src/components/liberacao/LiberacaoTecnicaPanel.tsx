@@ -370,6 +370,10 @@ export function LiberacaoTecnicaPanel() {
       const allTracking = ((trackingRes.data as any[]) || []).filter((item) => item?.client_id);
       const allMeasurementRequests = ((mrRes.data as any[]) || []).filter((item) => item?.client_id);
       const allUsuarios = (usuariosRes.data as any[]) || [];
+      const contractTypesMap = new Map<string, any>();
+      ((ctRes.data as any[]) || []).forEach((ct: any) => {
+        if (ct.nome) contractTypesMap.set(ct.nome.toLowerCase().trim(), ct);
+      });
 
       const clientIds = [...new Set([
         ...allTracking.map((t) => t.client_id),
