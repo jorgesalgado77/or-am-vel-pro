@@ -19,6 +19,13 @@ export interface AppUser {
   tenant_id: string | null;
   auth_user_id: string | null;
   permissoes: CargoPermissoes;
+  cep?: string | null;
+  endereco?: string | null;
+  numero?: string | null;
+  complemento?: string | null;
+  bairro?: string | null;
+  cidade?: string | null;
+  uf?: string | null;
 }
 
 export const DEFAULT_PERMS: CargoPermissoes = {
@@ -118,6 +125,13 @@ export async function mapAppUser(userRow: any, authUserId?: string | null): Prom
     tenant_id: userRow.tenant_id ?? null,
     auth_user_id: userRow.auth_user_id ?? authUserId ?? null,
     permissoes,
+    cep: userRow.cep ?? null,
+    endereco: userRow.endereco ?? null,
+    numero: userRow.numero ?? null,
+    complemento: userRow.complemento ?? null,
+    bairro: userRow.bairro ?? null,
+    cidade: userRow.cidade ?? null,
+    uf: userRow.uf ?? null,
   };
 }
 
@@ -134,6 +148,14 @@ export function mapRpcAppUser(userRow: any, authUserId?: string | null): AppUser
     tenant_id: userRow.tenant_id ?? null,
     auth_user_id: userRow.auth_user_id ?? authUserId ?? null,
     permissoes: (userRow.permissoes as CargoPermissoes) ?? DEFAULT_PERMS,
+    cep: userRow.cep ?? null,
+    endereco: userRow.endereco ?? null,
+    numero: userRow.numero ?? null,
+    complemento: userRow.complemento ?? null,
+    bairro: userRow.bairro ?? null,
+    cidade: userRow.cidade ?? null,
+    uf: userRow.uf ?? null,
+  };
   };
 }
 
@@ -183,6 +205,13 @@ export async function buildFallbackUserFromAuth(
       tenant_id: null,
       auth_user_id: authUser.id,
       permissoes: DEFAULT_PERMS,
+      cep: null,
+      endereco: null,
+      numero: null,
+      complemento: null,
+      bairro: null,
+      cidade: null,
+      uf: null,
     };
   }
 
@@ -201,6 +230,13 @@ export async function buildFallbackUserFromAuth(
     tenant_id: tenantId,
     auth_user_id: authUser.id,
     permissoes,
+    cep: (metadata?.cep as string) || null,
+    endereco: (metadata?.endereco as string) || null,
+    numero: (metadata?.numero as string) || null,
+    complemento: (metadata?.complemento as string) || null,
+    bairro: (metadata?.bairro as string) || null,
+    cidade: (metadata?.cidade as string) || null,
+    uf: (metadata?.uf as string) || null,
   };
 }
 

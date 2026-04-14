@@ -242,7 +242,7 @@ export function useKanbanData(externalClients: Client[]) {
     const fetchScheduledDates = async () => {
       const { data: histData } = await supabase
         .from("measurement_schedule_history" as any)
-        .select("client_id, date, time, round_trip_km, created_at")
+        .select("client_id, date, time, created_at")
         .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false });
       if (histData) {
@@ -250,7 +250,7 @@ export function useKanbanData(externalClients: Client[]) {
         (histData as any[]).forEach((h: any) => {
           if (!schedMap[h.client_id]) {
             const formattedDate = h.date.includes("-") ? h.date.split("-").reverse().join("/") : h.date;
-            schedMap[h.client_id] = { date: formattedDate, time: h.time, km: h.round_trip_km || undefined };
+            schedMap[h.client_id] = { date: formattedDate, time: h.time };
           }
         });
         setScheduledMeasurements(schedMap);
