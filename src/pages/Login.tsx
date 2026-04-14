@@ -41,6 +41,7 @@ export default function Login() {
   const [planBlocked, setPlanBlocked] = useState<PlanBlockInfo | null>(null);
   const [tenantInfo, setTenantInfo] = useState<{ nome: string; subtitulo: string; logo_url?: string | null } | null>(null);
   const [resolvedTenantId, setResolvedTenantId] = useState<string | null>(null);
+  const [tenantLoading, setTenantLoading] = useState(false);
   const [highlightForgotPassword, setHighlightForgotPassword] = useState(false);
 
 
