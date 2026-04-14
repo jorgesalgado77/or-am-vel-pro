@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { MapPin, User, Phone, Mail, Calendar, DollarSign, FileText, Loader2 } from "lucide-react";
+import { MapPin, User, Phone, Mail, Calendar, DollarSign, FileText, Loader2, Store, Hash } from "lucide-react";
 import { formatCurrency } from "@/lib/financing";
 import { format } from "date-fns";
 
@@ -12,7 +12,7 @@ interface ClientInfo {
   nome: string;
   telefone1: string | null;
   email: string | null;
-  // delivery address from measurement_request
+  // delivery address
   cep_entrega: string;
   endereco_entrega: string;
   numero_entrega: string;
@@ -20,10 +20,14 @@ interface ClientInfo {
   bairro_entrega: string;
   cidade_entrega: string;
   uf_entrega: string;
-  // contract info from client_tracking
+  // contract
   data_fechamento: string | null;
   valor_contrato: number | null;
-  // measurement request id
+  numero_contrato: string | null;
+  // store
+  codigo_loja: string | null;
+  nome_loja: string | null;
+  // refs
   measurementRequestId: string | null;
   clientId: string | null;
 }
@@ -34,10 +38,8 @@ interface Props {
 }
 
 function extractClientName(title: string): string | null {
-  // Try patterns like "Medição - ClientName", "Vistoria - ClientName", etc.
   const match = title.match(/^(?:Medição|Vistoria|Reunião|Tarefa)\s*[-–—]\s*(.+)$/i);
   if (match) return match[1].trim();
-  // Try after " - "
   const dashMatch = title.match(/\s[-–—]\s(.+)$/);
   if (dashMatch) return dashMatch[1].trim();
   return null;
@@ -55,7 +57,7 @@ export function TaskClientInfo({ taskTitle, tenantId }: Props) {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Find client by name
+        // Find client
         const { data: clients } = await supabase
           .from("clients")
           .select("id, nome, telefone1, email")
@@ -66,11 +68,11 @@ export function TaskClientInfo({ taskTitle, tenantId }: Props) {
         if (!clients || clients.length === 0) { setLoading(false); return; }
         const client = clients[0];
 
-        // Fetch tracking and measurement_request in parallel
-        const [trackingRes, mrRes] = await Promise.all([
+        // Fetch tracking, measurement_request, and tenant in parallel
+        const [trackingRes, mrRes, tenantRes] = await Promise.all([
           supabase
             .from("client_tracking")
-            .select("data_fechamento, valor_contrato")
+            .select("data_fechamento, valor_contrato, numero_contrato")
             .eq("client_id", client.id)
             .eq("tenant_id", tenantId)
             .limit(1),
@@ -81,10 +83,16 @@ export function TaskClientInfo({ taskTitle, tenantId }: Props) {
             .eq("tenant_id", tenantId)
             .order("created_at", { ascending: false })
             .limit(1),
+          supabase
+            .from("tenants")
+            .select("codigo_loja, nome_loja")
+            .eq("id", tenantId)
+            .maybeSingle(),
         ]);
 
         const tracking = trackingRes.data?.[0];
         const mr = mrRes.data?.[0];
+        const tenant = tenantRes.data;
 
         setInfo({
           nome: client.nome,
@@ -99,6 +107,9 @@ export function TaskClientInfo({ taskTitle, tenantId }: Props) {
           uf_entrega: mr?.uf_entrega || "",
           data_fechamento: tracking?.data_fechamento || null,
           valor_contrato: tracking?.valor_contrato || null,
+          numero_contrato: tracking?.numero_contrato || null,
+          codigo_loja: tenant?.codigo_loja || null,
+          nome_loja: tenant?.nome_loja || null,
           measurementRequestId: mr?.id || null,
           clientId: client.id,
         });
@@ -132,6 +143,8 @@ export function TaskClientInfo({ taskTitle, tenantId }: Props) {
     info.cep_entrega && `CEP: ${info.cep_entrega}`,
   ].filter(Boolean).join(", ");
 
+  const lojaDisplay = [info.codigo_loja, info.nome_loja].filter(Boolean).join(" - ");
+
   return (
     <div className="space-y-3">
       <Separator />
@@ -159,15 +172,64 @@ export function TaskClientInfo({ taskTitle, tenantId }: Props) {
         </div>
       </div>
 
-      {fullAddress && (
+      {/* Contract & Store */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <Label className="text-[11px] text-muted-foreground flex items-center gap-1">
-            <MapPin className="h-3 w-3" /> Endereço de Entrega
+            <Hash className="h-3 w-3" /> Nº Contrato
           </Label>
-          <Input value={fullAddress} readOnly className="h-8 text-xs bg-muted/50" />
+          <Input value={info.numero_contrato || "—"} readOnly className="h-8 text-xs bg-muted/50" />
         </div>
-      )}
+        <div>
+          <Label className="text-[11px] text-muted-foreground flex items-center gap-1">
+            <Store className="h-3 w-3" /> Loja
+          </Label>
+          <Input value={lojaDisplay || "—"} readOnly className="h-8 text-xs bg-muted/50" />
+        </div>
+      </div>
 
+      {/* Delivery Address - individual fields */}
+      <div>
+        <Label className="text-[11px] text-muted-foreground flex items-center gap-1 mb-1">
+          <MapPin className="h-3 w-3" /> Endereço de Entrega
+        </Label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div>
+            <Label className="text-[10px] text-muted-foreground/70">Endereço</Label>
+            <Input value={info.endereco_entrega || "—"} readOnly className="h-7 text-xs bg-muted/50" />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label className="text-[10px] text-muted-foreground/70">Número</Label>
+              <Input value={info.numero_entrega || "—"} readOnly className="h-7 text-xs bg-muted/50" />
+            </div>
+            <div>
+              <Label className="text-[10px] text-muted-foreground/70">Complemento</Label>
+              <Input value={info.complemento_entrega || "—"} readOnly className="h-7 text-xs bg-muted/50" />
+            </div>
+          </div>
+          <div>
+            <Label className="text-[10px] text-muted-foreground/70">Bairro</Label>
+            <Input value={info.bairro_entrega || "—"} readOnly className="h-7 text-xs bg-muted/50" />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <Label className="text-[10px] text-muted-foreground/70">Cidade</Label>
+              <Input value={info.cidade_entrega || "—"} readOnly className="h-7 text-xs bg-muted/50" />
+            </div>
+            <div>
+              <Label className="text-[10px] text-muted-foreground/70">UF</Label>
+              <Input value={info.uf_entrega || "—"} readOnly className="h-7 text-xs bg-muted/50" />
+            </div>
+            <div>
+              <Label className="text-[10px] text-muted-foreground/70">CEP</Label>
+              <Input value={info.cep_entrega || "—"} readOnly className="h-7 text-xs bg-muted/50" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Dates & Values */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <Label className="text-[11px] text-muted-foreground flex items-center gap-1">
@@ -191,13 +253,13 @@ export function TaskClientInfo({ taskTitle, tenantId }: Props) {
         </div>
       </div>
 
+      {/* Action button */}
       {info.measurementRequestId && (
         <Button
           variant="outline"
           size="sm"
           className="gap-1.5 w-full"
           onClick={() => {
-            // Navigate to clients kanban which will show the measurement request
             window.open(`/app?view=kanban&clientId=${info.clientId}`, "_blank");
           }}
         >
