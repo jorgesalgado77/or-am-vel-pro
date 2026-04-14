@@ -332,7 +332,7 @@ export function LiberacaoTecnicaPanel() {
     if (!tenantId) { setLoading(false); return; }
 
     try {
-      const [tenantRes, trackingRes, mrRes, usuariosRes] = await Promise.all([
+      const [tenantRes, trackingRes, mrRes, usuariosRes, ctRes] = await Promise.all([
         supabase
           .from("tenants")
           .select("nome_loja, codigo_loja")
@@ -352,6 +352,11 @@ export function LiberacaoTecnicaPanel() {
           .from("usuarios")
           .select("id, nome_completo, apelido, email, cargo_id, comissao_percentual, cep, endereco, numero, complemento, bairro, cidade, uf")
           .eq("tenant_id", tenantId),
+        (supabase as any)
+          .from("contract_types")
+          .select("nome, prazo_entrega, prazo_liberacao_tecnica, prazo_inicio_montagem, prazo_assistencia_tecnica")
+          .eq("tenant_id", tenantId)
+          .eq("ativo", true),
       ]);
 
       if (trackingRes.error && mrRes.error) {
