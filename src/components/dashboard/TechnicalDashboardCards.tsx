@@ -127,7 +127,7 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
   useEffect(() => {
     const channel = supabase
       .channel("tech-dashboard-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "clients", filter: `status=eq.em_liberado` }, () => fetchData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "measurement_requests" }, () => fetchData())
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "client_status_history" }, () => fetchData())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
