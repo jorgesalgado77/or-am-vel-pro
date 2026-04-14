@@ -94,7 +94,7 @@ export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId
         // Fetch directly from DB as fallback (RPC may not return address fields)
         (async () => {
           try {
-            const { data } = await supabase
+            const { data } = await (supabase as any)
               .from("usuarios")
               .select("cep, endereco, numero, complemento, bairro, cidade, uf")
               .eq("id", currentUser.id)
