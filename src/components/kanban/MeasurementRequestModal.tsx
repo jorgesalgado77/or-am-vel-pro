@@ -775,153 +775,198 @@ export function MeasurementRequestModal({
     setHydrating(true);
 
     const loadData = async () => {
-      const [{ data: sims }, latestRequest] = await Promise.all([
-        supabase
-          .from("simulations")
-          .select("arquivo_nome, valor_tela, desconto1, desconto2, desconto3")
-          .eq("client_id", client.id)
-          .order("created_at", { ascending: false })
-          .limit(1),
-        loadLatestMeasurementRequest(),
-      ]);
-      let nextEnvironments: EnvironmentData[] = [];
-      let nextImportedFiles: { name: string; url: string; type: string }[] = [];
+      try {
+        const [{ data: sims }, latestRequest, contractRes] = await Promise.all([
+          supabase
+            .from("simulations")
+            .select("arquivo_nome, valor_tela, desconto1, desconto2, desconto3")
+            .eq("client_id", client.id)
+            .order("created_at", { ascending: false })
+            .limit(1),
+          loadLatestMeasurementRequest(),
+          supabase
+            .from("client_contracts")
+            .select("form_data")
+            .eq("client_id", client.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        ]);
 
-      if (sims && sims.length > 0) {
-        const sim = sims[0];
-        try {
-          if (sim.arquivo_nome) {
-            const parsedData = parseArquivoNome(sim.arquivo_nome);
-            const envArray = parsedData.environments;
-            nextEnvironments = envArray.map((e: any, i: number) => {
-              const vt = Number(e.totalValue) || 0;
-              const d1 = Number(sim.desconto1) || 0;
-              const d2 = Number(sim.desconto2) || 0;
-              const d3 = Number(sim.desconto3) || 0;
-              const after1 = vt * (1 - d1 / 100);
-              const after2 = after1 * (1 - d2 / 100);
-              const valorAvista = after2 * (1 - d3 / 100);
-              return {
-                id: e.id || `env-${i}`,
-                name: e.environmentName || `Ambiente ${i + 1}`,
-                value: valorAvista,
-                fileUrl: e.fileUrl,
-                fileName: e.fileName,
+        // Extract address from contract form_data if available
+        const contractFormData = (contractRes.data as any)?.form_data;
+        if (contractFormData && !latestRequest?.delivery_address?.street) {
+          // Merge contract form_data address into latestRequest for hydration
+          if (latestRequest) {
+            const fd = typeof contractFormData === "string" ? JSON.parse(contractFormData) : contractFormData;
+            if (!latestRequest.delivery_address || !latestRequest.delivery_address.street) {
+              latestRequest.delivery_address = {
+                cep: fd.cep_entrega || fd.delivery_address_zip || fd.cep || "",
+                street: fd.endereco_entrega || fd.delivery_address_street || fd.endereco || "",
+                number: fd.numero_entrega || fd.delivery_address_number || fd.numero || "",
+                complement: fd.complemento_entrega || fd.delivery_address_complement || fd.complemento || "",
+                district: fd.bairro_entrega || fd.delivery_address_district || fd.bairro || "",
+                city: fd.cidade_entrega || fd.delivery_address_city || fd.cidade || "",
+                state: fd.uf_entrega || fd.delivery_address_state || fd.uf || fd.estado || "",
               };
+            }
+            if (!latestRequest.client_snapshot) latestRequest.client_snapshot = {};
+            Object.assign(latestRequest.client_snapshot, {
+              delivery_address_zip: fd.cep_entrega || fd.delivery_address_zip || fd.cep || "",
+              delivery_address_street: fd.endereco_entrega || fd.delivery_address_street || fd.endereco || "",
+              delivery_address_number: fd.numero_entrega || fd.delivery_address_number || fd.numero || "",
+              delivery_address_complement: fd.complemento_entrega || fd.delivery_address_complement || fd.complemento || "",
+              delivery_address_district: fd.bairro_entrega || fd.delivery_address_district || fd.bairro || "",
+              delivery_address_city: fd.cidade_entrega || fd.delivery_address_city || fd.cidade || "",
+              delivery_address_state: fd.uf_entrega || fd.delivery_address_state || fd.uf || fd.estado || "",
             });
-
-            nextImportedFiles = envArray
-              .filter((e: any) => e.fileUrl && e.fileName)
-              .map((e: any) => ({
-                name: e.fileName,
-                url: e.fileUrl,
-                type: e.fileName.split(".").pop()?.toLowerCase() || "",
-              }));
           }
-        } catch {
-          const vt = Number(sim.valor_tela) || 0;
-          const d1 = Number(sim.desconto1) || 0;
-          const d2 = Number(sim.desconto2) || 0;
-          const d3 = Number(sim.desconto3) || 0;
-          const after1 = vt * (1 - d1 / 100);
-          const after2 = after1 * (1 - d2 / 100);
-          const valorAvista = after2 * (1 - d3 / 100);
-          nextEnvironments = [{ id: "env-1", name: "Ambiente 1", value: valorAvista }];
         }
-      }
 
-      if (latestRequest?.ambientes?.length && nextEnvironments.length === 0) {
-        nextEnvironments = latestRequest.ambientes.map((env: any, index: number) => ({
-          id: env.id || `saved-env-${index}`,
-          name: env.name || `Ambiente ${index + 1}`,
-          value: Number(env.value) || 0,
-          fileUrl: env.fileUrl,
-          fileName: env.fileName,
-        }));
-      }
+        let nextEnvironments: EnvironmentData[] = [];
+        let nextImportedFiles: { name: string; url: string; type: string }[] = [];
 
-      const attachmentEntries = await Promise.all(nextEnvironments.map(async (env) => {
-        const savedEnv = (latestRequest?.ambientes || []).find((item: any) =>
-          String(item?.id || "") === String(env.id) || normalizeText(item?.name) === normalizeText(env.name),
-        );
+        if (sims && sims.length > 0) {
+          const sim = sims[0];
+          try {
+            if (sim.arquivo_nome) {
+              const parsedData = parseArquivoNome(sim.arquivo_nome);
+              const envArray = parsedData.environments;
+              nextEnvironments = envArray.map((e: any, i: number) => {
+                const vt = Number(e.totalValue) || 0;
+                const d1 = Number(sim.desconto1) || 0;
+                const d2 = Number(sim.desconto2) || 0;
+                const d3 = Number(sim.desconto3) || 0;
+                const after1 = vt * (1 - d1 / 100);
+                const after2 = after1 * (1 - d2 / 100);
+                const valorAvista = after2 * (1 - d3 / 100);
+                return {
+                  id: e.id || `env-${i}`,
+                  name: e.environmentName || `Ambiente ${i + 1}`,
+                  value: valorAvista,
+                  fileUrl: e.fileUrl,
+                  fileName: e.fileName,
+                };
+              });
 
-        const envLevelAttachments = savedEnv ? collectPersistedAttachments(savedEnv) : [];
-        const requestLevelAttachments = collectPersistedAttachments(latestRequest).filter((item) =>
-          attachmentMatchesEnvironment(item, env),
-        );
-        const requestFallbackAttachments = collectPersistedAttachments(latestRequest).filter((item) => {
-          const parsed = parsePersistedValue(item);
-          if (!parsed || typeof parsed !== "object") return nextEnvironments[0]?.id === env.id;
+              nextImportedFiles = envArray
+                .filter((e: any) => e.fileUrl && e.fileName)
+                .map((e: any) => ({
+                  name: e.fileName,
+                  url: e.fileUrl,
+                  type: e.fileName.split(".").pop()?.toLowerCase() || "",
+                }));
+            }
+          } catch {
+            const vt = Number(sim.valor_tela) || 0;
+            const d1 = Number(sim.desconto1) || 0;
+            const d2 = Number(sim.desconto2) || 0;
+            const d3 = Number(sim.desconto3) || 0;
+            const after1 = vt * (1 - d1 / 100);
+            const after2 = after1 * (1 - d2 / 100);
+            const valorAvista = after2 * (1 - d3 / 100);
+            nextEnvironments = [{ id: "env-1", name: "Ambiente 1", value: valorAvista }];
+          }
+        }
 
-          const hasEnvironmentRef = Boolean(
-            parsed.envId
-            || parsed.environmentId
-            || parsed.environment_id
-            || parsed.ambienteId
-            || parsed.ambiente_id
-            || parsed.envName
-            || parsed.environmentName
-            || parsed.environment_name
-            || parsed.ambiente
-            || parsed.ambienteNome
-            || parsed.ambiente_nome,
+        if (latestRequest?.ambientes?.length && nextEnvironments.length === 0) {
+          nextEnvironments = latestRequest.ambientes.map((env: any, index: number) => ({
+            id: env.id || `saved-env-${index}`,
+            name: env.name || `Ambiente ${index + 1}`,
+            value: Number(env.value) || 0,
+            fileUrl: env.fileUrl,
+            fileName: env.fileName,
+          }));
+        }
+
+        const attachmentEntries = await Promise.all(nextEnvironments.map(async (env) => {
+          const savedEnv = (latestRequest?.ambientes || []).find((item: any) =>
+            String(item?.id || "") === String(env.id) || normalizeText(item?.name) === normalizeText(env.name),
           );
 
-          return !hasEnvironmentRef && nextEnvironments[0]?.id === env.id;
-        });
+          const envLevelAttachments = savedEnv ? collectPersistedAttachments(savedEnv) : [];
+          const requestLevelAttachments = collectPersistedAttachments(latestRequest).filter((item) =>
+            attachmentMatchesEnvironment(item, env),
+          );
+          const requestFallbackAttachments = collectPersistedAttachments(latestRequest).filter((item) => {
+            const parsed = parsePersistedValue(item);
+            if (!parsed || typeof parsed !== "object") return nextEnvironments[0]?.id === env.id;
 
-        const rawAttachments = envLevelAttachments.length > 0
-          ? envLevelAttachments
-          : requestLevelAttachments.length > 0
-            ? requestLevelAttachments
-            : requestFallbackAttachments;
+            const hasEnvironmentRef = Boolean(
+              parsed.envId
+              || parsed.environmentId
+              || parsed.environment_id
+              || parsed.ambienteId
+              || parsed.ambiente_id
+              || parsed.envName
+              || parsed.environmentName
+              || parsed.environment_name
+              || parsed.ambiente
+              || parsed.ambienteNome
+              || parsed.ambiente_nome,
+            );
 
-        const normalized = (await Promise.all(rawAttachments.map((item: any, index: number) =>
-          buildPersistedAttachment(env.id, env.name, item, index),
-        ))).filter((attachment): attachment is EnvironmentAttachment => Boolean(attachment));
+            return !hasEnvironmentRef && nextEnvironments[0]?.id === env.id;
+          });
 
-        return [env.id, normalized] as const;
-      }));
+          const rawAttachments = envLevelAttachments.length > 0
+            ? envLevelAttachments
+            : requestLevelAttachments.length > 0
+              ? requestLevelAttachments
+              : requestFallbackAttachments;
 
-      if (!active) return;
+          const normalized = (await Promise.all(rawAttachments.map((item: any, index: number) =>
+            buildPersistedAttachment(env.id, env.name, item, index),
+          ))).filter((attachment): attachment is EnvironmentAttachment => Boolean(attachment));
 
-      setEnvironments(nextEnvironments);
-      setImportedFiles(
-        Array.isArray(latestRequest?.imported_files) && latestRequest.imported_files.length > 0
-          ? latestRequest.imported_files
-          : nextImportedFiles,
-      );
-      setEnvAttachments(Object.fromEntries(attachmentEntries.filter(([, attachments]) => attachments.length > 0)));
-      setObservacoes(latestRequest?.observacoes || "");
-      setExistingRequestId(latestRequest?.id || null);
-      if (latestRequest?.last_edited_by) {
-        setLastEditInfo({
-          by: latestRequest.last_edited_by,
-          cargo: latestRequest.last_edited_by_cargo || "",
-          at: latestRequest.last_edited_at || latestRequest.updated_at || "",
-        });
-      } else if (latestRequest?.id) {
-        setLastEditInfo({
-          by: latestRequest.created_by || "Sistema",
-          cargo: "",
-          at: latestRequest.created_at || "",
-        });
-      }
-      initialLoadDoneRef.current = true;
+          return [env.id, normalized] as const;
+        }));
 
-      // Build edit history from the request
-      const history: Array<{ by: string; cargo: string; at: string; action: string }> = [];
-      if (latestRequest?.created_by && latestRequest?.created_at) {
-        history.push({ by: latestRequest.created_by, cargo: "", at: latestRequest.created_at, action: "Criou a solicitação" });
-      }
-      if (latestRequest?.last_edited_by && latestRequest?.last_edited_at && latestRequest.last_edited_at !== latestRequest.created_at) {
-        history.push({ by: latestRequest.last_edited_by, cargo: latestRequest.last_edited_by_cargo || "", at: latestRequest.last_edited_at, action: "Editou a solicitação" });
-      }
-      setEditHistory(history);
-      setHydrating(false);
+        if (!active) return;
 
-      if (latestRequest) {
-        hydrateClientState({ ...(client as any), ...(latestRequest as Record<string, any>) });
+        setEnvironments(nextEnvironments);
+        setImportedFiles(
+          Array.isArray(latestRequest?.imported_files) && latestRequest.imported_files.length > 0
+            ? latestRequest.imported_files
+            : nextImportedFiles,
+        );
+        setEnvAttachments(Object.fromEntries(attachmentEntries.filter(([, attachments]) => attachments.length > 0)));
+        setObservacoes(latestRequest?.observacoes || "");
+        setExistingRequestId(latestRequest?.id || null);
+        if (latestRequest?.last_edited_by) {
+          setLastEditInfo({
+            by: latestRequest.last_edited_by,
+            cargo: latestRequest.last_edited_by_cargo || "",
+            at: latestRequest.last_edited_at || latestRequest.updated_at || "",
+          });
+        } else if (latestRequest?.id) {
+          setLastEditInfo({
+            by: latestRequest.created_by || "Sistema",
+            cargo: "",
+            at: latestRequest.created_at || "",
+          });
+        }
+        initialLoadDoneRef.current = true;
+
+        // Build edit history from the request
+        const history: Array<{ by: string; cargo: string; at: string; action: string }> = [];
+        if (latestRequest?.created_by && latestRequest?.created_at) {
+          history.push({ by: latestRequest.created_by, cargo: "", at: latestRequest.created_at, action: "Criou a solicitação" });
+        }
+        if (latestRequest?.last_edited_by && latestRequest?.last_edited_at && latestRequest.last_edited_at !== latestRequest.created_at) {
+          history.push({ by: latestRequest.last_edited_by, cargo: latestRequest.last_edited_by_cargo || "", at: latestRequest.last_edited_at, action: "Editou a solicitação" });
+        }
+        setEditHistory(history);
+
+        if (latestRequest) {
+          hydrateClientState({ ...(client as any), ...(latestRequest as Record<string, any>) });
+        }
+      } catch (err) {
+        console.error("Error loading measurement request data:", err);
+      } finally {
+        if (active) {
+          setHydrating(false);
+        }
       }
     };
 
