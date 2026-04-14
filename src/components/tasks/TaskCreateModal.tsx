@@ -75,8 +75,9 @@ export function TaskCreateModal({ open, onClose, onSave, editingTask, currentUse
         const technicalCargoIds = new Set(
           (cargos || [])
             .filter(c => {
-              const n = c.nome.toLowerCase();
-              return n.includes("liberador") || n.includes("tecnico") || n.includes("técnico") || n.includes("conferente");
+              const n = c.nome.toLowerCase().trim();
+              const allowed = ["liberador", "tecnico", "técnico", "conferente"];
+              return allowed.some(role => n === role);
             })
             .map(c => c.id)
         );
