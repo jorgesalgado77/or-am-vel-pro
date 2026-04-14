@@ -51,6 +51,9 @@ function extractClientName(title: string): string | null {
 export function TaskClientInfo({ taskTitle, tenantId }: Props) {
   const [info, setInfo] = useState<ClientInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [measurementModalOpen, setMeasurementModalOpen] = useState(false);
+  const [fullClient, setFullClient] = useState<Client | null>(null);
+  const [trackingRecord, setTrackingRecord] = useState<ClientTrackingRecord | null>(null);
 
   useEffect(() => {
     if (!tenantId || !taskTitle) { setLoading(false); return; }
