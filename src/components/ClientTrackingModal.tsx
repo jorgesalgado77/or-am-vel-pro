@@ -88,6 +88,29 @@ export function ClientTrackingModal({ open, onClose }: Props) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const fetchContractTypePrazos = async (tenantId: string, tipoContrato?: string | null) => {
+    if (!tenantId || !tipoContrato) return {};
+    try {
+      const { data } = await (supabase as any)
+        .from("contract_types")
+        .select("prazo_entrega, prazo_liberacao_tecnica, prazo_inicio_montagem, prazo_assistencia_tecnica")
+        .eq("tenant_id", tenantId)
+        .ilike("nome", tipoContrato)
+        .eq("ativo", true)
+        .limit(1)
+        .maybeSingle();
+      if (data) {
+        return {
+          prazo_entrega_loja: data.prazo_entrega || null,
+          prazo_liberacao_tecnica: data.prazo_liberacao_tecnica || null,
+          prazo_inicio_montagem: data.prazo_inicio_montagem || null,
+          prazo_assistencia_tecnica: data.prazo_assistencia_tecnica || null,
+        };
+      }
+    } catch {}
+    return {};
+  };
+
   const handleSearch = async () => {
     const searchValue = searchMode === "contrato" ? contractNumber.trim() : cpfCnpj.trim().replace(/\D/g, "");
     if (!searchValue) { toast.error(searchMode === "contrato" ? "Informe o número do contrato" : "Informe o CPF ou CNPJ"); return; }
