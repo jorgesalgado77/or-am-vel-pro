@@ -139,6 +139,20 @@ function extractAddressFromHtml(html: string | null | undefined) {
   return match?.[1]?.trim() || null;
 }
 
+function extractContractNumberFromHtml(html: string | null | undefined) {
+  const content = String(html || "");
+  const match = content.match(/<strong>(?:N[úu]mero do Contrato|Nº do Contrato|Contrato):?<\/strong>\s*([^<]+)\.?/i)
+    || content.match(/contrato\s*(?:n[º°o]\s*)?[:#-]?\s*([\w./-]+)/i);
+  return match?.[1]?.trim() || null;
+}
+
+function resolveSimulationValue(sim: any): number | null {
+  if (!sim) return null;
+  const direct = Number(sim.valor_com_desconto) || Number(sim.valor_final) || 0;
+  if (direct > 0) return direct;
+  return computeValorComDesconto(sim) || (Number(sim.valor_tela) || null);
+}
+
 function resolveOperationalStatus(clientStatus?: string | null, trackingStatus?: string | null, requestStatus?: string | null) {
   const client = String(clientStatus || "").trim();
   const tracking = String(trackingStatus || "").trim();
@@ -171,6 +185,7 @@ interface LiberacaoRow {
   dataFinalizado: string | null;
   diasEmLiberacao: number | null;
   tecnicoResponsavel: string | null;
+  responsavelRefs: string[];
   tecnicoEnderecoBase: string | null;
   loja: string | null;
   codigoLoja: string | null;
@@ -357,15 +372,26 @@ export function LiberacaoTecnicaPanel() {
         return;
       }
 
-      const [clientsRes, dealroomRes] = await Promise.all([
+      const [clientsRes, dealroomRes, contractsRes, simsRes] = await Promise.all([
         supabase
           .from("clients")
           .select("*")
           .in("id", clientIds),
         supabase
           .from("dealroom_transactions")
-          .select("client_id, nome_vendedor, valor_venda, created_at, numero_contrato")
+          .select("client_id, simulation_id, nome_cliente, nome_vendedor, valor_venda, created_at, numero_contrato")
           .eq("tenant_id", tenantId)
+          .in("client_id", clientIds)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("client_contracts")
+          .select("id, client_id, simulation_id, created_at, conteudo_html, valor_com_desconto, valor_contrato")
+          .eq("tenant_id", tenantId)
+          .in("client_id", clientIds)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("simulations")
+          .select("id, client_id, valor_final, valor_com_desconto, valor_tela, desconto1, desconto2, desconto3, created_at")
           .in("client_id", clientIds)
           .order("created_at", { ascending: false }),
       ]);
@@ -383,9 +409,23 @@ export function LiberacaoTecnicaPanel() {
         if (!mrMap.has(request.client_id)) mrMap.set(request.client_id, request);
       });
 
-      const dealroomMap = new Map<string, any>();
+      const dealroomByClient = new Map<string, any>();
+      const dealroomBySimulation = new Map<string, any>();
       ((dealroomRes.data || []) as any[]).forEach((dealroom: any) => {
-        if (dealroom.client_id && !dealroomMap.has(dealroom.client_id)) dealroomMap.set(dealroom.client_id, dealroom);
+        if (dealroom.client_id && !dealroomByClient.has(dealroom.client_id)) dealroomByClient.set(dealroom.client_id, dealroom);
+        if (dealroom.simulation_id && !dealroomBySimulation.has(dealroom.simulation_id)) dealroomBySimulation.set(dealroom.simulation_id, dealroom);
+      });
+
+      const contractByClient = new Map<string, any>();
+      ((contractsRes.data || []) as any[]).forEach((contract: any) => {
+        if (contract.client_id && !contractByClient.has(contract.client_id)) contractByClient.set(contract.client_id, contract);
+      });
+
+      const simByClient = new Map<string, any>();
+      const simById = new Map<string, any>();
+      ((simsRes.data || []) as any[]).forEach((sim: any) => {
+        if (sim.client_id && !simByClient.has(sim.client_id)) simByClient.set(sim.client_id, sim);
+        if (sim.id && !simById.has(sim.id)) simById.set(sim.id, sim);
       });
 
       const toNumberOrNull = (value: any): number | null => {
@@ -428,9 +468,12 @@ export function LiberacaoTecnicaPanel() {
         const tracking = trackingMap.get(clientId);
         const mr = mrMap.get(clientId);
         const client = clientsMap.get(clientId);
-        const dealroom = dealroomMap.get(clientId);
+        const contract = contractByClient.get(clientId);
+        const transaction = (contract?.simulation_id ? dealroomBySimulation.get(contract.simulation_id) : null) || dealroomByClient.get(clientId);
+        const simulation = (contract?.simulation_id ? simById.get(contract.simulation_id) : null) || simByClient.get(clientId);
         const snapshot = mr?.client_snapshot || mr?.snapshot || {};
         const deliveryAddress = mr?.delivery_address || {};
+        const contractHtml = contract?.conteudo_html || tracking?.contract_html || tracking?.html_contrato || snapshot?.contract_html || "";
 
         const tecnicoUser = findUserByReference(mr?.assigned_to)
           || findUserByReference(mr?.technician_name)
@@ -448,12 +491,27 @@ export function LiberacaoTecnicaPanel() {
           tracking?.conferente,
         ) || null;
 
+        const responsavelRefs = [...new Set([
+          ...getUserTokens(tecnicoUser),
+          normalizeValue(mr?.assigned_to),
+          normalizeValue(mr?.technician_name),
+          normalizeValue(tracking?.assigned_to),
+          normalizeValue(tracking?.tecnico_responsavel),
+          normalizeValue(tracking?.liberador),
+          normalizeValue(tracking?.conferente),
+          normalizeValue(tecnicoNome),
+        ].filter(Boolean))];
+
         const tecnicoEnderecoBase = getUserAddress(tecnicoUser);
         const vendedorProjetista = pickBestHumanLabel(
           tracking?.projetista,
-          dealroom?.nome_vendedor,
+          transaction?.nome_vendedor,
+          transaction?.nome_cliente,
           mr?.seller_name,
+          snapshot?.responsavel_venda,
           snapshot?.seller_name,
+          snapshot?.vendedor_nome,
+          snapshot?.projetista_nome,
           snapshot?.vendedor,
           snapshot?.projetista,
           client?.vendedor,
@@ -461,9 +519,9 @@ export function LiberacaoTecnicaPanel() {
 
         const city = deliveryAddress.city || deliveryAddress.cidade || mr?.cidade_entrega || snapshot?.delivery_address_city || snapshot?.cidade_entrega || snapshot?.cidade;
         const state = deliveryAddress.state || deliveryAddress.uf || mr?.uf_entrega || snapshot?.delivery_address_state || snapshot?.uf_entrega || snapshot?.uf;
-        const fallbackHtmlAddress = extractAddressFromHtml(tracking?.contract_html || tracking?.html_contrato || snapshot?.contract_html || "");
+        const fallbackHtmlAddress = extractAddressFromHtml(contractHtml);
         const enderecoStr = buildAddress([
-          deliveryAddress.street || deliveryAddress.endereco || mr?.endereco_entrega || snapshot?.delivery_address_street || snapshot?.endereco_entrega || snapshot?.endereco || fallbackHtmlAddress,
+          deliveryAddress.street || deliveryAddress.endereco || mr?.endereco_entrega || snapshot?.delivery_address_street || snapshot?.endereco_entrega || snapshot?.endereco || snapshot?.endereco_entrega_completo || fallbackHtmlAddress,
           deliveryAddress.number || deliveryAddress.numero || mr?.numero_entrega || snapshot?.delivery_address_number || snapshot?.numero_entrega || snapshot?.numero,
           deliveryAddress.complement || deliveryAddress.complemento || snapshot?.delivery_address_complement || snapshot?.complemento_entrega || snapshot?.complemento,
           deliveryAddress.district || deliveryAddress.bairro || mr?.bairro_entrega || snapshot?.delivery_address_district || snapshot?.delivery_address_neighborhood || snapshot?.bairro_entrega || snapshot?.bairro,
@@ -471,17 +529,40 @@ export function LiberacaoTecnicaPanel() {
           deliveryAddress.cep || mr?.cep_entrega || snapshot?.delivery_address_zip || snapshot?.cep_entrega || snapshot?.cep,
         ]) || "—";
 
+        const numeroContrato = tracking?.numero_contrato
+          || mr?.contract_number
+          || snapshot?.contract_number
+          || snapshot?.numero_contrato
+          || snapshot?.numero_orcamento
+          || transaction?.numero_contrato
+          || client?.numero_orcamento
+          || extractContractNumberFromHtml(contractHtml)
+          || "—";
+
         const rawStatus = resolveOperationalStatus(client?.status, tracking?.status, mr?.status);
-        const dataFechamento = tracking?.data_fechamento || dealroom?.created_at || mr?.created_at || tracking?.created_at || null;
-        const valorCalculado = computeValorComDesconto(mr?.last_sim) || computeValorComDesconto(snapshot?.last_sim);
+        const dataFechamento = tracking?.data_fechamento
+          || snapshot?.data_fechamento
+          || snapshot?.contract_date
+          || transaction?.created_at
+          || contract?.created_at
+          || mr?.created_at
+          || tracking?.created_at
+          || null;
+
+        const simValue = resolveSimulationValue(simulation);
         const valorAVista = toNumberOrNull(tracking?.valor_contrato)
           ?? toNumberOrNull(mr?.valor_venda_avista)
           ?? toNumberOrNull(snapshot?.valor_venda_avista)
-          ?? toNumberOrNull(dealroom?.valor_venda)
-          ?? valorCalculado
+          ?? toNumberOrNull(contract?.valor_com_desconto)
+          ?? toNumberOrNull(contract?.valor_contrato)
+          ?? toNumberOrNull(transaction?.valor_venda)
+          ?? simValue
           ?? toNumberOrNull(tracking?.valor_atualizado)
           ?? null;
-        const valorAtualizado = toNumberOrNull(tracking?.valor_atualizado) ?? valorAVista;
+
+        const valorAtualizado = toNumberOrNull(tracking?.valor_atualizado)
+          ?? toNumberOrNull(contract?.valor_contrato)
+          ?? valorAVista;
         const valorLiberado = toNumberOrNull(tracking?.valor_liberado);
         const saldoPosNeg = (valorAtualizado != null && valorLiberado != null) ? valorAtualizado - valorLiberado : null;
         const numAmbientesFromRequest = Array.isArray(mr?.ambientes) ? mr.ambientes.length : null;
@@ -489,6 +570,7 @@ export function LiberacaoTecnicaPanel() {
           ?? tracking?.quantidade_ambientes
           ?? numAmbientesFromRequest
           ?? toNumberOrNull(snapshot?.quantidade_ambientes)
+          ?? toNumberOrNull(snapshot?.total_ambientes)
           ?? null;
         const comissaoPercentual = toNumberOrNull(tecnicoUser?.comissao_percentual) ?? userComissao;
         const comissao = (valorAVista != null && comissaoPercentual > 0)
@@ -510,12 +592,12 @@ export function LiberacaoTecnicaPanel() {
         }
 
         return {
-          id: tracking?.id || mr?.id || clientId,
+          id: tracking?.id || mr?.id || contract?.id || clientId,
           clientId,
           status: formatStatus(rawStatus),
           statusRaw: rawStatus,
-          numeroContrato: tracking?.numero_contrato || mr?.contract_number || snapshot?.contract_number || snapshot?.numero_contrato || dealroom?.numero_contrato || "—",
-          nomeCliente: tracking?.nome_cliente || mr?.nome_cliente || snapshot?.nome_cliente || snapshot?.nome || client?.nome || "—",
+          numeroContrato,
+          nomeCliente: tracking?.nome_cliente || mr?.nome_cliente || snapshot?.nome_cliente || snapshot?.nome || client?.nome || transaction?.nome_cliente || "—",
           endereco: enderecoStr,
           km: null,
           dataFechamento,
@@ -526,10 +608,11 @@ export function LiberacaoTecnicaPanel() {
           saldoPosNeg,
           comissao,
           dataMedicao: mr?.updated_at || mr?.created_at || null,
-          prazoLiberacao: null,
+          prazoLiberacao: snapshot?.prazo_entrega || snapshot?.data_entrega_prevista || null,
           dataFinalizado,
           diasEmLiberacao,
           tecnicoResponsavel: tecnicoNome,
+          responsavelRefs,
           tecnicoEnderecoBase,
           loja: nomeLoja,
           codigoLoja,
@@ -541,20 +624,18 @@ export function LiberacaoTecnicaPanel() {
         ? ["administrador", "admin", "gerente"].includes(currentUser.cargo_nome.toLowerCase().trim())
         : false;
 
-      const currentUserReferences = currentUser ? [
+      const currentUserReferences = [...new Set((currentUser ? [
         currentUser.id,
         currentUser.nome_completo,
         currentUser.apelido,
         currentUser.email,
         typeof currentUser.email === "string" ? currentUser.email.split("@")[0] : null,
-      ].map(normalizeValue).filter(Boolean) : [];
+        ...getUserTokens(currentUserData),
+      ] : []).map(normalizeValue).filter(Boolean))];
 
       const filteredByResponsible = (!currentUser || isAdminOrGerente)
         ? mapped
-        : mapped.filter((row) => {
-            const tecnicoRef = normalizeValue(row.tecnicoResponsavel);
-            return !!tecnicoRef && currentUserReferences.includes(tecnicoRef);
-          });
+        : mapped.filter((row) => row.responsavelRefs.some((ref) => currentUserReferences.includes(ref)));
 
       setRows(filteredByResponsible);
 
