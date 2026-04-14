@@ -76,14 +76,39 @@ export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId
   useEffect(() => {
     if (!open) return;
 
-    // Technician address from currentUser
-    const techAddr = technicianAddressProp || (() => {
-      if (!currentUser) return null;
-      const u = currentUser;
-      if (!u.endereco && !u.cidade) return null;
-      return buildAddress([u.endereco, u.numero, u.complemento, u.bairro, u.cidade, u.uf, u.cep]);
-    })();
-    setResolvedTechAddr(techAddr);
+    // Technician address: try prop first, then currentUser context, then fetch from DB
+    if (technicianAddressProp) {
+      setResolvedTechAddr(technicianAddressProp);
+    } else {
+      // Try from currentUser context first
+      const fromCtx = (() => {
+        if (!currentUser) return null;
+        const u = currentUser;
+        if (!u.endereco && !u.cidade) return null;
+        return buildAddress([u.endereco, u.numero, u.complemento, u.bairro, u.cidade, u.uf, u.cep]);
+      })();
+
+      if (fromCtx) {
+        setResolvedTechAddr(fromCtx);
+      } else if (currentUser?.id) {
+        // Fetch directly from DB as fallback (RPC may not return address fields)
+        (async () => {
+          try {
+            const { data } = await supabase
+              .from("usuarios")
+              .select("cep, endereco, numero, complemento, bairro, cidade, uf")
+              .eq("id", currentUser.id)
+              .single();
+            if (data) {
+              const addr = buildAddress([data.endereco, data.numero, data.complemento, data.bairro, data.cidade, data.uf, data.cep]);
+              setResolvedTechAddr(addr);
+            }
+          } catch (e) {
+            console.warn("[MeasurementSchedule] Failed to fetch tech address:", e);
+          }
+        })();
+      }
+    }
 
     // Client address
     if (clientAddressProp) {
