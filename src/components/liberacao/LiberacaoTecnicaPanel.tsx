@@ -311,144 +311,195 @@ export function LiberacaoTecnicaPanel() {
     if (!tenantId) { setLoading(false); return; }
 
     try {
-      // 1. Tenant info
-      const { data: tenantData } = await supabase
-        .from("tenants")
-        .select("nome_loja, codigo_loja")
-        .eq("id", tenantId)
-        .maybeSingle();
-
-      const nomeLoja = tenantData?.nome_loja || null;
-      const codigoLoja = tenantData?.codigo_loja || null;
-
-      // 2. Client tracking records
-      const { data: tracking, error: tErr } = await supabase
-        .from("client_tracking")
-        .select("*")
-        .eq("tenant_id", tenantId);
-
-      if (tErr) { console.error(tErr); setLoading(false); return; }
-
-      const allTracking = (tracking || []) as any[];
-      if (allTracking.length === 0) { setRows([]); setLoading(false); return; }
-
-      const clientIds = [...new Set(allTracking.map(t => t.client_id))];
-
-      // 3. Get clients, measurement_requests, dealroom_transactions, and usuarios in parallel
-      const [clientsRes, mrRes, dealroomRes, usuariosRes] = await Promise.all([
+      const [tenantRes, trackingRes, mrRes, usuariosRes] = await Promise.all([
         supabase
-          .from("clients")
-          .select("id, nome, telefone1, email, quantidade_ambientes, status, vendedor")
-          .in("id", clientIds),
+          .from("tenants")
+          .select("nome_loja, codigo_loja")
+          .eq("id", tenantId)
+          .maybeSingle(),
+        supabase
+          .from("client_tracking")
+          .select("*")
+          .eq("tenant_id", tenantId)
+          .order("created_at", { ascending: false }),
         (supabase as any)
           .from("measurement_requests")
-          .select("id, client_id, status, assigned_to, created_at, updated_at, cep_entrega, endereco_entrega, numero_entrega, bairro_entrega, cidade_entrega, uf_entrega, snapshot")
+          .select("*")
           .eq("tenant_id", tenantId)
-          .in("client_id", clientIds)
           .order("created_at", { ascending: false }),
+        (supabase as any)
+          .from("usuarios")
+          .select("id, nome_completo, apelido, email, cargo_id, comissao_percentual, cep, endereco, numero, complemento, bairro, cidade, uf")
+          .eq("tenant_id", tenantId),
+      ]);
+
+      if (trackingRes.error && mrRes.error) {
+        console.error(trackingRes.error || mrRes.error);
+        setRows([]);
+        return;
+      }
+
+      const nomeLoja = tenantRes.data?.nome_loja || null;
+      const codigoLoja = tenantRes.data?.codigo_loja || null;
+      const allTracking = ((trackingRes.data as any[]) || []).filter((item) => item?.client_id);
+      const allMeasurementRequests = ((mrRes.data as any[]) || []).filter((item) => item?.client_id);
+      const allUsuarios = (usuariosRes.data as any[]) || [];
+
+      const clientIds = [...new Set([
+        ...allTracking.map((t) => t.client_id),
+        ...allMeasurementRequests.map((mr) => mr.client_id),
+      ])];
+
+      if (clientIds.length === 0) {
+        setRows([]);
+        return;
+      }
+
+      const [clientsRes, dealroomRes] = await Promise.all([
+        supabase
+          .from("clients")
+          .select("*")
+          .in("id", clientIds),
         supabase
           .from("dealroom_transactions")
           .select("client_id, nome_vendedor, valor_venda, created_at, numero_contrato")
           .eq("tenant_id", tenantId)
           .in("client_id", clientIds)
           .order("created_at", { ascending: false }),
-        (supabase as any)
-          .from("usuarios")
-          .select("id, nome_completo, cargo_id, comissao_percentual, cep, endereco, numero, complemento, bairro, cidade, uf")
-          .eq("tenant_id", tenantId),
       ]);
 
       const clientsMap = new Map<string, any>();
-      (clientsRes.data || []).forEach((c: any) => clientsMap.set(c.id, c));
+      (clientsRes.data || []).forEach((client: any) => clientsMap.set(client.id, client));
+
+      const trackingMap = new Map<string, any>();
+      allTracking.forEach((tracking: any) => {
+        if (!trackingMap.has(tracking.client_id)) trackingMap.set(tracking.client_id, tracking);
+      });
 
       const mrMap = new Map<string, any>();
-      ((mrRes.data || []) as any[]).forEach((mr: any) => {
-        if (!mrMap.has(mr.client_id)) mrMap.set(mr.client_id, mr);
+      allMeasurementRequests.forEach((request: any) => {
+        if (!mrMap.has(request.client_id)) mrMap.set(request.client_id, request);
       });
 
       const dealroomMap = new Map<string, any>();
-      ((dealroomRes.data || []) as any[]).forEach((dr: any) => {
-        if (dr.client_id && !dealroomMap.has(dr.client_id)) dealroomMap.set(dr.client_id, dr);
+      ((dealroomRes.data || []) as any[]).forEach((dealroom: any) => {
+        if (dealroom.client_id && !dealroomMap.has(dealroom.client_id)) dealroomMap.set(dealroom.client_id, dealroom);
       });
 
-      // Build usuario lookup by id and name
-      const usuarioById = new Map<string, any>();
-      const usuarioByName = new Map<string, any>();
-      ((usuariosRes.data || []) as any[]).forEach((u: any) => {
-        usuarioById.set(u.id, u);
-        if (u.nome_completo) usuarioByName.set(u.nome_completo.toLowerCase().trim(), u);
-      });
+      const toNumberOrNull = (value: any): number | null => {
+        if (value === null || value === undefined || value === "") return null;
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+      };
 
-      // Get current user's comissao_percentual
-      const currentUserId = currentUser?.id;
-      const currentUserData = currentUserId ? usuarioById.get(currentUserId) : null;
-      const userComissao = currentUserData?.comissao_percentual ?? 0;
+      const getUserTokens = (user: any) => [
+        user?.id,
+        user?.nome_completo,
+        user?.apelido,
+        user?.email,
+        typeof user?.email === "string" ? user.email.split("@")[0] : null,
+      ].map(normalizeValue).filter(Boolean);
 
-      // Build current user address for KM calculation
-      const currentUserAddr = currentUser ? buildAddressStr([
-        currentUser.endereco,
-        currentUser.numero ? `nº ${currentUser.numero}` : null,
-        currentUser.bairro,
-        currentUser.cidade && currentUser.uf ? `${currentUser.cidade}-${currentUser.uf}` : (currentUser.cidade || currentUser.uf),
-        currentUser.cep,
-      ]) : null;
+      const findUserByReference = (reference: string | null | undefined) => {
+        const normalizedReference = normalizeValue(reference);
+        if (!normalizedReference) return null;
+        return allUsuarios.find((user: any) => getUserTokens(user).includes(normalizedReference)) || null;
+      };
 
-      // 4. Build rows
-      const mapped: LiberacaoRow[] = allTracking.map((t: any) => {
-        const client = clientsMap.get(t.client_id);
-        const mr = mrMap.get(t.client_id);
-        const dealroom = dealroomMap.get(t.client_id);
-        const snapshot = mr?.snapshot || {};
+      const getUserAddress = (user: any) => buildAddress([
+        user?.endereco,
+        user?.numero,
+        user?.complemento,
+        user?.bairro,
+        user?.cidade,
+        user?.uf,
+        user?.cep,
+      ]);
 
-        // ── Status: prefer client.status, fallback to tracking.status
-        const rawStatus = client?.status || t.status || "—";
+      const currentUserData = currentUser
+        ? findUserByReference(currentUser.id) || findUserByReference(currentUser.email) || findUserByReference(currentUser.nome_completo) || currentUser
+        : null;
+      const currentUserAddr = getUserAddress(currentUserData);
+      const userComissao = toNumberOrNull(currentUserData?.comissao_percentual) ?? 0;
 
-        // ── Vendedor/Projetista: try tracking.projetista → dealroom.nome_vendedor → client.vendedor
-        const vendedorProjetista = t.projetista || dealroom?.nome_vendedor || client?.vendedor || null;
+      const mapped: LiberacaoRow[] = clientIds.map((clientId) => {
+        const tracking = trackingMap.get(clientId);
+        const mr = mrMap.get(clientId);
+        const client = clientsMap.get(clientId);
+        const dealroom = dealroomMap.get(clientId);
+        const snapshot = mr?.client_snapshot || mr?.snapshot || {};
+        const deliveryAddress = mr?.delivery_address || {};
 
-        // ── Endereço de entrega: try measurement_request columns → snapshot → contract snapshot
-        const addrParts = [
-          mr?.endereco_entrega || snapshot?.delivery_address_street || snapshot?.endereco_entrega || snapshot?.endereco,
-          (mr?.numero_entrega || snapshot?.delivery_address_number || snapshot?.numero_entrega || snapshot?.numero) ? `nº ${mr?.numero_entrega || snapshot?.delivery_address_number || snapshot?.numero_entrega || snapshot?.numero}` : null,
-          mr?.bairro_entrega || snapshot?.delivery_address_neighborhood || snapshot?.bairro_entrega || snapshot?.bairro,
-          (() => {
-            const city = mr?.cidade_entrega || snapshot?.delivery_address_city || snapshot?.cidade_entrega || snapshot?.cidade;
-            const uf = mr?.uf_entrega || snapshot?.delivery_address_state || snapshot?.uf_entrega || snapshot?.uf;
-            return city && uf ? `${city}-${uf}` : (city || uf || null);
-          })(),
-          mr?.cep_entrega || snapshot?.delivery_address_zip || snapshot?.cep_entrega || snapshot?.cep,
-        ].filter(Boolean);
+        const tecnicoUser = findUserByReference(mr?.assigned_to)
+          || findUserByReference(mr?.technician_name)
+          || findUserByReference(tracking?.assigned_to)
+          || findUserByReference(tracking?.tecnico_responsavel)
+          || findUserByReference(tracking?.liberador)
+          || findUserByReference(tracking?.conferente);
 
-        const enderecoStr = addrParts.length > 0 ? addrParts.join(", ") : "—";
+        const tecnicoNome = pickBestHumanLabel(
+          getUserDisplayName(tecnicoUser),
+          mr?.technician_name,
+          mr?.assigned_to,
+          tracking?.tecnico_responsavel,
+          tracking?.liberador,
+          tracking?.conferente,
+        ) || null;
 
-        // ── Data fechamento
-        const dataFechamento = t.data_fechamento || dealroom?.created_at || null;
+        const tecnicoEnderecoBase = getUserAddress(tecnicoUser);
+        const vendedorProjetista = pickBestHumanLabel(
+          tracking?.projetista,
+          dealroom?.nome_vendedor,
+          mr?.seller_name,
+          snapshot?.seller_name,
+          snapshot?.vendedor,
+          snapshot?.projetista,
+          client?.vendedor,
+        ) || null;
 
-        // ── Valor à vista (VB): tracking.valor_contrato → dealroom.valor_venda
-        const valorAVista = t.valor_contrato ?? dealroom?.valor_venda ?? null;
+        const city = deliveryAddress.city || deliveryAddress.cidade || mr?.cidade_entrega || snapshot?.delivery_address_city || snapshot?.cidade_entrega || snapshot?.cidade;
+        const state = deliveryAddress.state || deliveryAddress.uf || mr?.uf_entrega || snapshot?.delivery_address_state || snapshot?.uf_entrega || snapshot?.uf;
+        const fallbackHtmlAddress = extractAddressFromHtml(tracking?.contract_html || tracking?.html_contrato || snapshot?.contract_html || "");
+        const enderecoStr = buildAddress([
+          deliveryAddress.street || deliveryAddress.endereco || mr?.endereco_entrega || snapshot?.delivery_address_street || snapshot?.endereco_entrega || snapshot?.endereco || fallbackHtmlAddress,
+          deliveryAddress.number || deliveryAddress.numero || mr?.numero_entrega || snapshot?.delivery_address_number || snapshot?.numero_entrega || snapshot?.numero,
+          deliveryAddress.complement || deliveryAddress.complemento || snapshot?.delivery_address_complement || snapshot?.complemento_entrega || snapshot?.complemento,
+          deliveryAddress.district || deliveryAddress.bairro || mr?.bairro_entrega || snapshot?.delivery_address_district || snapshot?.delivery_address_neighborhood || snapshot?.bairro_entrega || snapshot?.bairro,
+          city && state ? `${city}-${state}` : (city || state || null),
+          deliveryAddress.cep || mr?.cep_entrega || snapshot?.delivery_address_zip || snapshot?.cep_entrega || snapshot?.cep,
+        ]) || "—";
 
-        // ── Comissão: calculate based on current user's percentage
-        const comissaoVal = (valorAVista != null && userComissao > 0)
-          ? Math.round((valorAVista * userComissao / 100) * 100) / 100
-          : (t.comissao_valor ?? null);
+        const rawStatus = resolveOperationalStatus(client?.status, tracking?.status, mr?.status);
+        const dataFechamento = tracking?.data_fechamento || dealroom?.created_at || mr?.created_at || tracking?.created_at || null;
+        const valorCalculado = computeValorComDesconto(mr?.last_sim) || computeValorComDesconto(snapshot?.last_sim);
+        const valorAVista = toNumberOrNull(tracking?.valor_contrato)
+          ?? toNumberOrNull(mr?.valor_venda_avista)
+          ?? toNumberOrNull(snapshot?.valor_venda_avista)
+          ?? toNumberOrNull(dealroom?.valor_venda)
+          ?? valorCalculado
+          ?? toNumberOrNull(tracking?.valor_atualizado)
+          ?? null;
+        const valorAtualizado = toNumberOrNull(tracking?.valor_atualizado) ?? valorAVista;
+        const valorLiberado = toNumberOrNull(tracking?.valor_liberado);
+        const saldoPosNeg = (valorAtualizado != null && valorLiberado != null) ? valorAtualizado - valorLiberado : null;
+        const numAmbientesFromRequest = Array.isArray(mr?.ambientes) ? mr.ambientes.length : null;
+        const numAmbientes = client?.quantidade_ambientes
+          ?? tracking?.quantidade_ambientes
+          ?? numAmbientesFromRequest
+          ?? toNumberOrNull(snapshot?.quantidade_ambientes)
+          ?? null;
+        const comissaoPercentual = toNumberOrNull(tecnicoUser?.comissao_percentual) ?? userComissao;
+        const comissao = (valorAVista != null && comissaoPercentual > 0)
+          ? Math.round((valorAVista * comissaoPercentual / 100) * 100) / 100
+          : (toNumberOrNull(tracking?.comissao_valor) ?? null);
 
-        // ── Técnico responsável: resolve assigned_to (UUID or name)
-        let tecnicoNome: string | null = mr?.assigned_to || null;
-        if (tecnicoNome) {
-          const byId = usuarioById.get(tecnicoNome);
-          if (byId) {
-            tecnicoNome = byId.nome_completo;
-          }
-        }
-
-        // ── Dias em liberação
-        let diasEmLiberacao: number | null = null;
         let dataFinalizado: string | null = null;
-        const isFinal = mr?.status === "concluido" || mr?.status === "finalizado";
-        if (isFinal && mr?.updated_at) {
+        const requestStatus = String(mr?.status || "").toLowerCase();
+        if (["concluido", "finalizado"].includes(requestStatus) && mr?.updated_at) {
           dataFinalizado = mr.updated_at;
         }
 
+        let diasEmLiberacao: number | null = null;
         if (dataFechamento) {
           const start = new Date(dataFechamento);
           const end = dataFinalizado ? new Date(dataFinalizado) : new Date();
@@ -456,60 +507,55 @@ export function LiberacaoTecnicaPanel() {
           if (diasEmLiberacao < 0) diasEmLiberacao = 0;
         }
 
-        const valorAtualizado = t.valor_atualizado ?? valorAVista;
-        const valorLiberado = t.valor_liberado ?? null;
-        const saldoPosNeg = (valorAtualizado != null && valorLiberado != null) ? (valorAtualizado - valorLiberado) : null;
-
         return {
-          id: t.id,
-          clientId: t.client_id,
+          id: tracking?.id || mr?.id || clientId,
+          clientId,
           status: formatStatus(rawStatus),
           statusRaw: rawStatus,
-          numeroContrato: t.numero_contrato || dealroom?.numero_contrato || "—",
-          nomeCliente: t.nome_cliente || client?.nome || "—",
+          numeroContrato: tracking?.numero_contrato || mr?.contract_number || snapshot?.contract_number || snapshot?.numero_contrato || dealroom?.numero_contrato || "—",
+          nomeCliente: tracking?.nome_cliente || mr?.nome_cliente || snapshot?.nome_cliente || snapshot?.nome || client?.nome || "—",
           endereco: enderecoStr,
           km: null,
           dataFechamento,
-          numAmbientes: client?.quantidade_ambientes ?? t.quantidade_ambientes ?? null,
+          numAmbientes,
           valorAVista,
           valorAtualizado,
           valorLiberado,
           saldoPosNeg,
-          comissao: comissaoVal,
-          dataMedicao: mr?.created_at || null,
+          comissao,
+          dataMedicao: mr?.updated_at || mr?.created_at || null,
           prazoLiberacao: null,
           dataFinalizado,
           diasEmLiberacao,
           tecnicoResponsavel: tecnicoNome,
-          tecnicoEnderecoBase: null,
+          tecnicoEnderecoBase,
           loja: nomeLoja,
           codigoLoja,
           vendedorProjetista,
         };
       });
 
-      // Filter: admins/gerentes see all, others only their own
       const isAdminOrGerente = currentUser?.cargo_nome
         ? ["administrador", "admin", "gerente"].includes(currentUser.cargo_nome.toLowerCase().trim())
         : false;
 
+      const currentUserReferences = currentUser ? [
+        currentUser.id,
+        currentUser.nome_completo,
+        currentUser.apelido,
+        currentUser.email,
+        typeof currentUser.email === "string" ? currentUser.email.split("@")[0] : null,
+      ].map(normalizeValue).filter(Boolean) : [];
+
       const filteredByResponsible = (!currentUser || isAdminOrGerente)
         ? mapped
         : mapped.filter((row) => {
-            if (!row.tecnicoResponsavel) return false;
-            const normalizedTecnico = normalizeValue(row.tecnicoResponsavel);
-            const normalizedNome = normalizeValue(currentUser.nome_completo);
-            const normalizedApelido = currentUser.apelido ? normalizeValue(currentUser.apelido) : "";
-            return (
-              row.tecnicoResponsavel === currentUser.id ||
-              normalizedTecnico === normalizedNome ||
-              (normalizedApelido && normalizedTecnico === normalizedApelido)
-            );
+            const tecnicoRef = normalizeValue(row.tecnicoResponsavel);
+            return !!tecnicoRef && currentUserReferences.includes(tecnicoRef);
           });
 
       setRows(filteredByResponsible);
 
-      // 5. Calculate KM using current user's address as base
       if (currentUserAddr && currentUserAddr !== "—") {
         calculateDistances(tenantId, filteredByResponsible, currentUserAddr);
       }
@@ -520,7 +566,7 @@ export function LiberacaoTecnicaPanel() {
     }
   }, [currentUser]);
 
-  // Calculate KM distances using Google Maps API (uses current user's address as base)
+  // Calculate KM distances using Google Maps API (uses row base address and falls back to current user address)
   const calculateDistances = useCallback(async (tenantId: string, currentRows: LiberacaoRow[], baseAddress: string) => {
     try {
       const { data: apiKeyData } = await (supabase as any)
@@ -537,7 +583,10 @@ export function LiberacaoTecnicaPanel() {
       for (const row of currentRows) {
         if (!row.endereco || row.endereco === "—") continue;
 
-        const result = await calculateRoundTripKm(apiKeyData.api_key, baseAddress, row.endereco);
+        const originAddress = row.tecnicoEnderecoBase || baseAddress;
+        if (!originAddress) continue;
+
+        const result = await calculateRoundTripKm(apiKeyData.api_key, originAddress, row.endereco);
         if (result) {
           updates.push({ id: row.id, km: result.km });
         }
