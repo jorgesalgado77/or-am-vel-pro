@@ -103,7 +103,10 @@ export function ClientTrackingModal({ open, onClose }: Props) {
       const { data, error } = await trackingQuery.limit(1).maybeSingle();
 
       if (data && !error) {
-        setTracking(data as any);
+        const trackingData = data as any;
+        // Fetch contract type prazos
+        const prazos = await fetchContractTypePrazos(trackingData.tenant_id, trackingData.tipo_contrato);
+        setTracking({ ...trackingData, ...prazos } as any);
         await fetchMessages((data as any).id);
         setStep("tracking");
         return;
