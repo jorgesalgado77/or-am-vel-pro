@@ -183,7 +183,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       userRef.current = stableUser;
       setUser(stableUser);
       syncGlobalState(stableUser);
-      initializeTheme();
+      // Load color theme: try from DB first, then localStorage
+      loadAndApplyUserTheme(sess.user.id);
     } else {
       const fallbackUser = await buildFallbackUserFromAuth(sess.user);
 
@@ -197,7 +198,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userRef.current = stableUser;
         setUser(stableUser);
         syncGlobalState(stableUser);
-        initializeTheme();
+        loadAndApplyUserTheme(sess.user.id);
         void hydrateUserFromDatabase(sess.user, "fallback_recovery");
       } else {
         currentAuthIdRef.current = null;
