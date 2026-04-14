@@ -276,16 +276,24 @@ export function TaskClientInfo({ taskTitle, tenantId }: Props) {
       {/* Action button */}
       {info.measurementRequestId && (
         <Button
-          variant="outline"
           size="sm"
-          className="gap-1.5 w-full"
-          onClick={() => {
-            window.open(`/app?view=kanban&clientId=${info.clientId}`, "_blank");
-          }}
+          className="gap-1.5 w-full bg-primary text-primary-foreground hover:bg-primary/90"
+          onClick={() => setMeasurementModalOpen(true)}
         >
           <FileText className="h-3.5 w-3.5" />
           Abrir Solicitação de Medição
         </Button>
+      )}
+
+      {/* Measurement Request Modal */}
+      {fullClient && trackingRecord && (
+        <MeasurementRequestModal
+          open={measurementModalOpen}
+          onOpenChange={setMeasurementModalOpen}
+          client={fullClient}
+          tracking={trackingRecord}
+          lastSim={undefined}
+        />
       )}
 
       <Separator />
