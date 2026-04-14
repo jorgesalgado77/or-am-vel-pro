@@ -7,7 +7,7 @@ import { format, differenceInDays, subMonths, startOfMonth, endOfMonth, startOfY
 import { ptBR } from "date-fns/locale";
 import {
   ShieldCheck, Search, Filter, ChevronDown, FileText, BarChart3, ShoppingCart,
-  CalendarDays, ArrowUpDown, Loader2,
+  CalendarDays, ArrowUpDown, Loader2, MapPin, DollarSign,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -27,27 +27,33 @@ import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { formatCurrency } from "@/lib/financing";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { calculateRoundTripKm } from "@/hooks/useGoogleMapsKey";
 
 // ──────── Types ────────
 
 interface LiberacaoRow {
-  id: string; // client_tracking id
+  id: string;
   clientId: string;
   status: string;
   numeroContrato: string;
   nomeCliente: string;
   endereco: string;
+  km: number | null;
   dataFechamento: string | null;
   numAmbientes: number | null;
   valorAVista: number | null;
+  valorAtualizado: number | null;
+  valorLiberado: number | null;
+  saldoPosNeg: number | null;
   comissao: number | null;
   dataMedicao: string | null;
   prazoLiberacao: string | null;
   dataFinalizado: string | null;
   diasEmLiberacao: number | null;
   tecnicoResponsavel: string | null;
-  valorLiberado: number | null;
-  saldoPosNeg: number | null;
+  loja: string | null;
+  codigoLoja: string | null;
+  vendedorProjetista: string | null;
 }
 
 type DatePreset = "mes_atual" | "mes_anterior" | "ultimos_6" | "ano_anterior" | "personalizado";
@@ -66,6 +72,8 @@ export function LiberacaoTecnicaPanel() {
   const [customEnd, setCustomEnd] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
+  const [vendedorFilter, setVendedorFilter] = useState("todos");
+  const [lojaFilter, setLojaFilter] = useState("todos");
 
   // Sort
   const [sortField, setSortField] = useState<SortField>("dataFechamento");
@@ -108,7 +116,17 @@ export function LiberacaoTecnicaPanel() {
     if (!tenantId) { setLoading(false); return; }
 
     try {
-      // 1. Get client_tracking records
+      // 1. Get tenant info for loja
+      const { data: tenantData } = await supabase
+        .from("tenants")
+        .select("nome_loja, codigo_loja")
+        .eq("id", tenantId)
+        .maybeSingle();
+
+      const nomeLoja = tenantData?.nome_loja || null;
+      const codigoLoja = tenantData?.codigo_loja || null;
+
+      // 2. Get client_tracking records
       const { data: tracking, error: tErr } = await supabase
         .from("client_tracking")
         .select("*")
@@ -121,7 +139,7 @@ export function LiberacaoTecnicaPanel() {
 
       const clientIds = [...new Set(allTracking.map(t => t.client_id))];
 
-      // 2. Get clients info + measurement_requests in parallel
+      // 3. Get clients info + measurement_requests in parallel
       const [clientsRes, mrRes] = await Promise.all([
         supabase
           .from("clients")
@@ -138,18 +156,16 @@ export function LiberacaoTecnicaPanel() {
       const clientsMap = new Map<string, any>();
       (clientsRes.data || []).forEach((c: any) => clientsMap.set(c.id, c));
 
-      // Group MRs by client_id (take latest)
       const mrMap = new Map<string, any>();
       ((mrRes.data || []) as any[]).forEach((mr: any) => {
         if (!mrMap.has(mr.client_id)) mrMap.set(mr.client_id, mr);
       });
 
-      // 3. Build rows
+      // 4. Build rows
       const mapped: LiberacaoRow[] = allTracking.map((t: any) => {
         const client = clientsMap.get(t.client_id);
         const mr = mrMap.get(t.client_id);
 
-        // Build address
         const addrParts = [
           mr?.endereco_entrega,
           mr?.numero_entrega && `nº ${mr.numero_entrega}`,
@@ -160,10 +176,8 @@ export function LiberacaoTecnicaPanel() {
         const dataFechamento = t.data_fechamento || null;
         const valorAVista = t.valor_contrato ?? null;
 
-        // Calculate diasEmLiberacao: from data_fechamento to now (or dataFinalizado)
         let diasEmLiberacao: number | null = null;
         let dataFinalizado: string | null = null;
-        // Consider "concluido" or "finalizado" statuses as finalized
         const isFinal = mr?.status === "concluido" || mr?.status === "finalizado";
         if (isFinal && mr?.updated_at) {
           dataFinalizado = mr.updated_at;
@@ -176,10 +190,10 @@ export function LiberacaoTecnicaPanel() {
           if (diasEmLiberacao < 0) diasEmLiberacao = 0;
         }
 
-        // Saldo POS/NEG = valorLiberado - valorAVista
-        // For now valorLiberado is not tracked separately, set to 0
-        const valorLiberado = t.valor_contrato ?? 0; // placeholder
-        const saldoPosNeg = valorAVista != null ? valorLiberado - valorAVista : null;
+        // Valor Atualizado and Valor Liberado from tracking (placeholder fields)
+        const valorAtualizado = t.valor_atualizado ?? valorAVista;
+        const valorLiberado = t.valor_liberado ?? null;
+        const saldoPosNeg = (valorAtualizado != null && valorLiberado != null) ? (valorAtualizado - valorLiberado) : null;
 
         return {
           id: t.id,
@@ -188,21 +202,29 @@ export function LiberacaoTecnicaPanel() {
           numeroContrato: t.numero_contrato || "—",
           nomeCliente: t.nome_cliente || client?.nome || "—",
           endereco: addrParts.join(", ") || "—",
+          km: null, // will be calculated async if API key available
           dataFechamento,
           numAmbientes: client?.quantidade_ambientes ?? t.quantidade_ambientes ?? null,
           valorAVista,
+          valorAtualizado,
+          valorLiberado,
+          saldoPosNeg,
           comissao: t.comissao_valor ?? null,
           dataMedicao: mr?.created_at || null,
-          prazoLiberacao: null, // could be configured
+          prazoLiberacao: null,
           dataFinalizado,
           diasEmLiberacao,
           tecnicoResponsavel: mr?.assigned_to || null,
-          valorLiberado: valorAVista, // placeholder until separate column exists
-          saldoPosNeg,
+          loja: nomeLoja,
+          codigoLoja,
+          vendedorProjetista: t.projetista || null,
         };
       });
 
       setRows(mapped);
+
+      // 5. Try to calculate KM distances asynchronously
+      calculateDistances(tenantId, mapped);
     } catch (err) {
       console.error("LiberacaoTecnicaPanel fetch error", err);
     } finally {
@@ -210,20 +232,81 @@ export function LiberacaoTecnicaPanel() {
     }
   }, []);
 
+  // Calculate KM distances using Google Maps API
+  const calculateDistances = useCallback(async (tenantId: string, currentRows: LiberacaoRow[]) => {
+    try {
+      // Get Google Maps API key
+      const { data: apiKeyData } = await supabase
+        .from("api_keys")
+        .select("api_key")
+        .eq("tenant_id", tenantId)
+        .eq("provider", "google_maps")
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (!apiKeyData?.api_key) return;
+
+      // Get user addresses for technicians
+      const techNames = [...new Set(currentRows.map(r => r.tecnicoResponsavel).filter(Boolean))];
+      if (techNames.length === 0) return;
+
+      const { data: usuarios } = await supabase
+        .from("usuarios")
+        .select("nome_completo, endereco_completo")
+        .eq("tenant_id", tenantId)
+        .in("nome_completo", techNames);
+
+      const techAddrMap = new Map<string, string>();
+      (usuarios || []).forEach((u: any) => {
+        if (u.endereco_completo) techAddrMap.set(u.nome_completo, u.endereco_completo);
+      });
+
+      // Calculate distances for rows with addresses
+      const updates: { id: string; km: number }[] = [];
+      for (const row of currentRows) {
+        if (!row.tecnicoResponsavel || !row.endereco || row.endereco === "—") continue;
+        const baseAddr = techAddrMap.get(row.tecnicoResponsavel);
+        if (!baseAddr) continue;
+
+        const result = await calculateRoundTripKm(apiKeyData.api_key, baseAddr, row.endereco);
+        if (result) {
+          updates.push({ id: row.id, km: result.km });
+        }
+      }
+
+      if (updates.length > 0) {
+        setRows(prev => prev.map(r => {
+          const upd = updates.find(u => u.id === r.id);
+          return upd ? { ...r, km: upd.km } : r;
+        }));
+      }
+    } catch (err) {
+      console.error("Error calculating distances", err);
+    }
+  }, []);
+
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // ──── Unique values for filters ────
+  const uniqueStatuses = useMemo(() => [...new Set(rows.map(r => r.status))].sort(), [rows]);
+  const uniqueVendedores = useMemo(() => [...new Set(rows.map(r => r.vendedorProjetista).filter(Boolean) as string[])].sort(), [rows]);
+  const uniqueLojas = useMemo(() => {
+    const lojas = rows.map(r => r.loja && r.codigoLoja ? `${r.loja} (${r.codigoLoja})` : r.loja).filter(Boolean) as string[];
+    return [...new Set(lojas)].sort();
+  }, [rows]);
 
   // ──── Filter + Sort + Paginate ────
   const filteredRows = useMemo(() => {
     let result = rows;
 
-    // Date filter on dataFechamento
+    // Date filter
     result = result.filter(r => {
-      if (!r.dataFechamento) return datePreset === "mes_atual"; // show undated in current month
+      if (!r.dataFechamento) return datePreset === "mes_atual";
       const d = new Date(r.dataFechamento);
       return d >= dateRange.start && d <= dateRange.end;
     });
 
-    // Search filter
+    // Search
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase().trim();
       result = result.filter(r =>
@@ -233,9 +316,22 @@ export function LiberacaoTecnicaPanel() {
       );
     }
 
-    // Status filter
+    // Status
     if (statusFilter !== "todos") {
       result = result.filter(r => r.status === statusFilter);
+    }
+
+    // Vendedor/Projetista
+    if (vendedorFilter !== "todos") {
+      result = result.filter(r => r.vendedorProjetista === vendedorFilter);
+    }
+
+    // Loja
+    if (lojaFilter !== "todos") {
+      result = result.filter(r => {
+        const lojaStr = r.loja && r.codigoLoja ? `${r.loja} (${r.codigoLoja})` : r.loja;
+        return lojaStr === lojaFilter;
+      });
     }
 
     // Sort
@@ -251,7 +347,7 @@ export function LiberacaoTecnicaPanel() {
     });
 
     return result;
-  }, [rows, dateRange, searchTerm, statusFilter, sortField, sortDir, datePreset]);
+  }, [rows, dateRange, searchTerm, statusFilter, vendedorFilter, lojaFilter, sortField, sortDir, datePreset]);
 
   const paginatedRows = useMemo(() => {
     const start = page * PAGE_SIZE;
@@ -259,9 +355,6 @@ export function LiberacaoTecnicaPanel() {
   }, [filteredRows, page]);
 
   const totalPages = Math.ceil(filteredRows.length / PAGE_SIZE);
-
-  // ──── Unique statuses for filter ────
-  const uniqueStatuses = useMemo(() => [...new Set(rows.map(r => r.status))].sort(), [rows]);
 
   // ──── Sort handler ────
   const toggleSort = (field: SortField) => {
@@ -298,7 +391,6 @@ export function LiberacaoTecnicaPanel() {
     const tenantId = await getResolvedTenantId();
     if (!tenantId) return;
 
-    // Update measurement_request status to "enviado_compras"
     const { error } = await (supabase as any)
       .from("measurement_requests")
       .update({ status: "enviado_compras", updated_at: new Date().toISOString() })
@@ -311,6 +403,10 @@ export function LiberacaoTecnicaPanel() {
       toast.success(`${row.nomeCliente} enviado para Compras!`);
       fetchData();
     }
+  };
+
+  const handleInformarPedagios = (row: LiberacaoRow) => {
+    toast.info(`Informar pedágios para ${row.nomeCliente} — funcionalidade em desenvolvimento`);
   };
 
   // ──── KPI summary ────
@@ -398,6 +494,32 @@ export function LiberacaoTecnicaPanel() {
               </Select>
             </div>
 
+            <div className="min-w-[150px]">
+              <Label className="text-[11px] text-muted-foreground">Vendedor / Projetista</Label>
+              <Select value={vendedorFilter} onValueChange={(v) => { setVendedorFilter(v); setPage(0); }}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  {uniqueVendedores.map(v => (
+                    <SelectItem key={v} value={v}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="min-w-[150px]">
+              <Label className="text-[11px] text-muted-foreground">Loja</Label>
+              <Select value={lojaFilter} onValueChange={(v) => { setLojaFilter(v); setPage(0); }}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todas</SelectItem>
+                  {uniqueLojas.map(l => (
+                    <SelectItem key={l} value={l}>{l}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="flex-1 min-w-[180px]">
               <Label className="text-[11px] text-muted-foreground">Buscar</Label>
               <div className="relative">
@@ -432,16 +554,24 @@ export function LiberacaoTecnicaPanel() {
                   <TableRow className="text-[11px]">
                     <TableHead className="w-[80px]">Status</TableHead>
                     <TableHead className="w-[100px]">Contrato</TableHead>
+                    <TableHead className="w-[130px] hidden md:table-cell">Loja</TableHead>
+                    <TableHead className="w-[120px] hidden md:table-cell">Vendedor/Proj.</TableHead>
                     <TableHead className="min-w-[150px]">
                       <SortHeader field="nomeCliente">Nome Cliente</SortHeader>
                     </TableHead>
                     <TableHead className="min-w-[180px] hidden lg:table-cell">Endereço</TableHead>
+                    <TableHead className="w-[65px] text-center hidden lg:table-cell">KM</TableHead>
                     <TableHead className="w-[100px]">
                       <SortHeader field="dataFechamento">Fechamento</SortHeader>
                     </TableHead>
                     <TableHead className="w-[60px] text-center hidden md:table-cell">Amb.</TableHead>
                     <TableHead className="w-[100px] text-right">
                       <SortHeader field="valorAVista">VB (à Vista)</SortHeader>
+                    </TableHead>
+                    <TableHead className="w-[100px] text-right hidden md:table-cell">V. Atualizado</TableHead>
+                    <TableHead className="w-[100px] text-right hidden lg:table-cell">V. Liberado</TableHead>
+                    <TableHead className="w-[90px] text-right">
+                      <SortHeader field="saldoPosNeg">Saldo</SortHeader>
                     </TableHead>
                     <TableHead className="w-[90px] text-right hidden md:table-cell">Comissão</TableHead>
                     <TableHead className="w-[95px] hidden lg:table-cell">Dt. Medição</TableHead>
@@ -451,17 +581,13 @@ export function LiberacaoTecnicaPanel() {
                       <SortHeader field="diasEmLiberacao">Dias</SortHeader>
                     </TableHead>
                     <TableHead className="min-w-[110px] hidden md:table-cell">Técnico</TableHead>
-                    <TableHead className="w-[100px] text-right hidden lg:table-cell">V. Liberado</TableHead>
-                    <TableHead className="w-[90px] text-right">
-                      <SortHeader field="saldoPosNeg">Saldo</SortHeader>
-                    </TableHead>
                     <TableHead className="w-[40px]" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {paginatedRows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={16} className="text-center py-10 text-muted-foreground text-sm">
+                      <TableCell colSpan={20} className="text-center py-10 text-muted-foreground text-sm">
                         Nenhum registro encontrado
                       </TableCell>
                     </TableRow>
@@ -474,6 +600,16 @@ export function LiberacaoTecnicaPanel() {
                           </Badge>
                         </TableCell>
                         <TableCell className="font-mono text-[11px]">{row.numeroContrato}</TableCell>
+                        <TableCell className="hidden md:table-cell text-[11px] truncate max-w-[130px]">
+                          {row.loja ? (
+                            <span title={row.codigoLoja ? `${row.loja} (${row.codigoLoja})` : row.loja}>
+                              {row.loja}{row.codigoLoja ? ` (${row.codigoLoja})` : ""}
+                            </span>
+                          ) : "—"}
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell truncate max-w-[120px]">
+                          {row.vendedorProjetista || "—"}
+                        </TableCell>
                         <TableCell className="font-medium">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -482,7 +618,7 @@ export function LiberacaoTecnicaPanel() {
                                 <ChevronDown className="h-3 w-3 text-muted-foreground" />
                               </button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" className="w-48">
+                            <DropdownMenuContent align="start" className="w-52">
                               <DropdownMenuItem onClick={() => handleViewContract(row)} className="gap-2 text-xs">
                                 <FileText className="h-3.5 w-3.5" /> Ver Contrato Fechado
                               </DropdownMenuItem>
@@ -492,11 +628,17 @@ export function LiberacaoTecnicaPanel() {
                               <DropdownMenuItem onClick={() => handleEnviarCompras(row)} className="gap-2 text-xs">
                                 <ShoppingCart className="h-3.5 w-3.5" /> Enviar para Compras
                               </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleInformarPedagios(row)} className="gap-2 text-xs">
+                                <MapPin className="h-3.5 w-3.5" /> Informar Pedágios
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
                         <TableCell className="hidden lg:table-cell text-muted-foreground truncate max-w-[200px]" title={row.endereco}>
                           {row.endereco}
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell text-center font-mono text-[11px]">
+                          {row.km != null ? `${row.km}` : "—"}
                         </TableCell>
                         <TableCell>
                           {row.dataFechamento ? format(new Date(row.dataFechamento), "dd/MM/yy") : "—"}
@@ -504,6 +646,19 @@ export function LiberacaoTecnicaPanel() {
                         <TableCell className="text-center hidden md:table-cell">{row.numAmbientes ?? "—"}</TableCell>
                         <TableCell className="text-right font-mono">
                           {row.valorAVista != null ? formatCurrency(row.valorAVista) : "—"}
+                        </TableCell>
+                        <TableCell className="text-right hidden md:table-cell font-mono">
+                          {row.valorAtualizado != null ? formatCurrency(row.valorAtualizado) : "—"}
+                        </TableCell>
+                        <TableCell className="text-right hidden lg:table-cell font-mono">
+                          {row.valorLiberado != null ? formatCurrency(row.valorLiberado) : "—"}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {row.saldoPosNeg != null ? (
+                            <span className={cn(row.saldoPosNeg >= 0 ? "text-emerald-600" : "text-destructive")}>
+                              {row.saldoPosNeg >= 0 ? "+" : ""}{formatCurrency(row.saldoPosNeg)}
+                            </span>
+                          ) : "—"}
                         </TableCell>
                         <TableCell className="text-right hidden md:table-cell font-mono">
                           {row.comissao != null ? formatCurrency(row.comissao) : "—"}
@@ -523,16 +678,6 @@ export function LiberacaoTecnicaPanel() {
                           ) : "—"}
                         </TableCell>
                         <TableCell className="hidden md:table-cell truncate max-w-[120px]">{row.tecnicoResponsavel || "—"}</TableCell>
-                        <TableCell className="text-right hidden lg:table-cell font-mono">
-                          {row.valorLiberado != null ? formatCurrency(row.valorLiberado) : "—"}
-                        </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {row.saldoPosNeg != null ? (
-                            <span className={cn(row.saldoPosNeg >= 0 ? "text-emerald-600" : "text-destructive")}>
-                              {row.saldoPosNeg >= 0 ? "+" : ""}{formatCurrency(row.saldoPosNeg)}
-                            </span>
-                          ) : "—"}
-                        </TableCell>
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -540,7 +685,7 @@ export function LiberacaoTecnicaPanel() {
                                 <ChevronDown className="h-3 w-3" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuContent align="end" className="w-52">
                               <DropdownMenuItem onClick={() => handleViewContract(row)} className="gap-2 text-xs">
                                 <FileText className="h-3.5 w-3.5" /> Ver Contrato
                               </DropdownMenuItem>
@@ -549,6 +694,9 @@ export function LiberacaoTecnicaPanel() {
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleEnviarCompras(row)} className="gap-2 text-xs">
                                 <ShoppingCart className="h-3.5 w-3.5" /> Enviar Compras
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleInformarPedagios(row)} className="gap-2 text-xs">
+                                <MapPin className="h-3.5 w-3.5" /> Informar Pedágios
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
