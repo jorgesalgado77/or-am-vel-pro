@@ -33,6 +33,7 @@ const PERM_LABELS_MENU: Record<string, string> = {
   cadastrar_produtos: "Cadastrar Produtos",
   medicao: "Solicitação Medidas",
   liberacao: "Liberação",
+  liberacao_tecnica: "Liberação Técnica",
   tutoriais: "Tutoriais",
   email: "Email",
   folha_pagamento: "Folha de Pagamento",
