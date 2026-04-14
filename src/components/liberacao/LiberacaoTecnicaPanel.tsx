@@ -1077,6 +1077,10 @@ export function LiberacaoTecnicaPanel() {
                         <TableCell className="text-right hidden md:table-cell font-mono">{row.comissao != null ? formatCurrency(row.comissao) : "—"}</TableCell>
                         <TableCell className="hidden lg:table-cell">{row.dataMedicao ? format(new Date(row.dataMedicao), "dd/MM/yy") : "—"}</TableCell>
                         <TableCell className="text-center hidden xl:table-cell">{row.prazoLiberacao ?? "—"}</TableCell>
+                        <TableCell className="text-center hidden xl:table-cell text-[10px]">{row.prazoEntregaLoja ?? "—"}</TableCell>
+                        <TableCell className="text-center hidden xl:table-cell text-[10px]">{row.prazoLiberacaoTecnica ?? "—"}</TableCell>
+                        <TableCell className="text-center hidden xl:table-cell text-[10px]">{row.prazoInicioMontagem ?? "—"}</TableCell>
+                        <TableCell className="text-center hidden xl:table-cell text-[10px]">{row.prazoAssistenciaTecnica ?? "—"}</TableCell>
                         <TableCell className="hidden xl:table-cell">{row.dataFinalizado ? format(new Date(row.dataFinalizado), "dd/MM/yy") : "—"}</TableCell>
                         <TableCell className="text-center">
                           {row.diasEmLiberacao != null ? (
