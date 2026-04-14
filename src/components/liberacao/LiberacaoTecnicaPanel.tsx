@@ -205,7 +205,9 @@ const COL_STORAGE_KEY = "liberacao_col_widths";
 const DEFAULT_COL_WIDTHS: Record<string, number> = {
   status: 80, contrato: 100, loja: 130, vendedor: 120, nome: 150, endereco: 180,
   km: 65, fechamento: 100, amb: 60, vb: 100, vatualizado: 100, vliberado: 100,
-  saldo: 90, comissao: 90, dtMedicao: 95, prazo: 70, finalizado: 95, dias: 65,
+  saldo: 90, comissao: 90, dtMedicao: 95, prazo: 70,
+  pzEntrega: 90, pzLibTec: 90, pzMontagem: 90, pzAssist: 90,
+  finalizado: 95, dias: 65,
   tecnico: 110, acoes: 40,
 };
 
