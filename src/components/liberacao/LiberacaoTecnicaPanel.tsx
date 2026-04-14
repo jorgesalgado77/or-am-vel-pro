@@ -488,21 +488,24 @@ export function LiberacaoTecnicaPanel() {
         };
       });
 
-      // Filter: only show rows where the logged-in user is the responsible (técnico/liberador/conferente)
-      const filteredByResponsible = currentUser
-        ? mapped.filter((row) => {
+      // Filter: admins/gerentes see all, others only their own
+      const isAdminOrGerente = currentUser?.cargo_nome
+        ? ["administrador", "admin", "gerente"].includes(currentUser.cargo_nome.toLowerCase().trim())
+        : false;
+
+      const filteredByResponsible = (!currentUser || isAdminOrGerente)
+        ? mapped
+        : mapped.filter((row) => {
             if (!row.tecnicoResponsavel) return false;
             const normalizedTecnico = normalizeValue(row.tecnicoResponsavel);
             const normalizedNome = normalizeValue(currentUser.nome_completo);
             const normalizedApelido = currentUser.apelido ? normalizeValue(currentUser.apelido) : "";
-            // Match by name, nickname, or user ID
             return (
               row.tecnicoResponsavel === currentUser.id ||
               normalizedTecnico === normalizedNome ||
               (normalizedApelido && normalizedTecnico === normalizedApelido)
             );
-          })
-        : [];
+          });
 
       setRows(filteredByResponsible);
 
