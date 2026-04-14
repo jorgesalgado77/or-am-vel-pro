@@ -140,7 +140,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   const [sameAddress, setSameAddress] = useState(false);
   // deliveryDeadlines now handled by PrazoEntregaSelect
   const [fornecedores, setFornecedores] = useState<{id: string; nome: string; prazo_entrega?: string}[]>([]);
-  const [contractTypes, setContractTypes] = useState<{id: string; nome: string; prazo_entrega: string}[]>([]);
+  const [contractTypes, setContractTypes] = useState<{id: string; nome: string; prazo_entrega: string; prazo_liberacao_tecnica: string; prazo_inicio_montagem: string; prazo_assistencia_tecnica: string}[]>([]);
 
   const REQUIRED_FIELDS: { key: keyof CloseSaleFormData; label: string }[] = [
     { key: "nome_completo", label: "Nome Completo" },
@@ -192,6 +192,9 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
             id: d.id,
             nome: d.nome,
             prazo_entrega: d.prazo_entrega || "",
+            prazo_liberacao_tecnica: d.prazo_liberacao_tecnica || "",
+            prazo_inicio_montagem: d.prazo_inicio_montagem || "",
+            prazo_assistencia_tecnica: d.prazo_assistencia_tecnica || "",
           })));
         }
       });
@@ -454,9 +457,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                       onValueChange={v => {
                         updateField("tipo_contrato", v);
                         const ct = contractTypes.find(t => t.nome === v);
-                        if (ct?.prazo_entrega) {
-                          updateField("prazo_entrega", ct.prazo_entrega);
-                        }
+                        if (ct?.prazo_entrega) updateField("prazo_entrega", ct.prazo_entrega);
                       }}
                     >
                       <SelectTrigger className="mt-1 h-9 text-sm">
