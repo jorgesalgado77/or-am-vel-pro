@@ -1,12 +1,12 @@
 /**
  * TechnicalDashboardCards — Cards for technical roles (técnico, liberador, conferente)
- * Shows: queue position, release ceiling progress, salary preview
+ * Shows: queue position, total scheduled, release ceiling, salary preview
  */
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { ListOrdered, Target, Wallet, Info } from "lucide-react";
+import { ListOrdered, Target, Wallet, Info, CalendarDays } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/lib/supabaseClient";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
@@ -29,6 +29,7 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
   const [queuePosition, setQueuePosition] = useState<number | null>(null);
   const [queueTotal, setQueueTotal] = useState(0);
   const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
+  const [scheduledCount, setScheduledCount] = useState(0);
   const [liberatedValue, setLiberatedValue] = useState(0);
   const [liberatedCount, setLiberatedCount] = useState(0);
   const [salarioFixo, setSalarioFixo] = useState(0);
@@ -40,7 +41,10 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
     if (!userId) return;
     setLoading(true);
     const tenantId = await getResolvedTenantId();
-    if (!tenantId) { setLoading(false); return; }
+    if (!tenantId) {
+      setLoading(false);
+      return;
+    }
 
     const { data: userData } = await supabase
       .from("usuarios")
@@ -54,7 +58,8 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
       setTipoRegime(userData.tipo_regime);
     }
 
-    // Fetch measurement_requests assigned to technical users (the real queue)
+    const userNameLower = (userName || userData?.nome_completo || userData?.apelido || "").toLowerCase();
+
     const { data: mrData } = await (supabase as any)
       .from("measurement_requests")
       .select("id, client_id, nome_cliente, assigned_to, status, created_at, updated_at")
@@ -65,8 +70,6 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
     const queue = (mrData || []) as any[];
     setQueueTotal(queue.length);
 
-    const userNameLower = (userName || userData?.nome_completo || userData?.apelido || "").toLowerCase();
-    
     const items: QueueItem[] = queue.map((c: any, idx: number) => ({
       clientName: c.nome_cliente || "Cliente",
       position: idx + 1,
@@ -74,27 +77,37 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
     }));
     setQueueItems(items);
 
-    // Find user's position: match by name or userId
-    const myPosition = items.findIndex(item => {
+    const myPosition = items.findIndex((item) => {
       const assignee = (item.assignedTo || "").toLowerCase();
       return assignee === userId || assignee.includes(userNameLower) || userNameLower.includes(assignee);
     });
     setQueuePosition(myPosition >= 0 ? myPosition + 1 : null);
 
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-    
-    const { data: trackingData } = await supabase
-      .from("client_tracking")
-      .select("client_id, valor_contrato, updated_at")
-      .eq("tenant_id", tenantId)
-      .gte("updated_at", monthStart);
+    const monthStartIso = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const monthStartDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+    const nextMonthDate = `${now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear()}-${String(now.getMonth() === 11 ? 1 : now.getMonth() + 2).padStart(2, "0")}-01`;
 
-    const { data: historyData } = await supabase
-      .from("client_status_history" as any)
-      .select("client_id, novo_status, created_at, alterado_por")
-      .eq("tenant_id", tenantId)
-      .gte("created_at", monthStart);
+    const [{ data: trackingData }, { data: historyData }, { data: scheduledTasks }] = await Promise.all([
+      supabase
+        .from("client_tracking")
+        .select("client_id, valor_contrato, updated_at")
+        .eq("tenant_id", tenantId)
+        .gte("updated_at", monthStartIso),
+      supabase
+        .from("client_status_history" as any)
+        .select("client_id, novo_status, created_at, alterado_por")
+        .eq("tenant_id", tenantId)
+        .gte("created_at", monthStartIso),
+      (supabase as any)
+        .from("tasks")
+        .select("id, data_tarefa, horario")
+        .eq("tenant_id", tenantId)
+        .eq("responsavel_id", userId)
+        .in("tipo", ["medicao_tecnica", "medicao"])
+        .gte("data_tarefa", monthStartDate)
+        .lt("data_tarefa", nextMonthDate),
+    ]);
 
     const liberatedClientIds = new Set<string>();
     (historyData as any[] || []).forEach((h: any) => {
@@ -113,38 +126,43 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
       trackingMap.set(t.client_id, Number(t.valor_contrato) || 0);
     });
 
-    liberatedClientIds.forEach(cid => {
+    liberatedClientIds.forEach((cid) => {
       totalLiberated += trackingMap.get(cid) || 0;
     });
 
+    setScheduledCount(((scheduledTasks as any[]) || []).filter((task) => Boolean(task?.data_tarefa && task?.horario)).length);
     setLiberatedValue(totalLiberated);
     setLiberatedCount(liberatedClientIds.size);
     setLoading(false);
   }, [userId, userName]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   useEffect(() => {
     const channel = supabase
       .channel("tech-dashboard-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "measurement_requests" }, () => fetchData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, () => fetchData())
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "client_status_history" }, () => fetchData())
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchData]);
 
   const tetoValue = tetoLiberacao?.valor || 0;
   const tetoPercent = tetoValue > 0 ? Math.min(100, (liberatedValue / tetoValue) * 100) : 0;
   const faltaParaTeto = Math.max(0, tetoValue - liberatedValue);
-
   const comissaoSobreLiberacao = liberatedValue * (comissaoPercentual / 100);
   const salarioPrevisto = salarioFixo + comissaoSobreLiberacao;
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[1, 2, 3].map(i => (
-          <div key={i} className="h-40 animate-pulse bg-muted rounded-lg" />
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-40 animate-pulse rounded-lg bg-muted" />
         ))}
       </div>
     );
@@ -152,8 +170,7 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
 
   return (
     <TooltipProvider>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Card 1: Queue Position */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Tooltip>
           <TooltipTrigger asChild>
             <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 transition-all duration-200 hover:scale-[1.02] hover:shadow-md cursor-default">
@@ -171,9 +188,7 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
 
                 <div className="flex items-center justify-between">
                   <div className="text-center flex-1">
-                    <p className="text-3xl font-bold text-primary">
-                      {queuePosition !== null ? `${queuePosition}º` : "—"}
-                    </p>
+                    <p className="text-3xl font-bold text-primary">{queuePosition !== null ? `${queuePosition}º` : "—"}</p>
                     <p className="text-[10px] text-muted-foreground">Posição</p>
                   </div>
                   <div className="w-px h-12 bg-border" />
@@ -202,11 +217,41 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
             </Card>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="max-w-[250px] text-xs">
-            Mostra sua posição atual na fila de liberação de projetos. Quanto menor o número, mais próximo você está de receber o próximo projeto.
+            Mostra sua posição atual na fila de liberação de projetos.
           </TooltipContent>
         </Tooltip>
 
-        {/* Card 2: Release Ceiling */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Card className="border-secondary/40 bg-gradient-to-br from-secondary/35 to-accent/10 transition-all duration-200 hover:scale-[1.02] hover:shadow-md cursor-default">
+              <CardContent className="pt-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-secondary">
+                    <CalendarDays className="h-5 w-5 text-secondary-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-semibold text-foreground">Total Agendado</h3>
+                    <p className="text-[10px] text-muted-foreground">Mês atual • medições com hora</p>
+                  </div>
+                  <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                </div>
+
+                <div className="text-center py-2">
+                  <p className="text-3xl font-bold text-foreground">{scheduledCount}</p>
+                  <p className="text-[10px] text-muted-foreground">Agendamentos</p>
+                </div>
+
+                <Badge variant="secondary" className="w-full justify-center text-xs">
+                  TOT do mês atual
+                </Badge>
+              </CardContent>
+            </Card>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="max-w-[250px] text-xs">
+            Quantidade total de tarefas de medição já agendadas com data e hora para você neste mês.
+          </TooltipContent>
+        </Tooltip>
+
         <Tooltip>
           <TooltipTrigger asChild>
             <Card className="border-accent/30 bg-gradient-to-br from-accent/5 to-accent/10 transition-all duration-200 hover:scale-[1.02] hover:shadow-md cursor-default">
@@ -259,11 +304,10 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
             </Card>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="max-w-[250px] text-xs">
-            Acompanhe seu progresso em relação ao teto de liberação mensal. O valor liberado é a soma dos projetos que você liberou neste mês.
+            Acompanhe seu progresso em relação ao teto de liberação mensal.
           </TooltipContent>
         </Tooltip>
 
-        {/* Card 3: Salary Preview */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Card className="border-green-500/30 bg-gradient-to-br from-green-500/5 to-green-500/10 transition-all duration-200 hover:scale-[1.02] hover:shadow-md cursor-default">
@@ -287,9 +331,7 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
                     <span className="text-sm font-semibold text-foreground">{formatCurrency(salarioFixo)}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-xs text-muted-foreground">
-                      Comissão ({comissaoPercentual}%)
-                    </span>
+                    <span className="text-xs text-muted-foreground">Comissão ({comissaoPercentual}%)</span>
                     <span className="text-sm font-semibold text-primary">{formatCurrency(comissaoSobreLiberacao)}</span>
                   </div>
                   <div className="h-px bg-border" />
@@ -306,7 +348,7 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
             </Card>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="max-w-[250px] text-xs">
-            Prévia estimada do salário do mês atual, calculada com base no salário fixo + comissão sobre os projetos liberados. Valores finais podem variar com descontos legais.
+            Prévia estimada do salário do mês atual.
           </TooltipContent>
         </Tooltip>
       </div>

@@ -14,6 +14,7 @@ import { useUsuarios } from "@/hooks/useUsuarios";
 import { MeasurementScheduleDialog, type MeasurementScheduleData } from "@/components/kanban/MeasurementScheduleDialog";
 import { toast } from "sonner";
 import type { Task } from "@/components/tasks/taskTypes";
+import { TASK_TYPES } from "@/components/tasks/taskTypes";
 import jsPDF from "jspdf";
 
 interface SelectedTask {
@@ -21,6 +22,16 @@ interface SelectedTask {
   clientName: string;
   clientId: string | null;
 }
+
+const getTaskTypeLabel = (tipo: string) => {
+  return TASK_TYPES.find((item) => item.value === tipo)?.label || tipo.replace(/_/g, " ");
+};
+
+const getTaskClientName = (task: Task) => {
+  return task.titulo
+    .replace(/^(Medição Técnica|Medição|Vistoria|Reunião|Tarefa)\s*[-–—]\s*/i, "")
+    .trim() || task.titulo;
+};
 
 export function MeasurementCalendarWidget() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -33,9 +44,8 @@ export function MeasurementCalendarWidget() {
 
   const tenantId = getTenantId();
 
-  // Get technical users for filter
   const technicians = useMemo(() => {
-    return usuarios.filter(u => {
+    return usuarios.filter((u) => {
       const cargo = ((u as any).cargo_nome || "").toLowerCase();
       return cargo.includes("tecnico") || cargo.includes("técnico") || cargo.includes("liberador") || cargo.includes("conferente");
     });
@@ -48,7 +58,7 @@ export function MeasurementCalendarWidget() {
       .from("tasks" as any)
       .select("*")
       .eq("tenant_id", tenantId)
-      .eq("tipo", "medicao")
+      .in("tipo", ["medicao_tecnica", "medicao"])
       .in("status", ["nova", "pendente", "em_execucao"]);
 
     const cargo = (currentUser.cargo_nome || "").toLowerCase();
@@ -58,37 +68,49 @@ export function MeasurementCalendarWidget() {
     }
 
     const { data } = await query.order("data_tarefa", { ascending: true });
-    setTasks(((data as any[]) || []) as Task[]);
+    const normalizedTasks = (((data as any[]) || []) as Task[])
+      .filter((task) => Boolean(task.data_tarefa && task.horario))
+      .sort((a, b) => `${a.data_tarefa} ${a.horario || ""}`.localeCompare(`${b.data_tarefa} ${b.horario || ""}`));
+
+    setTasks(normalizedTasks);
   }, [tenantId, currentUser]);
 
-  useEffect(() => { fetchTasks(); }, [fetchTasks]);
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
 
   const start = startOfMonth(currentMonth);
   const end = endOfMonth(currentMonth);
   const days = eachDayOfInterval({ start, end });
   const startPad = getDay(start);
 
-  // Filter tasks by technician
   const filteredTasks = useMemo(() => {
     if (filterTechnician === "todos") return tasks;
-    return tasks.filter(t => t.responsavel_id === filterTechnician || t.responsavel_nome === filterTechnician);
+    return tasks.filter((t) => t.responsavel_id === filterTechnician || t.responsavel_nome === filterTechnician);
   }, [tasks, filterTechnician]);
 
   const tasksByDay = useMemo(() => {
     const map = new Map<string, Task[]>();
-    filteredTasks.forEach(t => {
+    filteredTasks.forEach((t) => {
       const key = t.data_tarefa;
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(t);
     });
+
+    map.forEach((dayTasks, key) => {
+      map.set(
+        key,
+        [...dayTasks].sort((a, b) => (a.horario || "").localeCompare(b.horario || "")),
+      );
+    });
+
     return map;
   }, [filteredTasks]);
 
-  const pendingCount = filteredTasks.filter(t => t.status !== "concluida").length;
+  const pendingCount = filteredTasks.filter((t) => t.status !== "concluida").length;
 
   const handleTaskClick = (task: Task) => {
-    const clientName = task.titulo.replace("Medição - ", "").trim();
-    setSelectedTask({ task, clientName, clientId: null });
+    setSelectedTask({ task, clientName: getTaskClientName(task), clientId: null });
   };
 
   const handleRescheduleConfirm = useCallback(async (data: MeasurementScheduleData) => {
@@ -126,14 +148,15 @@ export function MeasurementCalendarWidget() {
       if (currentUser?.id) {
         sendPushIfEnabled("medidas", currentUser.id, `📐 Medição Reagendada`, `Cliente: ${clientName} — ${formattedDate} às ${data.time}`, "medicao");
       }
-    } catch { /* silent */ }
+    } catch {
+      /* silent */
+    }
 
     toast.success(`Medição reagendada para ${formattedDate} às ${data.time}`);
     setSelectedTask(null);
     fetchTasks();
   }, [selectedTask, tenantId, currentUser, fetchTasks]);
 
-  // PDF Export
   const handleExportPDF = useCallback(() => {
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
     const monthLabel = format(currentMonth, "MMMM yyyy", { locale: ptBR });
@@ -144,18 +167,15 @@ export function MeasurementCalendarWidget() {
     const headerH = 8;
     const dayNames = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-    // Title
     doc.setFontSize(16);
     doc.text(`Calendário de Medições — ${monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}`, pageW / 2, margin + 5, { align: "center" });
     if (filterTechnician !== "todos") {
-      const techName = technicians.find(t => t.id === filterTechnician)?.nome_completo || filterTechnician;
+      const techName = technicians.find((t) => t.id === filterTechnician)?.nome_completo || filterTechnician;
       doc.setFontSize(10);
       doc.text(`Técnico: ${techName}`, pageW / 2, margin + 11, { align: "center" });
     }
 
     let startY = margin + 16;
-
-    // Day headers
     doc.setFontSize(9);
     doc.setFillColor(240, 240, 240);
     dayNames.forEach((d, i) => {
@@ -166,7 +186,6 @@ export function MeasurementCalendarWidget() {
     });
     startY += headerH;
 
-    // Calculate rows
     const totalCells = startPad + days.length;
     const totalRows = Math.ceil(totalCells / 7);
     const availableH = pageH - startY - margin;
@@ -175,7 +194,6 @@ export function MeasurementCalendarWidget() {
     let col = 0;
     let row = 0;
 
-    // Padding cells
     for (let i = 0; i < startPad; i++) {
       const x = margin + col * cellW;
       const y = startY + row * cellH;
@@ -184,8 +202,7 @@ export function MeasurementCalendarWidget() {
       col++;
     }
 
-    // Day cells
-    days.forEach(day => {
+    days.forEach((day) => {
       const x = margin + col * cellW;
       const y = startY + row * cellH;
       const key = format(day, "yyyy-MM-dd");
@@ -204,11 +221,10 @@ export function MeasurementCalendarWidget() {
       doc.setTextColor(isToday ? 0 : 100);
       doc.text(format(day, "d"), x + 2, y + 4);
 
-      // Tasks
       doc.setFontSize(6);
       doc.setTextColor(50, 50, 150);
       dayTasks.slice(0, 3).forEach((t, i) => {
-        const label = `${t.horario || "—"} ${t.titulo.replace("Medição - ", "")}`;
+        const label = `${t.horario || "—"} ${getTaskClientName(t)} • ${getTaskTypeLabel(t.tipo)}`;
         const maxLen = Math.floor(cellW / 1.8);
         doc.text(label.substring(0, maxLen), x + 1.5, y + 8 + i * 4);
       });
@@ -219,10 +235,12 @@ export function MeasurementCalendarWidget() {
       doc.setTextColor(0);
 
       col++;
-      if (col >= 7) { col = 0; row++; }
+      if (col >= 7) {
+        col = 0;
+        row++;
+      }
     });
 
-    // Footer
     doc.setFontSize(7);
     doc.setTextColor(150);
     doc.text(`Gerado em ${format(new Date(), "dd/MM/yyyy HH:mm")} — ${pendingCount} medições pendentes`, pageW / 2, pageH - 4, { align: "center" });
@@ -244,7 +262,7 @@ export function MeasurementCalendarWidget() {
               )}
             </CardTitle>
             <div className="flex items-center gap-1.5">
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowFilters(prev => !prev)} title="Filtros">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowFilters((prev) => !prev)} title="Filtros">
                 <Filter className="h-4 w-4" />
               </Button>
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleExportPDF} title="Exportar PDF">
@@ -260,7 +278,7 @@ export function MeasurementCalendarWidget() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos">Todos os técnicos</SelectItem>
-                  {technicians.map(t => (
+                  {technicians.map((t) => (
                     <SelectItem key={t.id} value={t.id}>{t.nome_completo}</SelectItem>
                   ))}
                 </SelectContent>
@@ -271,42 +289,47 @@ export function MeasurementCalendarWidget() {
         <CardContent className="pt-0">
           <div className="border rounded-lg">
             <div className="flex items-center justify-between p-2 border-b">
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCurrentMonth(prev => subMonths(prev, 1))}>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCurrentMonth((prev) => subMonths(prev, 1))}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <span className="text-sm font-semibold capitalize">
                 {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
               </span>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCurrentMonth(prev => addMonths(prev, 1))}>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCurrentMonth((prev) => addMonths(prev, 1))}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
             <div className="grid grid-cols-7 text-center">
-              {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map(d => (
+              {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
                 <div key={d} className="text-[10px] font-semibold text-muted-foreground py-1.5 border-b">{d}</div>
               ))}
               {Array.from({ length: startPad }).map((_, i) => (
                 <div key={`pad-${i}`} className="border-b border-r min-h-[60px]" />
               ))}
-              {days.map(day => {
+              {days.map((day) => {
                 const key = format(day, "yyyy-MM-dd");
                 const dayTasks = tasksByDay.get(key) || [];
                 const isToday = isSameDay(day, new Date());
                 return (
-                  <div key={key} className={cn("border-b border-r min-h-[60px] p-1", isToday && "bg-primary/5")}>
+                  <div key={key} className={cn("border-b border-r min-h-[84px] p-1", isToday && "bg-primary/5")}>
                     <span className={cn("text-[10px] font-medium", isToday ? "text-primary font-bold" : "text-muted-foreground")}>
                       {format(day, "d")}
                     </span>
-                    <div className="space-y-0.5 mt-0.5">
-                      {dayTasks.slice(0, 2).map(t => (
+                    <div className="space-y-1 mt-0.5">
+                      {dayTasks.slice(0, 2).map((t) => (
                         <button
                           key={t.id}
                           onClick={() => handleTaskClick(t)}
-                          className="w-full text-left text-[8px] px-1 py-0.5 rounded bg-primary/10 text-primary truncate font-medium cursor-pointer hover:bg-primary/20 transition-colors"
-                          title={`${t.horario || ""} ${t.titulo} — Clique para reagendar`}
+                          className="w-full text-left rounded bg-primary/10 text-primary px-1 py-1 font-medium cursor-pointer hover:bg-primary/20 transition-colors"
+                          title={`${t.horario || "—"} • ${getTaskClientName(t)} • ${getTaskTypeLabel(t.tipo)} — Clique para reagendar`}
                         >
-                          <Clock className="h-2 w-2 inline mr-0.5" />
-                          {t.horario || "—"} {t.titulo.replace("Medição - ", "")}
+                          <div className="flex items-start gap-1">
+                            <Clock className="h-2.5 w-2.5 shrink-0 mt-0.5" />
+                            <div className="min-w-0 leading-tight">
+                              <div className="truncate text-[8px]">{t.horario || "—"} • {getTaskClientName(t)}</div>
+                              <div className="truncate text-[7px] opacity-80">{getTaskTypeLabel(t.tipo)}</div>
+                            </div>
+                          </div>
                         </button>
                       ))}
                       {dayTasks.length > 2 && (
