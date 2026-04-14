@@ -54,28 +54,30 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
       setTipoRegime(userData.tipo_regime);
     }
 
-    const { data: queueClients } = await supabase
-      .from("clients")
-      .select("id, nome, vendedor, updated_at")
+    // Fetch measurement_requests assigned to technical users (the real queue)
+    const { data: mrData } = await (supabase as any)
+      .from("measurement_requests")
+      .select("id, client_id, nome_cliente, assigned_to, status, created_at, updated_at")
       .eq("tenant_id", tenantId)
-      .eq("status", "em_liberado")
-      .order("updated_at", { ascending: true });
+      .not("status", "eq", "concluido")
+      .order("created_at", { ascending: true });
 
-    const queue = (queueClients || []) as any[];
+    const queue = (mrData || []) as any[];
     setQueueTotal(queue.length);
 
     const userNameLower = (userName || userData?.nome_completo || userData?.apelido || "").toLowerCase();
     
-    const items: QueueItem[] = queue.map((c, idx) => ({
-      clientName: c.nome,
+    const items: QueueItem[] = queue.map((c: any, idx: number) => ({
+      clientName: c.nome_cliente || "Cliente",
       position: idx + 1,
-      assignedTo: c.vendedor,
+      assignedTo: c.assigned_to,
     }));
     setQueueItems(items);
 
+    // Find user's position: match by name or userId
     const myPosition = items.findIndex(item => {
       const assignee = (item.assignedTo || "").toLowerCase();
-      return assignee.includes(userNameLower) || userNameLower.includes(assignee);
+      return assignee === userId || assignee.includes(userNameLower) || userNameLower.includes(assignee);
     });
     setQueuePosition(myPosition >= 0 ? myPosition + 1 : null);
 
