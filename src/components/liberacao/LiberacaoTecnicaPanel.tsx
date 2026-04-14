@@ -2,7 +2,7 @@
  * LiberacaoTecnicaPanel — Full panel for the "Liberação Técnica" module.
  * Shows a ListView of clients in the liberation phase with filters, KPIs and actions.
  */
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, useContext } from "react";
 import { format, differenceInDays, subMonths, startOfMonth, endOfMonth, startOfYear, endOfYear, subYears } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { calculateRoundTripKm } from "@/hooks/useGoogleMapsKey";
 import { PedagioModal } from "./PedagioModal";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 const STATUS_LABELS: Record<string, string> = {
   novo: "Novo",
@@ -228,7 +229,7 @@ export function LiberacaoTecnicaPanel() {
   const [pedagioModal, setPedagioModal] = useState<{ open: boolean; row: LiberacaoRow | null }>({ open: false, row: null });
 
   // Current user context for address-based KM calculation & comissão
-  const { currentUser } = useContext(CurrentUserContext);
+  const { currentUser } = useCurrentUser();
 
   // Save column widths to localStorage
   const saveColWidths = useCallback((widths: Record<string, number>) => {
@@ -480,6 +481,7 @@ export function LiberacaoTecnicaPanel() {
           dataFinalizado,
           diasEmLiberacao,
           tecnicoResponsavel: tecnicoNome,
+          tecnicoEnderecoBase: null,
           loja: nomeLoja,
           codigoLoja,
           vendedorProjetista,
