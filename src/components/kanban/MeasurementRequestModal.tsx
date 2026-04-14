@@ -1408,6 +1408,7 @@ export function MeasurementRequestModal({
       }
 
       // Build the payload
+      persistAddressDraft(normalizedAddress);
       const payload = {
         client_id: client.id,
         tracking_id: tracking.id,
@@ -1443,6 +1444,13 @@ export function MeasurementRequestModal({
           last_edited_by_user_id: currentUser?.id || userInfo.usuario_id || null,
           last_edited_by_user_name: userNomeCompleto || null,
           last_edited_by_user_cargo: userCargoNome || null,
+          delivery_address_zip: normalizedAddress.cep,
+          delivery_address_street: normalizedAddress.street,
+          delivery_address_number: normalizedAddress.number,
+          delivery_address_complement: normalizedAddress.complement,
+          delivery_address_district: normalizedAddress.district,
+          delivery_address_city: normalizedAddress.city,
+          delivery_address_state: normalizedAddress.state,
         },
         delivery_address: {
           cep: normalizedAddress.cep,
