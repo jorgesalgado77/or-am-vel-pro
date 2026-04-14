@@ -41,7 +41,7 @@ const EmailPanel = lazy(() => import("@/components/EmailPanel").then(m => ({ def
 const OnboardingAIAssistant = lazy(() => import("@/components/onboarding/OnboardingAIAssistant").then(m => ({ default: m.OnboardingAIAssistant })));
 const LiberacaoTecnicaPanel = lazy(() => import("@/components/liberacao/LiberacaoTecnicaPanel").then(m => ({ default: m.LiberacaoTecnicaPanel })));
 
-import { CurrentUserContext } from "@/hooks/useCurrentUser";
+import { CurrentUserContext, type CurrentUser } from "@/hooks/useCurrentUser";
 import { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
 import { useRealtimeMessages } from "@/hooks/useRealtimeMessages";
 import { useClientManager } from "@/hooks/useClientManager";
