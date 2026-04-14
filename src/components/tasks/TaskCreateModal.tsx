@@ -9,6 +9,7 @@ import { TASK_TYPES, type Task } from "./taskTypes";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { TaskClientInfo } from "./TaskClientInfo";
 import { Loader2, Upload } from "lucide-react";
 
 interface Props {
@@ -182,6 +183,11 @@ export function TaskCreateModal({ open, onClose, onSave, editingTask, currentUse
             <Label>Descrição</Label>
             <Textarea value={descricao} onChange={e => setDescricao(e.target.value)} rows={3} placeholder="Detalhes da tarefa..." />
           </div>
+
+          {editingTask && (
+            <TaskClientInfo taskTitle={editingTask.titulo} tenantId={tenantId} />
+          )}
+
           <div>
             <Label>Anexos</Label>
             <div className="flex items-center gap-2 mt-1">
