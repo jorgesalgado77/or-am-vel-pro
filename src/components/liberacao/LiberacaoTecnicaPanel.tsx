@@ -628,38 +628,45 @@ export function LiberacaoTecnicaPanel() {
               <RotateCcw className="h-3 w-3" /> Resetar Colunas
             </Button>
           </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table style={{ tableLayout: "fixed" }}>
                 <TableHeader>
                   <TableRow className="text-[11px]">
-                    <TableHead className="w-[80px]">Status</TableHead>
-                    <TableHead className="w-[100px]">Contrato</TableHead>
-                    <TableHead className="w-[130px] hidden md:table-cell">Loja</TableHead>
-                    <TableHead className="w-[120px] hidden md:table-cell">Vendedor/Proj.</TableHead>
-                    <TableHead className="min-w-[150px]">
+                    <ResizableHead col="status">Status</ResizableHead>
+                    <ResizableHead col="contrato">Contrato</ResizableHead>
+                    <ResizableHead col="loja" className="hidden md:table-cell">Loja</ResizableHead>
+                    <ResizableHead col="vendedor" className="hidden md:table-cell">Vendedor/Proj.</ResizableHead>
+                    <ResizableHead col="nome">
                       <SortHeader field="nomeCliente">Nome Cliente</SortHeader>
-                    </TableHead>
-                    <TableHead className="min-w-[180px] hidden lg:table-cell">Endereço</TableHead>
-                    <TableHead className="w-[65px] text-center hidden lg:table-cell">KM</TableHead>
-                    <TableHead className="w-[100px]">
+                    </ResizableHead>
+                    <ResizableHead col="endereco" className="hidden lg:table-cell">Endereço</ResizableHead>
+                    <ResizableHead col="km" className="text-center hidden lg:table-cell">KM</ResizableHead>
+                    <ResizableHead col="fechamento">
                       <SortHeader field="dataFechamento">Fechamento</SortHeader>
-                    </TableHead>
-                    <TableHead className="w-[60px] text-center hidden md:table-cell">Amb.</TableHead>
-                    <TableHead className="w-[100px] text-right">
+                    </ResizableHead>
+                    <ResizableHead col="amb" className="text-center hidden md:table-cell">Amb.</ResizableHead>
+                    <ResizableHead col="vb" className="text-right">
                       <SortHeader field="valorAVista">VB (à Vista)</SortHeader>
-                    </TableHead>
-                    <TableHead className="w-[100px] text-right hidden md:table-cell">V. Atualizado</TableHead>
-                    <TableHead className="w-[100px] text-right hidden lg:table-cell">V. Liberado</TableHead>
-                    <TableHead className="w-[90px] text-right">
+                    </ResizableHead>
+                    <ResizableHead col="vatualizado" className="text-right hidden md:table-cell">V. Atualizado</ResizableHead>
+                    <ResizableHead col="vliberado" className="text-right hidden lg:table-cell">V. Liberado</ResizableHead>
+                    <ResizableHead col="saldo" className="text-right">
                       <SortHeader field="saldoPosNeg">Saldo</SortHeader>
-                    </TableHead>
-                    <TableHead className="w-[90px] text-right hidden md:table-cell">Comissão</TableHead>
-                    <TableHead className="w-[95px] hidden lg:table-cell">Dt. Medição</TableHead>
-                    <TableHead className="w-[70px] text-center hidden xl:table-cell">Prazo</TableHead>
-                    <TableHead className="w-[95px] hidden xl:table-cell">Finalizado</TableHead>
-                    <TableHead className="w-[65px] text-center">
+                    </ResizableHead>
+                    <ResizableHead col="comissao" className="text-right hidden md:table-cell">Comissão</ResizableHead>
+                    <ResizableHead col="dtMedicao" className="hidden lg:table-cell">Dt. Medição</ResizableHead>
+                    <ResizableHead col="prazo" className="text-center hidden xl:table-cell">Prazo</ResizableHead>
+                    <ResizableHead col="finalizado" className="hidden xl:table-cell">Finalizado</ResizableHead>
+                    <ResizableHead col="dias" className="text-center">
                       <SortHeader field="diasEmLiberacao">Dias</SortHeader>
-                    </TableHead>
-                    <TableHead className="min-w-[110px] hidden md:table-cell">Técnico</TableHead>
-                    <TableHead className="w-[40px]" />
+                    </ResizableHead>
+                    <ResizableHead col="tecnico" className="hidden md:table-cell">Técnico</ResizableHead>
+                    <ResizableHead col="acoes" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -672,110 +679,59 @@ export function LiberacaoTecnicaPanel() {
                   ) : (
                     paginatedRows.map(row => (
                       <TableRow key={row.id} className="text-xs hover:bg-muted/40">
-                        <TableCell>
-                          <Badge variant="outline" className="text-[9px] px-1.5 capitalize">
-                            {row.status}
-                          </Badge>
-                        </TableCell>
+                        <TableCell><Badge variant="outline" className="text-[9px] px-1.5 capitalize">{row.status}</Badge></TableCell>
                         <TableCell className="font-mono text-[11px]">{row.numeroContrato}</TableCell>
-                        <TableCell className="hidden md:table-cell text-[11px] truncate max-w-[130px]">
-                          {row.loja ? (
-                            <span title={row.codigoLoja ? `${row.loja} (${row.codigoLoja})` : row.loja}>
-                              {row.loja}{row.codigoLoja ? ` (${row.codigoLoja})` : ""}
-                            </span>
-                          ) : "—"}
+                        <TableCell className="hidden md:table-cell text-[11px] truncate">
+                          {row.loja ? <span title={row.codigoLoja ? `${row.loja} (${row.codigoLoja})` : row.loja}>{row.loja}{row.codigoLoja ? ` (${row.codigoLoja})` : ""}</span> : "—"}
                         </TableCell>
-                        <TableCell className="hidden md:table-cell truncate max-w-[120px]">
-                          {row.vendedorProjetista || "—"}
-                        </TableCell>
+                        <TableCell className="hidden md:table-cell truncate">{row.vendedorProjetista || "—"}</TableCell>
                         <TableCell className="font-medium">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <button className="text-left hover:text-primary transition-colors flex items-center gap-1">
-                                {row.nomeCliente}
-                                <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                                {row.nomeCliente}<ChevronDown className="h-3 w-3 text-muted-foreground" />
                               </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="start" className="w-52">
-                              <DropdownMenuItem onClick={() => handleViewContract(row)} className="gap-2 text-xs">
-                                <FileText className="h-3.5 w-3.5" /> Ver Contrato Fechado
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleApuracao(row)} className="gap-2 text-xs">
-                                <BarChart3 className="h-3.5 w-3.5" /> Apuração
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleEnviarCompras(row)} className="gap-2 text-xs">
-                                <ShoppingCart className="h-3.5 w-3.5" /> Enviar para Compras
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleInformarPedagios(row)} className="gap-2 text-xs">
-                                <MapPin className="h-3.5 w-3.5" /> Informar Pedágios
-                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleViewContract(row)} className="gap-2 text-xs"><FileText className="h-3.5 w-3.5" /> Ver Contrato Fechado</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleApuracao(row)} className="gap-2 text-xs"><BarChart3 className="h-3.5 w-3.5" /> Apuração</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEnviarCompras(row)} className="gap-2 text-xs"><ShoppingCart className="h-3.5 w-3.5" /> Enviar para Compras</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleInformarPedagios(row)} className="gap-2 text-xs"><MapPin className="h-3.5 w-3.5" /> Informar Pedágios</DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
-                        <TableCell className="hidden lg:table-cell text-muted-foreground truncate max-w-[200px]" title={row.endereco}>
-                          {row.endereco}
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell text-center font-mono text-[11px]">
-                          {row.km != null ? `${row.km}` : "—"}
-                        </TableCell>
-                        <TableCell>
-                          {row.dataFechamento ? format(new Date(row.dataFechamento), "dd/MM/yy") : "—"}
-                        </TableCell>
+                        <TableCell className="hidden lg:table-cell text-muted-foreground truncate" title={row.endereco}>{row.endereco}</TableCell>
+                        <TableCell className="hidden lg:table-cell text-center font-mono text-[11px]">{row.km != null ? `${row.km}` : "—"}</TableCell>
+                        <TableCell>{row.dataFechamento ? format(new Date(row.dataFechamento), "dd/MM/yy") : "—"}</TableCell>
                         <TableCell className="text-center hidden md:table-cell">{row.numAmbientes ?? "—"}</TableCell>
-                        <TableCell className="text-right font-mono">
-                          {row.valorAVista != null ? formatCurrency(row.valorAVista) : "—"}
-                        </TableCell>
-                        <TableCell className="text-right hidden md:table-cell font-mono">
-                          {row.valorAtualizado != null ? formatCurrency(row.valorAtualizado) : "—"}
-                        </TableCell>
-                        <TableCell className="text-right hidden lg:table-cell font-mono">
-                          {row.valorLiberado != null ? formatCurrency(row.valorLiberado) : "—"}
-                        </TableCell>
+                        <TableCell className="text-right font-mono">{row.valorAVista != null ? formatCurrency(row.valorAVista) : "—"}</TableCell>
+                        <TableCell className="text-right hidden md:table-cell font-mono">{row.valorAtualizado != null ? formatCurrency(row.valorAtualizado) : "—"}</TableCell>
+                        <TableCell className="text-right hidden lg:table-cell font-mono">{row.valorLiberado != null ? formatCurrency(row.valorLiberado) : "—"}</TableCell>
                         <TableCell className="text-right font-mono">
                           {row.saldoPosNeg != null ? (
-                            <span className={cn(row.saldoPosNeg >= 0 ? "text-emerald-600" : "text-destructive")}>
-                              {row.saldoPosNeg >= 0 ? "+" : ""}{formatCurrency(row.saldoPosNeg)}
-                            </span>
+                            <span className={cn(row.saldoPosNeg >= 0 ? "text-emerald-600" : "text-destructive")}>{row.saldoPosNeg >= 0 ? "+" : ""}{formatCurrency(row.saldoPosNeg)}</span>
                           ) : "—"}
                         </TableCell>
-                        <TableCell className="text-right hidden md:table-cell font-mono">
-                          {row.comissao != null ? formatCurrency(row.comissao) : "—"}
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell">
-                          {row.dataMedicao ? format(new Date(row.dataMedicao), "dd/MM/yy") : "—"}
-                        </TableCell>
+                        <TableCell className="text-right hidden md:table-cell font-mono">{row.comissao != null ? formatCurrency(row.comissao) : "—"}</TableCell>
+                        <TableCell className="hidden lg:table-cell">{row.dataMedicao ? format(new Date(row.dataMedicao), "dd/MM/yy") : "—"}</TableCell>
                         <TableCell className="text-center hidden xl:table-cell">{row.prazoLiberacao ?? "—"}</TableCell>
-                        <TableCell className="hidden xl:table-cell">
-                          {row.dataFinalizado ? format(new Date(row.dataFinalizado), "dd/MM/yy") : "—"}
-                        </TableCell>
+                        <TableCell className="hidden xl:table-cell">{row.dataFinalizado ? format(new Date(row.dataFinalizado), "dd/MM/yy") : "—"}</TableCell>
                         <TableCell className="text-center">
                           {row.diasEmLiberacao != null ? (
-                            <Badge variant={row.diasEmLiberacao > 15 ? "destructive" : row.diasEmLiberacao > 7 ? "secondary" : "outline"} className="text-[10px] px-1.5">
-                              {row.diasEmLiberacao}d
-                            </Badge>
+                            <Badge variant={row.diasEmLiberacao > 15 ? "destructive" : row.diasEmLiberacao > 7 ? "secondary" : "outline"} className="text-[10px] px-1.5">{row.diasEmLiberacao}d</Badge>
                           ) : "—"}
                         </TableCell>
-                        <TableCell className="hidden md:table-cell truncate max-w-[120px]">{row.tecnicoResponsavel || "—"}</TableCell>
+                        <TableCell className="hidden md:table-cell truncate">{row.tecnicoResponsavel || "—"}</TableCell>
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-6 w-6">
-                                <ChevronDown className="h-3 w-3" />
-                              </Button>
+                              <Button variant="ghost" size="icon" className="h-6 w-6"><ChevronDown className="h-3 w-3" /></Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-52">
-                              <DropdownMenuItem onClick={() => handleViewContract(row)} className="gap-2 text-xs">
-                                <FileText className="h-3.5 w-3.5" /> Ver Contrato
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleApuracao(row)} className="gap-2 text-xs">
-                                <BarChart3 className="h-3.5 w-3.5" /> Apuração
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleEnviarCompras(row)} className="gap-2 text-xs">
-                                <ShoppingCart className="h-3.5 w-3.5" /> Enviar Compras
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleInformarPedagios(row)} className="gap-2 text-xs">
-                                <MapPin className="h-3.5 w-3.5" /> Informar Pedágios
-                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleViewContract(row)} className="gap-2 text-xs"><FileText className="h-3.5 w-3.5" /> Ver Contrato</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleApuracao(row)} className="gap-2 text-xs"><BarChart3 className="h-3.5 w-3.5" /> Apuração</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEnviarCompras(row)} className="gap-2 text-xs"><ShoppingCart className="h-3.5 w-3.5" /> Enviar Compras</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleInformarPedagios(row)} className="gap-2 text-xs"><MapPin className="h-3.5 w-3.5" /> Informar Pedágios</DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -787,24 +743,28 @@ export function LiberacaoTecnicaPanel() {
             </div>
           )}
 
-          {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-2 border-t">
-              <span className="text-xs text-muted-foreground">
-                Pág. {page + 1} de {totalPages} ({filteredRows.length} registros)
-              </span>
+              <span className="text-xs text-muted-foreground">Pág. {page + 1} de {totalPages} ({filteredRows.length} registros)</span>
               <div className="flex gap-1">
-                <Button variant="outline" size="sm" className="h-7 text-xs" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
-                  Anterior
-                </Button>
-                <Button variant="outline" size="sm" className="h-7 text-xs" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
-                  Próxima
-                </Button>
+                <Button variant="outline" size="sm" className="h-7 text-xs" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Anterior</Button>
+                <Button variant="outline" size="sm" className="h-7 text-xs" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Próxima</Button>
               </div>
             </div>
           )}
         </CardContent>
       </Card>
+
+      {pedagioModal.row && (
+        <PedagioModal
+          open={pedagioModal.open}
+          onOpenChange={(open) => setPedagioModal(prev => ({ ...prev, open }))}
+          clientId={pedagioModal.row.clientId}
+          clientName={pedagioModal.row.nomeCliente}
+          trackingId={pedagioModal.row.id}
+          onSaved={fetchData}
+        />
+      )}
     </div>
   );
 }
