@@ -1,0 +1,584 @@
+/**
+ * LiberacaoTecnicaPanel — Full panel for the "Liberação Técnica" module.
+ * Shows a ListView of clients in the liberation phase with filters, KPIs and actions.
+ */
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { format, differenceInDays, subMonths, startOfMonth, endOfMonth, startOfYear, endOfYear, subYears } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import {
+  ShieldCheck, Search, Filter, ChevronDown, FileText, BarChart3, ShoppingCart,
+  CalendarDays, ArrowUpDown, Loader2,
+} from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { supabase } from "@/lib/supabaseClient";
+import { getResolvedTenantId } from "@/contexts/TenantContext";
+import { formatCurrency } from "@/lib/financing";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+// ──────── Types ────────
+
+interface LiberacaoRow {
+  id: string; // client_tracking id
+  clientId: string;
+  status: string;
+  numeroContrato: string;
+  nomeCliente: string;
+  endereco: string;
+  dataFechamento: string | null;
+  numAmbientes: number | null;
+  valorAVista: number | null;
+  comissao: number | null;
+  dataMedicao: string | null;
+  prazoLiberacao: string | null;
+  dataFinalizado: string | null;
+  diasEmLiberacao: number | null;
+  tecnicoResponsavel: string | null;
+  valorLiberado: number | null;
+  saldoPosNeg: number | null;
+}
+
+type DatePreset = "mes_atual" | "mes_anterior" | "ultimos_6" | "ano_anterior" | "personalizado";
+type SortField = "nomeCliente" | "dataFechamento" | "diasEmLiberacao" | "valorAVista" | "saldoPosNeg";
+type SortDir = "asc" | "desc";
+
+// ──────── Component ────────
+
+export function LiberacaoTecnicaPanel() {
+  const [rows, setRows] = useState<LiberacaoRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Filters
+  const [datePreset, setDatePreset] = useState<DatePreset>("mes_atual");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("todos");
+
+  // Sort
+  const [sortField, setSortField] = useState<SortField>("dataFechamento");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  // Pagination
+  const PAGE_SIZE = 30;
+  const [page, setPage] = useState(0);
+
+  // ──── Date range resolver ────
+  const dateRange = useMemo(() => {
+    const now = new Date();
+    switch (datePreset) {
+      case "mes_atual":
+        return { start: startOfMonth(now), end: endOfMonth(now) };
+      case "mes_anterior": {
+        const prev = subMonths(now, 1);
+        return { start: startOfMonth(prev), end: endOfMonth(prev) };
+      }
+      case "ultimos_6":
+        return { start: startOfMonth(subMonths(now, 5)), end: endOfMonth(now) };
+      case "ano_anterior": {
+        const prevYear = subYears(now, 1);
+        return { start: startOfYear(prevYear), end: endOfYear(prevYear) };
+      }
+      case "personalizado":
+        return {
+          start: customStart ? new Date(customStart) : startOfMonth(now),
+          end: customEnd ? new Date(customEnd) : endOfMonth(now),
+        };
+      default:
+        return { start: startOfMonth(now), end: endOfMonth(now) };
+    }
+  }, [datePreset, customStart, customEnd]);
+
+  // ──── Fetch data ────
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    const tenantId = await getResolvedTenantId();
+    if (!tenantId) { setLoading(false); return; }
+
+    try {
+      // 1. Get client_tracking records
+      const { data: tracking, error: tErr } = await supabase
+        .from("client_tracking")
+        .select("*")
+        .eq("tenant_id", tenantId);
+
+      if (tErr) { console.error(tErr); setLoading(false); return; }
+
+      const allTracking = (tracking || []) as any[];
+      if (allTracking.length === 0) { setRows([]); setLoading(false); return; }
+
+      const clientIds = [...new Set(allTracking.map(t => t.client_id))];
+
+      // 2. Get clients info + measurement_requests in parallel
+      const [clientsRes, mrRes] = await Promise.all([
+        supabase
+          .from("clients")
+          .select("id, nome, telefone1, email, quantidade_ambientes")
+          .in("id", clientIds),
+        (supabase as any)
+          .from("measurement_requests")
+          .select("id, client_id, status, assigned_to, created_at, updated_at, cep_entrega, endereco_entrega, numero_entrega, bairro_entrega, cidade_entrega, uf_entrega")
+          .eq("tenant_id", tenantId)
+          .in("client_id", clientIds)
+          .order("created_at", { ascending: false }),
+      ]);
+
+      const clientsMap = new Map<string, any>();
+      (clientsRes.data || []).forEach((c: any) => clientsMap.set(c.id, c));
+
+      // Group MRs by client_id (take latest)
+      const mrMap = new Map<string, any>();
+      ((mrRes.data || []) as any[]).forEach((mr: any) => {
+        if (!mrMap.has(mr.client_id)) mrMap.set(mr.client_id, mr);
+      });
+
+      // 3. Build rows
+      const mapped: LiberacaoRow[] = allTracking.map((t: any) => {
+        const client = clientsMap.get(t.client_id);
+        const mr = mrMap.get(t.client_id);
+
+        // Build address
+        const addrParts = [
+          mr?.endereco_entrega,
+          mr?.numero_entrega && `nº ${mr.numero_entrega}`,
+          mr?.bairro_entrega,
+          mr?.cidade_entrega && mr?.uf_entrega ? `${mr.cidade_entrega}-${mr.uf_entrega}` : (mr?.cidade_entrega || mr?.uf_entrega),
+        ].filter(Boolean);
+
+        const dataFechamento = t.data_fechamento || null;
+        const valorAVista = t.valor_contrato ?? null;
+
+        // Calculate diasEmLiberacao: from data_fechamento to now (or dataFinalizado)
+        let diasEmLiberacao: number | null = null;
+        let dataFinalizado: string | null = null;
+        // Consider "concluido" or "finalizado" statuses as finalized
+        const isFinal = mr?.status === "concluido" || mr?.status === "finalizado";
+        if (isFinal && mr?.updated_at) {
+          dataFinalizado = mr.updated_at;
+        }
+
+        if (dataFechamento) {
+          const start = new Date(dataFechamento);
+          const end = dataFinalizado ? new Date(dataFinalizado) : new Date();
+          diasEmLiberacao = differenceInDays(end, start);
+          if (diasEmLiberacao < 0) diasEmLiberacao = 0;
+        }
+
+        // Saldo POS/NEG = valorLiberado - valorAVista
+        // For now valorLiberado is not tracked separately, set to 0
+        const valorLiberado = t.valor_contrato ?? 0; // placeholder
+        const saldoPosNeg = valorAVista != null ? valorLiberado - valorAVista : null;
+
+        return {
+          id: t.id,
+          clientId: t.client_id,
+          status: t.status || "—",
+          numeroContrato: t.numero_contrato || "—",
+          nomeCliente: t.nome_cliente || client?.nome || "—",
+          endereco: addrParts.join(", ") || "—",
+          dataFechamento,
+          numAmbientes: client?.quantidade_ambientes ?? t.quantidade_ambientes ?? null,
+          valorAVista,
+          comissao: t.comissao_valor ?? null,
+          dataMedicao: mr?.created_at || null,
+          prazoLiberacao: null, // could be configured
+          dataFinalizado,
+          diasEmLiberacao,
+          tecnicoResponsavel: mr?.assigned_to || null,
+          valorLiberado: valorAVista, // placeholder until separate column exists
+          saldoPosNeg,
+        };
+      });
+
+      setRows(mapped);
+    } catch (err) {
+      console.error("LiberacaoTecnicaPanel fetch error", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  // ──── Filter + Sort + Paginate ────
+  const filteredRows = useMemo(() => {
+    let result = rows;
+
+    // Date filter on dataFechamento
+    result = result.filter(r => {
+      if (!r.dataFechamento) return datePreset === "mes_atual"; // show undated in current month
+      const d = new Date(r.dataFechamento);
+      return d >= dateRange.start && d <= dateRange.end;
+    });
+
+    // Search filter
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase().trim();
+      result = result.filter(r =>
+        r.nomeCliente.toLowerCase().includes(q) ||
+        r.numeroContrato.toLowerCase().includes(q) ||
+        (r.endereco && r.endereco.toLowerCase().includes(q))
+      );
+    }
+
+    // Status filter
+    if (statusFilter !== "todos") {
+      result = result.filter(r => r.status === statusFilter);
+    }
+
+    // Sort
+    result = [...result].sort((a, b) => {
+      let va: any = a[sortField];
+      let vb: any = b[sortField];
+      if (va == null) va = sortDir === "asc" ? Infinity : -Infinity;
+      if (vb == null) vb = sortDir === "asc" ? Infinity : -Infinity;
+      if (typeof va === "string") {
+        return sortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
+      }
+      return sortDir === "asc" ? va - vb : vb - va;
+    });
+
+    return result;
+  }, [rows, dateRange, searchTerm, statusFilter, sortField, sortDir, datePreset]);
+
+  const paginatedRows = useMemo(() => {
+    const start = page * PAGE_SIZE;
+    return filteredRows.slice(start, start + PAGE_SIZE);
+  }, [filteredRows, page]);
+
+  const totalPages = Math.ceil(filteredRows.length / PAGE_SIZE);
+
+  // ──── Unique statuses for filter ────
+  const uniqueStatuses = useMemo(() => [...new Set(rows.map(r => r.status))].sort(), [rows]);
+
+  // ──── Sort handler ────
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir(d => d === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDir("asc");
+    }
+    setPage(0);
+  };
+
+  const SortHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
+    <button
+      className="flex items-center gap-1 hover:text-foreground transition-colors"
+      onClick={() => toggleSort(field)}
+    >
+      {children}
+      <ArrowUpDown className={cn("h-3 w-3", sortField === field ? "text-primary" : "text-muted-foreground/50")} />
+    </button>
+  );
+
+  // ──── Client actions ────
+  const handleViewContract = (row: LiberacaoRow) => {
+    window.dispatchEvent(new CustomEvent("navigate-to-contracts"));
+    toast.info(`Abrindo contrato de ${row.nomeCliente}...`);
+  };
+
+  const handleApuracao = (row: LiberacaoRow) => {
+    toast.info(`Apuração de ${row.nomeCliente} — funcionalidade em desenvolvimento`);
+  };
+
+  const handleEnviarCompras = async (row: LiberacaoRow) => {
+    const tenantId = await getResolvedTenantId();
+    if (!tenantId) return;
+
+    // Update measurement_request status to "enviado_compras"
+    const { error } = await (supabase as any)
+      .from("measurement_requests")
+      .update({ status: "enviado_compras", updated_at: new Date().toISOString() })
+      .eq("client_id", row.clientId)
+      .eq("tenant_id", tenantId);
+
+    if (error) {
+      toast.error("Erro ao enviar para compras");
+    } else {
+      toast.success(`${row.nomeCliente} enviado para Compras!`);
+      fetchData();
+    }
+  };
+
+  // ──── KPI summary ────
+  const kpis = useMemo(() => {
+    const total = filteredRows.length;
+    const totalValor = filteredRows.reduce((sum, r) => sum + (r.valorAVista || 0), 0);
+    const avgDias = total > 0
+      ? Math.round(filteredRows.reduce((sum, r) => sum + (r.diasEmLiberacao || 0), 0) / total)
+      : 0;
+    const finalizados = filteredRows.filter(r => r.dataFinalizado).length;
+    return { total, totalValor, avgDias, finalizados };
+  }, [filteredRows]);
+
+  return (
+    <div className="space-y-4">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-[11px] text-muted-foreground font-medium">Total em Liberação</p>
+            <p className="text-xl font-bold text-foreground">{kpis.total}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-[11px] text-muted-foreground font-medium">Valor Total</p>
+            <p className="text-xl font-bold text-foreground">{formatCurrency(kpis.totalValor)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-[11px] text-muted-foreground font-medium">Média Dias Liberação</p>
+            <p className="text-xl font-bold text-foreground">{kpis.avgDias} dias</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-[11px] text-muted-foreground font-medium">Finalizados</p>
+            <p className="text-xl font-bold text-emerald-600">{kpis.finalizados}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="p-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-[140px]">
+              <Label className="text-[11px] text-muted-foreground">Período</Label>
+              <Select value={datePreset} onValueChange={(v) => { setDatePreset(v as DatePreset); setPage(0); }}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mes_atual">Mês Atual</SelectItem>
+                  <SelectItem value="mes_anterior">Mês Anterior</SelectItem>
+                  <SelectItem value="ultimos_6">Últimos 6 Meses</SelectItem>
+                  <SelectItem value="ano_anterior">Ano Anterior</SelectItem>
+                  <SelectItem value="personalizado">Personalizado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {datePreset === "personalizado" && (
+              <>
+                <div>
+                  <Label className="text-[11px] text-muted-foreground">De</Label>
+                  <Input type="date" className="h-8 text-xs w-[130px]" value={customStart} onChange={e => setCustomStart(e.target.value)} />
+                </div>
+                <div>
+                  <Label className="text-[11px] text-muted-foreground">Até</Label>
+                  <Input type="date" className="h-8 text-xs w-[130px]" value={customEnd} onChange={e => setCustomEnd(e.target.value)} />
+                </div>
+              </>
+            )}
+
+            <div className="min-w-[140px]">
+              <Label className="text-[11px] text-muted-foreground">Status</Label>
+              <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  {uniqueStatuses.map(s => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex-1 min-w-[180px]">
+              <Label className="text-[11px] text-muted-foreground">Buscar</Label>
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  className="h-8 text-xs pl-7"
+                  placeholder="Nome, contrato, CPF/CNPJ..."
+                  value={searchTerm}
+                  onChange={e => { setSearchTerm(e.target.value); setPage(0); }}
+                />
+              </div>
+            </div>
+
+            <Badge variant="secondary" className="h-8 text-xs px-3">
+              {filteredRows.length} resultado(s)
+            </Badge>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ListView Table */}
+      <Card>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="text-[11px]">
+                    <TableHead className="w-[80px]">Status</TableHead>
+                    <TableHead className="w-[100px]">Contrato</TableHead>
+                    <TableHead className="min-w-[150px]">
+                      <SortHeader field="nomeCliente">Nome Cliente</SortHeader>
+                    </TableHead>
+                    <TableHead className="min-w-[180px] hidden lg:table-cell">Endereço</TableHead>
+                    <TableHead className="w-[100px]">
+                      <SortHeader field="dataFechamento">Fechamento</SortHeader>
+                    </TableHead>
+                    <TableHead className="w-[60px] text-center hidden md:table-cell">Amb.</TableHead>
+                    <TableHead className="w-[100px] text-right">
+                      <SortHeader field="valorAVista">VB (à Vista)</SortHeader>
+                    </TableHead>
+                    <TableHead className="w-[90px] text-right hidden md:table-cell">Comissão</TableHead>
+                    <TableHead className="w-[95px] hidden lg:table-cell">Dt. Medição</TableHead>
+                    <TableHead className="w-[70px] text-center hidden xl:table-cell">Prazo</TableHead>
+                    <TableHead className="w-[95px] hidden xl:table-cell">Finalizado</TableHead>
+                    <TableHead className="w-[65px] text-center">
+                      <SortHeader field="diasEmLiberacao">Dias</SortHeader>
+                    </TableHead>
+                    <TableHead className="min-w-[110px] hidden md:table-cell">Técnico</TableHead>
+                    <TableHead className="w-[100px] text-right hidden lg:table-cell">V. Liberado</TableHead>
+                    <TableHead className="w-[90px] text-right">
+                      <SortHeader field="saldoPosNeg">Saldo</SortHeader>
+                    </TableHead>
+                    <TableHead className="w-[40px]" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedRows.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={16} className="text-center py-10 text-muted-foreground text-sm">
+                        Nenhum registro encontrado
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    paginatedRows.map(row => (
+                      <TableRow key={row.id} className="text-xs hover:bg-muted/40">
+                        <TableCell>
+                          <Badge variant="outline" className="text-[9px] px-1.5 capitalize">
+                            {row.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-mono text-[11px]">{row.numeroContrato}</TableCell>
+                        <TableCell className="font-medium">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="text-left hover:text-primary transition-colors flex items-center gap-1">
+                                {row.nomeCliente}
+                                <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="w-48">
+                              <DropdownMenuItem onClick={() => handleViewContract(row)} className="gap-2 text-xs">
+                                <FileText className="h-3.5 w-3.5" /> Ver Contrato Fechado
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleApuracao(row)} className="gap-2 text-xs">
+                                <BarChart3 className="h-3.5 w-3.5" /> Apuração
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEnviarCompras(row)} className="gap-2 text-xs">
+                                <ShoppingCart className="h-3.5 w-3.5" /> Enviar para Compras
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell text-muted-foreground truncate max-w-[200px]" title={row.endereco}>
+                          {row.endereco}
+                        </TableCell>
+                        <TableCell>
+                          {row.dataFechamento ? format(new Date(row.dataFechamento), "dd/MM/yy") : "—"}
+                        </TableCell>
+                        <TableCell className="text-center hidden md:table-cell">{row.numAmbientes ?? "—"}</TableCell>
+                        <TableCell className="text-right font-mono">
+                          {row.valorAVista != null ? formatCurrency(row.valorAVista) : "—"}
+                        </TableCell>
+                        <TableCell className="text-right hidden md:table-cell font-mono">
+                          {row.comissao != null ? formatCurrency(row.comissao) : "—"}
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          {row.dataMedicao ? format(new Date(row.dataMedicao), "dd/MM/yy") : "—"}
+                        </TableCell>
+                        <TableCell className="text-center hidden xl:table-cell">{row.prazoLiberacao ?? "—"}</TableCell>
+                        <TableCell className="hidden xl:table-cell">
+                          {row.dataFinalizado ? format(new Date(row.dataFinalizado), "dd/MM/yy") : "—"}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {row.diasEmLiberacao != null ? (
+                            <Badge variant={row.diasEmLiberacao > 15 ? "destructive" : row.diasEmLiberacao > 7 ? "secondary" : "outline"} className="text-[10px] px-1.5">
+                              {row.diasEmLiberacao}d
+                            </Badge>
+                          ) : "—"}
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell truncate max-w-[120px]">{row.tecnicoResponsavel || "—"}</TableCell>
+                        <TableCell className="text-right hidden lg:table-cell font-mono">
+                          {row.valorLiberado != null ? formatCurrency(row.valorLiberado) : "—"}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {row.saldoPosNeg != null ? (
+                            <span className={cn(row.saldoPosNeg >= 0 ? "text-emerald-600" : "text-destructive")}>
+                              {row.saldoPosNeg >= 0 ? "+" : ""}{formatCurrency(row.saldoPosNeg)}
+                            </span>
+                          ) : "—"}
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-6 w-6">
+                                <ChevronDown className="h-3 w-3" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem onClick={() => handleViewContract(row)} className="gap-2 text-xs">
+                                <FileText className="h-3.5 w-3.5" /> Ver Contrato
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleApuracao(row)} className="gap-2 text-xs">
+                                <BarChart3 className="h-3.5 w-3.5" /> Apuração
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEnviarCompras(row)} className="gap-2 text-xs">
+                                <ShoppingCart className="h-3.5 w-3.5" /> Enviar Compras
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-2 border-t">
+              <span className="text-xs text-muted-foreground">
+                Pág. {page + 1} de {totalPages} ({filteredRows.length} registros)
+              </span>
+              <div className="flex gap-1">
+                <Button variant="outline" size="sm" className="h-7 text-xs" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
+                  Anterior
+                </Button>
+                <Button variant="outline" size="sm" className="h-7 text-xs" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
+                  Próxima
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
