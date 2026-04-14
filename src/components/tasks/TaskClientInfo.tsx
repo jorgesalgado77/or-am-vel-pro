@@ -66,13 +66,14 @@ export function TaskClientInfo({ taskTitle, tenantId }: Props) {
         // Find client
         const { data: clients } = await supabase
           .from("clients")
-          .select("id, nome, telefone1, email")
+          .select("*")
           .eq("tenant_id", tenantId)
           .ilike("nome", `%${clientName}%`)
           .limit(1);
 
         if (!clients || clients.length === 0) { setLoading(false); return; }
         const client = clients[0];
+        setFullClient(client as Client);
 
         // Fetch tracking, measurement_request, and tenant in parallel
         const [trackingRes, mrRes, tenantRes] = await Promise.all([
