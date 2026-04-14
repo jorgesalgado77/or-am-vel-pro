@@ -30,6 +30,11 @@ interface TrackingData {
   data_fechamento: string | null;
   projetista: string | null;
   status: string;
+  tipo_contrato?: string | null;
+  prazo_entrega_loja?: string | null;
+  prazo_liberacao_tecnica?: string | null;
+  prazo_inicio_montagem?: string | null;
+  prazo_assistencia_tecnica?: string | null;
 }
 
 interface Message {
@@ -83,6 +88,29 @@ export function ClientTrackingModal({ open, onClose }: Props) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const fetchContractTypePrazos = async (tenantId: string, tipoContrato?: string | null) => {
+    if (!tenantId || !tipoContrato) return {};
+    try {
+      const { data } = await (supabase as any)
+        .from("contract_types")
+        .select("prazo_entrega, prazo_liberacao_tecnica, prazo_inicio_montagem, prazo_assistencia_tecnica")
+        .eq("tenant_id", tenantId)
+        .ilike("nome", tipoContrato)
+        .eq("ativo", true)
+        .limit(1)
+        .maybeSingle();
+      if (data) {
+        return {
+          prazo_entrega_loja: data.prazo_entrega || null,
+          prazo_liberacao_tecnica: data.prazo_liberacao_tecnica || null,
+          prazo_inicio_montagem: data.prazo_inicio_montagem || null,
+          prazo_assistencia_tecnica: data.prazo_assistencia_tecnica || null,
+        };
+      }
+    } catch {}
+    return {};
+  };
+
   const handleSearch = async () => {
     const searchValue = searchMode === "contrato" ? contractNumber.trim() : cpfCnpj.trim().replace(/\D/g, "");
     if (!searchValue) { toast.error(searchMode === "contrato" ? "Informe o número do contrato" : "Informe o CPF ou CNPJ"); return; }
@@ -98,7 +126,10 @@ export function ClientTrackingModal({ open, onClose }: Props) {
       const { data, error } = await trackingQuery.limit(1).maybeSingle();
 
       if (data && !error) {
-        setTracking(data as any);
+        const trackingData = data as any;
+        // Fetch contract type prazos
+        const prazos = await fetchContractTypePrazos(trackingData.tenant_id, trackingData.tipo_contrato);
+        setTracking({ ...trackingData, ...prazos } as any);
         await fetchMessages((data as any).id);
         setStep("tracking");
         return;
@@ -297,6 +328,26 @@ export function ClientTrackingModal({ open, onClose }: Props) {
                 <div><span className="text-muted-foreground">Valor:</span> <strong>{Number(tracking.valor_contrato).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong></div>
                 <div><span className="text-muted-foreground">Fechamento:</span> <strong>{tracking.data_fechamento ? format(new Date(tracking.data_fechamento), "dd/MM/yyyy") : "—"}</strong></div>
               </div>
+              {/* Prazos do tipo de contrato */}
+              {(tracking.prazo_entrega_loja || tracking.prazo_liberacao_tecnica || tracking.prazo_inicio_montagem || tracking.prazo_assistencia_tecnica) && (
+                <div className="mt-2 pt-2 border-t border-border/50">
+                  <p className="text-xs font-semibold text-muted-foreground mb-1">Prazos Previstos</p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+                    {tracking.prazo_entrega_loja && (
+                      <div><span className="text-muted-foreground">Entrega Loja:</span> <strong>{tracking.prazo_entrega_loja}</strong></div>
+                    )}
+                    {tracking.prazo_liberacao_tecnica && (
+                      <div><span className="text-muted-foreground">Liberação Técnica:</span> <strong>{tracking.prazo_liberacao_tecnica}</strong></div>
+                    )}
+                    {tracking.prazo_inicio_montagem && (
+                      <div><span className="text-muted-foreground">Início Montagem:</span> <strong>{tracking.prazo_inicio_montagem}</strong></div>
+                    )}
+                    {tracking.prazo_assistencia_tecnica && (
+                      <div><span className="text-muted-foreground">Assistência Técnica:</span> <strong>{tracking.prazo_assistencia_tecnica}</strong></div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Tracking steps */}
