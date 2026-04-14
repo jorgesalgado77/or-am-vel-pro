@@ -604,6 +604,10 @@ export function LiberacaoTecnicaPanel() {
           if (diasEmLiberacao < 0) diasEmLiberacao = 0;
         }
 
+        // Resolve contract type prazos
+        const tipoContrato = snapshot?.tipo_contrato || tracking?.tipo_contrato || "";
+        const ctData = tipoContrato ? contractTypesMap.get(String(tipoContrato).toLowerCase().trim()) : null;
+
         return {
           id: tracking?.id || mr?.id || contract?.id || clientId,
           clientId,
@@ -622,6 +626,10 @@ export function LiberacaoTecnicaPanel() {
           comissao,
           dataMedicao: mr?.updated_at || mr?.created_at || null,
           prazoLiberacao: snapshot?.prazo_entrega || snapshot?.data_entrega_prevista || null,
+          prazoEntregaLoja: ctData?.prazo_entrega || snapshot?.prazo_entrega || null,
+          prazoLiberacaoTecnica: ctData?.prazo_liberacao_tecnica || null,
+          prazoInicioMontagem: ctData?.prazo_inicio_montagem || null,
+          prazoAssistenciaTecnica: ctData?.prazo_assistencia_tecnica || null,
           dataFinalizado,
           diasEmLiberacao,
           tecnicoResponsavel: tecnicoNome,
