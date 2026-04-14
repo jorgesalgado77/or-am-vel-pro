@@ -100,6 +100,7 @@ export function TaskClientInfo({ taskTitle, tenantId }: Props) {
         const tracking = trackingRes.data?.[0];
         const mr = mrRes.data?.[0];
         const tenant = tenantRes.data;
+        if (tracking) setTrackingRecord(tracking as ClientTrackingRecord);
 
         // Extract address from delivery_address JSON or client_snapshot fallback
         const addr = mr?.delivery_address || {};
