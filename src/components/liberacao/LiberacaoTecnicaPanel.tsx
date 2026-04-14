@@ -622,13 +622,12 @@ export function LiberacaoTecnicaPanel() {
       {/* ListView Table */}
       <Card>
         <CardContent className="p-0">
-          {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
+          {/* Reset columns button */}
+          <div className="flex items-center justify-end px-3 pt-2 pb-1">
+            <Button variant="ghost" size="sm" className="h-7 text-[10px] gap-1 text-muted-foreground" onClick={resetColWidths}>
+              <RotateCcw className="h-3 w-3" /> Resetar Colunas
+            </Button>
+          </div>
                 <TableHeader>
                   <TableRow className="text-[11px]">
                     <TableHead className="w-[80px]">Status</TableHead>
