@@ -440,19 +440,29 @@ export default function Login() {
                     autoComplete="off"
                   />
                   {unmask(codigoLoja).length === 6 && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 group">
                       {tenantLoading ? (
                         <Loader2 className="h-4 w-4 text-white/50 animate-spin" />
                       ) : resolvedTenantId ? (
-                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 400, damping: 15 }}>
-                          <div className="h-5 w-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 400, damping: 15 }} className="relative">
+                          <div className="h-5 w-5 rounded-full bg-emerald-500/20 flex items-center justify-center cursor-default">
                             <svg className="h-3 w-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                          </div>
+                          <div className="pointer-events-none absolute bottom-full right-0 mb-2 hidden group-hover:block">
+                            <div className="whitespace-nowrap rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white shadow-lg">
+                              {tenantInfo?.nome || "Loja encontrada"}
+                            </div>
                           </div>
                         </motion.div>
                       ) : (
-                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
-                          <div className="h-5 w-5 rounded-full bg-red-500/20 flex items-center justify-center">
+                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="relative">
+                          <div className="h-5 w-5 rounded-full bg-red-500/20 flex items-center justify-center cursor-default">
                             <svg className="h-3 w-3 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                          </div>
+                          <div className="pointer-events-none absolute bottom-full right-0 mb-2 hidden group-hover:block">
+                            <div className="whitespace-nowrap rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white shadow-lg">
+                              Código não encontrado
+                            </div>
                           </div>
                         </motion.div>
                       )}
