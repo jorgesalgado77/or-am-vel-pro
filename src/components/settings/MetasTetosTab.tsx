@@ -107,17 +107,18 @@ export function MetasTetosTab() {
 
     const label = form.label || TIPO_CONFIG[form.tipo]?.label || "Meta";
 
+    // For custom metas, encode the label into goal_type as "custom:LabelName"
+    const goalType = form.tipo === "custom" && form.label
+      ? `custom:${form.label}`
+      : form.tipo;
+
     const payload: Record<string, unknown> = {
       tenant_id: tenantId,
-      goal_type: form.tipo,
+      goal_type: goalType,
       target_value: form.valor,
       month: selectedMonth,
+      user_id: null,
     };
-    // user_id is UUID — only set for custom metas that reference a user, otherwise null
-    if (form.tipo === "custom") {
-      payload.label = label;
-    }
-    payload.user_id = null;
 
     let error;
     if (form.id) {
