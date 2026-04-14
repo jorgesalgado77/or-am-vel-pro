@@ -46,9 +46,10 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
       return;
     }
 
+    // Fetch full user profile including email and auth_user_id for robust matching
     const { data: userData } = await supabase
       .from("usuarios")
-      .select("salario_fixo, comissao_percentual, tipo_regime, nome_completo, apelido")
+      .select("salario_fixo, comissao_percentual, tipo_regime, nome_completo, apelido, email, auth_user_id")
       .eq("id", userId)
       .single();
 
@@ -58,7 +59,22 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
       setTipoRegime(userData.tipo_regime);
     }
 
+    // Build all possible identity strings for matching
     const userNameLower = (userName || userData?.nome_completo || userData?.apelido || "").toLowerCase();
+    const userEmail = ((userData as any)?.email || "").toLowerCase();
+    const authUserId = ((userData as any)?.auth_user_id || "").toLowerCase();
+
+    const matchesUser = (value: string | null | undefined): boolean => {
+      if (!value) return false;
+      const v = value.toLowerCase().trim();
+      if (!v) return false;
+      // Match by usuarios.id, auth_user_id, email, or name substring
+      if (v === userId.toLowerCase()) return true;
+      if (authUserId && v === authUserId) return true;
+      if (userEmail && v === userEmail) return true;
+      if (userNameLower && (v.includes(userNameLower) || userNameLower.includes(v))) return true;
+      return false;
+    };
 
     const { data: mrData } = await (supabase as any)
       .from("measurement_requests")
@@ -77,10 +93,7 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
     }));
     setQueueItems(items);
 
-    const myPosition = items.findIndex((item) => {
-      const assignee = (item.assignedTo || "").toLowerCase();
-      return assignee === userId || assignee.includes(userNameLower) || userNameLower.includes(assignee);
-    });
+    const myPosition = items.findIndex((item) => matchesUser(item.assignedTo));
     setQueuePosition(myPosition >= 0 ? myPosition + 1 : null);
 
     const now = new Date();
@@ -88,7 +101,13 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
     const monthStartDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
     const nextMonthDate = `${now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear()}-${String(now.getMonth() === 11 ? 1 : now.getMonth() + 2).padStart(2, "0")}-01`;
 
-    const [{ data: trackingData }, { data: historyData }, { data: scheduledTasks }] = await Promise.all([
+    const [
+      { data: trackingData },
+      { data: historyData },
+      { data: scheduledTasks },
+      { data: completedMR },
+      { data: contractsData },
+    ] = await Promise.all([
       supabase
         .from("client_tracking")
         .select("client_id, valor_contrato, updated_at")
@@ -107,27 +126,63 @@ export function TechnicalDashboardCards({ userId, userName }: TechnicalDashboard
         .in("tipo", ["medicao_tecnica", "medicao"])
         .gte("data_tarefa", monthStartDate)
         .lt("data_tarefa", nextMonthDate),
+      // Fetch completed measurement requests assigned to this user this month
+      (supabase as any)
+        .from("measurement_requests")
+        .select("id, client_id, nome_cliente, assigned_to, status, updated_at")
+        .eq("tenant_id", tenantId)
+        .gte("updated_at", monthStartIso),
+      // Fetch contract values from simulations via client_contracts
+      supabase
+        .from("client_contracts" as any)
+        .select("client_id, simulation_id, simulations(valor_final)")
+        .eq("tenant_id", tenantId),
     ]);
 
-    const liberatedClientIds = new Set<string>();
-    (historyData as any[] || []).forEach((h: any) => {
-      const alteredBy = (h.alterado_por || "").toLowerCase();
-      if (
-        (h.novo_status === "em_compras" || h.novo_status === "enviado_compras") &&
-        (alteredBy.includes(userNameLower) || userNameLower.includes(alteredBy) || alteredBy === userId)
-      ) {
-        liberatedClientIds.add(h.client_id);
-      }
-    });
-
-    let totalLiberated = 0;
+    // Build a map of contract values from client_tracking
     const trackingMap = new Map<string, number>();
     (trackingData as any[] || []).forEach((t: any) => {
       trackingMap.set(t.client_id, Number(t.valor_contrato) || 0);
     });
 
+    // Build a fallback map from simulations.valor_final (via client_contracts)
+    const contractValueMap = new Map<string, number>();
+    (contractsData as any[] || []).forEach((c: any) => {
+      const val = Number(c.simulations?.valor_final) || 0;
+      if (val > 0) {
+        const existing = contractValueMap.get(c.client_id) || 0;
+        if (val > existing) contractValueMap.set(c.client_id, val);
+      }
+    });
+
+    // Helper to get best available contract value for a client
+    const getContractValue = (clientId: string): number => {
+      const trackingVal = trackingMap.get(clientId) || 0;
+      if (trackingVal > 0) return trackingVal;
+      return contractValueMap.get(clientId) || 0;
+    };
+
+    // Method 1: client_status_history transitions (em_compras/enviado_compras)
+    const liberatedClientIds = new Set<string>();
+    (historyData as any[] || []).forEach((h: any) => {
+      if (
+        (h.novo_status === "em_compras" || h.novo_status === "enviado_compras") &&
+        matchesUser(h.alterado_por)
+      ) {
+        liberatedClientIds.add(h.client_id);
+      }
+    });
+
+    // Method 2: measurement_requests assigned to user (all statuses this month)
+    (completedMR as any[] || []).forEach((mr: any) => {
+      if (matchesUser(mr.assigned_to)) {
+        liberatedClientIds.add(mr.client_id);
+      }
+    });
+
+    let totalLiberated = 0;
     liberatedClientIds.forEach((cid) => {
-      totalLiberated += trackingMap.get(cid) || 0;
+      totalLiberated += getContractValue(cid);
     });
 
     setScheduledCount(((scheduledTasks as any[]) || []).filter((task) => Boolean(task?.data_tarefa && task?.horario)).length);
