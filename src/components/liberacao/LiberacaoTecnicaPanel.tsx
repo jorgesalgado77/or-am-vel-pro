@@ -182,6 +182,10 @@ interface LiberacaoRow {
   comissao: number | null;
   dataMedicao: string | null;
   prazoLiberacao: string | null;
+  prazoEntregaLoja: string | null;
+  prazoLiberacaoTecnica: string | null;
+  prazoInicioMontagem: string | null;
+  prazoAssistenciaTecnica: string | null;
   dataFinalizado: string | null;
   diasEmLiberacao: number | null;
   tecnicoResponsavel: string | null;
@@ -201,7 +205,9 @@ const COL_STORAGE_KEY = "liberacao_col_widths";
 const DEFAULT_COL_WIDTHS: Record<string, number> = {
   status: 80, contrato: 100, loja: 130, vendedor: 120, nome: 150, endereco: 180,
   km: 65, fechamento: 100, amb: 60, vb: 100, vatualizado: 100, vliberado: 100,
-  saldo: 90, comissao: 90, dtMedicao: 95, prazo: 70, finalizado: 95, dias: 65,
+  saldo: 90, comissao: 90, dtMedicao: 95, prazo: 70,
+  pzEntrega: 90, pzLibTec: 90, pzMontagem: 90, pzAssist: 90,
+  finalizado: 95, dias: 65,
   tecnico: 110, acoes: 40,
 };
 
@@ -328,7 +334,7 @@ export function LiberacaoTecnicaPanel() {
     if (!tenantId) { setLoading(false); return; }
 
     try {
-      const [tenantRes, trackingRes, mrRes, usuariosRes] = await Promise.all([
+      const [tenantRes, trackingRes, mrRes, usuariosRes, ctRes] = await Promise.all([
         supabase
           .from("tenants")
           .select("nome_loja, codigo_loja")
@@ -348,6 +354,11 @@ export function LiberacaoTecnicaPanel() {
           .from("usuarios")
           .select("id, nome_completo, apelido, email, cargo_id, comissao_percentual, cep, endereco, numero, complemento, bairro, cidade, uf")
           .eq("tenant_id", tenantId),
+        (supabase as any)
+          .from("contract_types")
+          .select("nome, prazo_entrega, prazo_liberacao_tecnica, prazo_inicio_montagem, prazo_assistencia_tecnica")
+          .eq("tenant_id", tenantId)
+          .eq("ativo", true),
       ]);
 
       if (trackingRes.error && mrRes.error) {
@@ -361,6 +372,10 @@ export function LiberacaoTecnicaPanel() {
       const allTracking = ((trackingRes.data as any[]) || []).filter((item) => item?.client_id);
       const allMeasurementRequests = ((mrRes.data as any[]) || []).filter((item) => item?.client_id);
       const allUsuarios = (usuariosRes.data as any[]) || [];
+      const contractTypesMap = new Map<string, any>();
+      ((ctRes.data as any[]) || []).forEach((ct: any) => {
+        if (ct.nome) contractTypesMap.set(ct.nome.toLowerCase().trim(), ct);
+      });
 
       const clientIds = [...new Set([
         ...allTracking.map((t) => t.client_id),
@@ -591,6 +606,10 @@ export function LiberacaoTecnicaPanel() {
           if (diasEmLiberacao < 0) diasEmLiberacao = 0;
         }
 
+        // Resolve contract type prazos
+        const tipoContrato = snapshot?.tipo_contrato || tracking?.tipo_contrato || "";
+        const ctData = tipoContrato ? contractTypesMap.get(String(tipoContrato).toLowerCase().trim()) : null;
+
         return {
           id: tracking?.id || mr?.id || contract?.id || clientId,
           clientId,
@@ -609,6 +628,10 @@ export function LiberacaoTecnicaPanel() {
           comissao,
           dataMedicao: mr?.updated_at || mr?.created_at || null,
           prazoLiberacao: snapshot?.prazo_entrega || snapshot?.data_entrega_prevista || null,
+          prazoEntregaLoja: ctData?.prazo_entrega || snapshot?.prazo_entrega || null,
+          prazoLiberacaoTecnica: ctData?.prazo_liberacao_tecnica || null,
+          prazoInicioMontagem: ctData?.prazo_inicio_montagem || null,
+          prazoAssistenciaTecnica: ctData?.prazo_assistencia_tecnica || null,
           dataFinalizado,
           diasEmLiberacao,
           tecnicoResponsavel: tecnicoNome,
@@ -996,6 +1019,10 @@ export function LiberacaoTecnicaPanel() {
                     <ResizableHead col="comissao" className="text-right hidden md:table-cell">Comissão</ResizableHead>
                     <ResizableHead col="dtMedicao" className="hidden lg:table-cell">Dt. Medição</ResizableHead>
                     <ResizableHead col="prazo" className="text-center hidden xl:table-cell">Prazo</ResizableHead>
+                    <ResizableHead col="pzEntrega" className="text-center hidden xl:table-cell">Pz. Entrega Loja</ResizableHead>
+                    <ResizableHead col="pzLibTec" className="text-center hidden xl:table-cell">Pz. Lib. Técnica</ResizableHead>
+                    <ResizableHead col="pzMontagem" className="text-center hidden xl:table-cell">Pz. Montagem</ResizableHead>
+                    <ResizableHead col="pzAssist" className="text-center hidden xl:table-cell">Pz. Assistência</ResizableHead>
                     <ResizableHead col="finalizado" className="hidden xl:table-cell">Finalizado</ResizableHead>
                     <ResizableHead col="dias" className="text-center">
                       <SortHeader field="diasEmLiberacao">Dias</SortHeader>
@@ -1007,7 +1034,7 @@ export function LiberacaoTecnicaPanel() {
                 <TableBody>
                   {paginatedRows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={20} className="text-center py-10 text-muted-foreground text-sm">
+                      <TableCell colSpan={24} className="text-center py-10 text-muted-foreground text-sm">
                         Nenhum registro encontrado
                       </TableCell>
                     </TableRow>
@@ -1050,6 +1077,10 @@ export function LiberacaoTecnicaPanel() {
                         <TableCell className="text-right hidden md:table-cell font-mono">{row.comissao != null ? formatCurrency(row.comissao) : "—"}</TableCell>
                         <TableCell className="hidden lg:table-cell">{row.dataMedicao ? format(new Date(row.dataMedicao), "dd/MM/yy") : "—"}</TableCell>
                         <TableCell className="text-center hidden xl:table-cell">{row.prazoLiberacao ?? "—"}</TableCell>
+                        <TableCell className="text-center hidden xl:table-cell text-[10px]">{row.prazoEntregaLoja ?? "—"}</TableCell>
+                        <TableCell className="text-center hidden xl:table-cell text-[10px]">{row.prazoLiberacaoTecnica ?? "—"}</TableCell>
+                        <TableCell className="text-center hidden xl:table-cell text-[10px]">{row.prazoInicioMontagem ?? "—"}</TableCell>
+                        <TableCell className="text-center hidden xl:table-cell text-[10px]">{row.prazoAssistenciaTecnica ?? "—"}</TableCell>
                         <TableCell className="hidden xl:table-cell">{row.dataFinalizado ? format(new Date(row.dataFinalizado), "dd/MM/yy") : "—"}</TableCell>
                         <TableCell className="text-center">
                           {row.diasEmLiberacao != null ? (

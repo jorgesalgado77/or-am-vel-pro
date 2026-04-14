@@ -140,7 +140,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   const [sameAddress, setSameAddress] = useState(false);
   // deliveryDeadlines now handled by PrazoEntregaSelect
   const [fornecedores, setFornecedores] = useState<{id: string; nome: string; prazo_entrega?: string}[]>([]);
-  const [contractTypes, setContractTypes] = useState<{id: string; nome: string; prazo_entrega: string}[]>([]);
+  const [contractTypes, setContractTypes] = useState<{id: string; nome: string; prazo_entrega: string; prazo_liberacao_tecnica: string; prazo_inicio_montagem: string; prazo_assistencia_tecnica: string}[]>([]);
 
   const REQUIRED_FIELDS: { key: keyof CloseSaleFormData; label: string }[] = [
     { key: "nome_completo", label: "Nome Completo" },
@@ -192,6 +192,9 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
             id: d.id,
             nome: d.nome,
             prazo_entrega: d.prazo_entrega || "",
+            prazo_liberacao_tecnica: d.prazo_liberacao_tecnica || "",
+            prazo_inicio_montagem: d.prazo_inicio_montagem || "",
+            prazo_assistencia_tecnica: d.prazo_assistencia_tecnica || "",
           })));
         }
       });
@@ -454,9 +457,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                       onValueChange={v => {
                         updateField("tipo_contrato", v);
                         const ct = contractTypes.find(t => t.nome === v);
-                        if (ct?.prazo_entrega) {
-                          updateField("prazo_entrega", ct.prazo_entrega);
-                        }
+                        if (ct?.prazo_entrega) updateField("prazo_entrega", ct.prazo_entrega);
                       }}
                     >
                       <SelectTrigger className="mt-1 h-9 text-sm">
@@ -484,6 +485,28 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                     <Input value={form.responsavel_venda} onChange={e => updateField("responsavel_venda", e.target.value)} className={`mt-1 h-9 text-sm ${errorClass("responsavel_venda")}`} />
                   </div>
                 </div>
+                {/* Prazos do tipo de contrato selecionado */}
+                {form.tipo_contrato && (() => {
+                  const ct = contractTypes.find(t => t.nome === form.tipo_contrato);
+                  if (!ct) return null;
+                  const prazos = [
+                    { label: "Prazo Entrega Loja", value: ct.prazo_entrega },
+                    { label: "Prazo Liberação Técnica", value: ct.prazo_liberacao_tecnica },
+                    { label: "Prazo Início Montagem", value: ct.prazo_inicio_montagem },
+                    { label: "Prazo Assistência Técnica", value: ct.prazo_assistencia_tecnica },
+                  ].filter(p => p.value);
+                  if (prazos.length === 0) return null;
+                  return (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2 p-2 rounded-md bg-muted/30 border border-border/50">
+                      {prazos.map(p => (
+                        <div key={p.label} className="text-xs">
+                          <span className="text-muted-foreground">{p.label}: </span>
+                          <span className="font-medium text-foreground">{p.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
 
