@@ -420,7 +420,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
   // Skeleton fallbacks are now imported from DashboardSkeletons
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-4 lg:space-y-6">
       {/* Date Filter — always on top */}
       <DashboardDateFilter
         datePreset={datePreset} onPresetChange={setDatePreset}
@@ -462,7 +462,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       {/* Primary KPIs */}
       {showSection("dash_kpis") && (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-2 sm:gap-3 lg:gap-4">
             <KpiCard icon={Users} label="Total de Clientes" value={String(stats.totalClients)} colorVariant="blue" tooltip="Número acumulado de todos os clientes cadastrados na base" />
             <KpiCard icon={UserPlus} label="Novos no Período" value={String(stats.newClientsInPeriod)} colorVariant="cyan" tooltip="Clientes cadastrados durante o período selecionado no filtro" />
             <KpiCard icon={Calculator} label="Com Orçamento" value={String(stats.clientsWithSim)} colorVariant="indigo" tooltip="Clientes que possuem ao menos uma simulação de orçamento no período" />
@@ -472,7 +472,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
           </div>
 
           {/* Secondary KPIs */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
             <KpiCard icon={DollarSign} label="Ticket Médio" value={formatCurrency(stats.ticketMedio)} colorVariant="amber" tooltip="Valor médio dos orçamentos em aberto por cliente" />
             <KpiCard icon={TrendingUp} label="Taxa de Conversão" value={`${stats.taxaConversao.toFixed(1)}%`} colorVariant="cyan" tooltip="Percentual de clientes que fecharam contrato em relação ao total" />
             <KpiCard icon={AlertTriangle} label="Orç. Expirados" value={String(stats.expired)} destructive={stats.expired > 0} colorVariant={stats.expired > 0 ? undefined : "orange"} tooltip="Orçamentos que ultrapassaram o prazo de validade configurado" />
@@ -497,7 +497,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
                 <p className="text-xs text-muted-foreground">Meta: {formatCurrency(metaLoja.valor)}</p>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4 mb-3">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-3">
               <div className="text-center">
                 <p className="text-lg font-bold text-primary">{formatCurrency(stats.faturamentoContratos)}</p>
                 <p className="text-[10px] text-muted-foreground">Faturado</p>
@@ -532,7 +532,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3">
               <KpiCard icon={Megaphone} label="Landing Page" value={String(filteredLeadsBySource.landing_page)} colorVariant="blue" tooltip="Leads captados através da landing page do sistema" />
               <KpiCard icon={UserPlus} label="Afiliados" value={String(filteredLeadsBySource.afiliado)} colorVariant="violet" tooltip="Leads gerados por afiliados e parceiros comerciais" />
               <KpiCard icon={Users} label="Indicação" value={String(filteredLeadsBySource.indicacao)} colorVariant="amber" tooltip="Leads recebidos por indicação de clientes existentes" />
@@ -560,7 +560,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
           <Suspense fallback={<ChartsSkeleton />}>
             {visibleCharts.evolucao && <EvolutionChart data={lineData} />}
             {visibleCharts.contratos && <ContractsEvolutionChart data={contractsLineData} />}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-6">
               {visibleCharts.projetista && <ProjetistaBarChart data={barData} />}
               {visibleCharts.indicador && (
                 <IndicadorPieChart
@@ -578,7 +578,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
       {/* Lazy-loaded tables */}
       <Suspense fallback={<TablesSkeleton />}>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
           {showSection("dash_projetista") && <DashboardProjetistaTable byProjetista={stats.byProjetista} cargos={cargos} comissaoPolicy={comissaoPolicyDash} />}
           {showSection("dash_indicador") && <DashboardIndicadorTable byIndicador={stats.byIndicador} />}
         </div>

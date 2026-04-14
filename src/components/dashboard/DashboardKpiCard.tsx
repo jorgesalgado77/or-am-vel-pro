@@ -49,14 +49,14 @@ export const KpiCard = memo(function KpiCard({ icon: Icon, label, value, accent,
     : "text-muted-foreground";
 
   const card = (
-    <Card className={`${borderClass} transition-all duration-200 hover:scale-[1.03] hover:shadow-md cursor-default animate-fade-in`}>
-      <CardContent className="p-4 flex items-center gap-3">
-        <div className={`p-2 rounded-lg ${iconBgClass} transition-transform duration-200 group-hover:scale-110`}>
-          <Icon className={`h-5 w-5 ${iconColorClass} transition-transform duration-200`} />
+    <Card className={`${borderClass} transition-all duration-200 hover:scale-[1.03] hover:shadow-md cursor-default animate-fade-in`} collapsible={false}>
+      <CardContent className="p-2.5 sm:p-4 flex items-center gap-2 sm:gap-3">
+        <div className={`p-1.5 sm:p-2 rounded-lg ${iconBgClass} transition-transform duration-200 group-hover:scale-110 shrink-0`}>
+          <Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${iconColorClass} transition-transform duration-200`} />
         </div>
-        <div>
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className={`text-lg font-bold ${destructive ? "text-destructive" : "text-foreground"}`}>{value}</p>
+        <div className="min-w-0">
+          <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{label}</p>
+          <p className={`text-sm sm:text-lg font-bold truncate ${destructive ? "text-destructive" : "text-foreground"}`}>{value}</p>
         </div>
       </CardContent>
     </Card>
