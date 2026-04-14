@@ -155,7 +155,7 @@ export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId
 
                 <div className="space-y-1">
                   <div className="flex items-start gap-1.5">
-                    <Navigation className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                    <Navigation className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" />
                     <span className="text-xs font-semibold leading-relaxed">Base — Ponto de Partida</span>
                   </div>
                   <p className="break-words pl-5 text-xs text-muted-foreground">
