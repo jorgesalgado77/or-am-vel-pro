@@ -325,9 +325,83 @@ export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId
                       </Badge>
                       <span className="text-xs text-muted-foreground">Tempo estimado (ida): {kmResult.duration}</span>
                     </div>
+                  ) : !googleMapsKey ? (
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                        <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                        Google Maps API não configurada.
+                      </p>
+                      {notifyingSent ? (
+                        <p className="text-xs text-emerald-600 font-medium">✓ Administrador notificado com sucesso!</p>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={notifyingLoading}
+                          className="h-7 text-xs gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-50"
+                          onClick={async () => {
+                            if (!tenantId || !currentUser) return;
+                            setNotifyingLoading(true);
+                            try {
+                              // Find admin users for this tenant
+                              const { data: adminCargos } = await (supabase as any)
+                                .from("cargos")
+                                .select("id")
+                                .eq("tenant_id", tenantId)
+                                .ilike("nome", "%admin%");
+                              
+                              const adminCargoIds = (adminCargos || []).map((c: any) => c.id);
+                              
+                              let adminUsers: any[] = [];
+                              if (adminCargoIds.length > 0) {
+                                const { data } = await (supabase as any)
+                                  .from("usuarios")
+                                  .select("id, nome_completo")
+                                  .eq("tenant_id", tenantId)
+                                  .in("cargo_id", adminCargoIds)
+                                  .eq("ativo", true);
+                                adminUsers = data || [];
+                              }
+
+                              // Send notification to each admin
+                              const messages = adminUsers.map((admin: any) => ({
+                                tenant_id: tenantId,
+                                tipo: "sistema",
+                                canal: "interno",
+                                remetente: currentUser.nome_completo || "Sistema",
+                                remetente_tipo: "loja",
+                                destinatario: admin.nome_completo,
+                                mensagem: `⚠️ A API do Google Maps não está configurada. O cálculo de distância para medições não está funcionando. Por favor, configure a chave da API em Configurações > APIs.`,
+                                conteudo: `⚠️ A API do Google Maps não está configurada. O cálculo de distância para medições não está funcionando. Por favor, configure a chave da API em Configurações > APIs.`,
+                              }));
+
+                              if (messages.length > 0) {
+                                await (supabase as any).from("tracking_messages").insert(messages);
+                              }
+
+                              setNotifyingSent(true);
+                              const { toast } = await import("sonner");
+                              toast.success("Administrador notificado!", {
+                                description: "Uma notificação foi enviada sobre a falta da API do Google Maps.",
+                              });
+                            } catch (e) {
+                              console.error("[MeasurementSchedule] Failed to notify admin:", e);
+                              const { toast } = await import("sonner");
+                              toast.error("Erro ao notificar administrador");
+                            } finally {
+                              setNotifyingLoading(false);
+                            }
+                          }}
+                        >
+                          {notifyingLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <AlertTriangle className="h-3 w-3" />}
+                          Notificar Administrador
+                        </Button>
+                      )}
+                    </div>
                   ) : (
                     <p className="text-xs text-muted-foreground break-words">
-                      {kmError || (!googleMapsKey ? "Google Maps API não configurada. Configure em Configurações > APIs." : "Aguardando...")}
+                      {kmError || "Aguardando..."}
                     </p>
                   )}
                 </div>
