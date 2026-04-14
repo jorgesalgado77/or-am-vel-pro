@@ -328,6 +328,26 @@ export function ClientTrackingModal({ open, onClose }: Props) {
                 <div><span className="text-muted-foreground">Valor:</span> <strong>{Number(tracking.valor_contrato).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong></div>
                 <div><span className="text-muted-foreground">Fechamento:</span> <strong>{tracking.data_fechamento ? format(new Date(tracking.data_fechamento), "dd/MM/yyyy") : "—"}</strong></div>
               </div>
+              {/* Prazos do tipo de contrato */}
+              {(tracking.prazo_entrega_loja || tracking.prazo_liberacao_tecnica || tracking.prazo_inicio_montagem || tracking.prazo_assistencia_tecnica) && (
+                <div className="mt-2 pt-2 border-t border-border/50">
+                  <p className="text-xs font-semibold text-muted-foreground mb-1">Prazos Previstos</p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+                    {tracking.prazo_entrega_loja && (
+                      <div><span className="text-muted-foreground">Entrega Loja:</span> <strong>{tracking.prazo_entrega_loja}</strong></div>
+                    )}
+                    {tracking.prazo_liberacao_tecnica && (
+                      <div><span className="text-muted-foreground">Liberação Técnica:</span> <strong>{tracking.prazo_liberacao_tecnica}</strong></div>
+                    )}
+                    {tracking.prazo_inicio_montagem && (
+                      <div><span className="text-muted-foreground">Início Montagem:</span> <strong>{tracking.prazo_inicio_montagem}</strong></div>
+                    )}
+                    {tracking.prazo_assistencia_tecnica && (
+                      <div><span className="text-muted-foreground">Assistência Técnica:</span> <strong>{tracking.prazo_assistencia_tecnica}</strong></div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Tracking steps */}
