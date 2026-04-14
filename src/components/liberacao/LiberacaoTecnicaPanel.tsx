@@ -2,7 +2,7 @@
  * LiberacaoTecnicaPanel — Full panel for the "Liberação Técnica" module.
  * Shows a ListView of clients in the liberation phase with filters, KPIs and actions.
  */
-import { useState, useEffect, useMemo, useCallback, useRef, useContext } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { format, differenceInDays, subMonths, startOfMonth, endOfMonth, startOfYear, endOfYear, subYears } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -29,34 +29,125 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { calculateRoundTripKm } from "@/hooks/useGoogleMapsKey";
 import { PedagioModal } from "./PedagioModal";
-import { CurrentUserContext } from "@/hooks/useCurrentUser";
 
-// ──────── Status mapping ────────
 const STATUS_LABELS: Record<string, string> = {
   novo: "Novo",
+  nova_solicitacao: "Nova Solicitação",
   em_negociacao: "Em Negociação",
+  proposta_enviada: "Proposta Enviada",
   em_medicao: "Em Medição",
   em_andamento: "Em Andamento",
   aguardando_medida: "Aguardando Medida",
   medida_agendada: "Medida Agendada",
   em_execucao: "Em Execução",
+  em_liberado: "Em Liberação",
+  em_liberacao: "Em Liberação",
+  em_compras: "Em Compras",
+  enviado_compras: "Enviado Compras",
+  para_entrega: "Para Entrega",
+  para_montagem: "Para Montagem",
+  assistencia: "Assistência",
   concluido: "Concluído",
   finalizado: "Finalizado",
   perdido: "Perdido",
   cancelado: "Cancelado",
-  enviado_compras: "Enviado Compras",
-  venda_fechada: "Venda Fechada",
-  em_liberacao: "Em Liberação",
-  em_montagem: "Em Montagem",
   entregue: "Entregue",
 };
+
+const OPERATIONAL_STATUSES = new Set([
+  "nova_solicitacao",
+  "em_medicao",
+  "em_liberado",
+  "em_liberacao",
+  "em_compras",
+  "enviado_compras",
+  "para_entrega",
+  "para_montagem",
+  "assistencia",
+]);
+
+const GENERIC_USER_LABELS = new Set([
+  "",
+  "sistema",
+  "system",
+  "admin",
+  "administrador",
+  "administrator",
+  "usuario",
+  "usuário",
+  "user",
+  "sem nome",
+]);
 
 function formatStatus(raw: string): string {
   if (!raw || raw === "—") return "—";
   return STATUS_LABELS[raw] || raw.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 }
 
-// ──────── Types ────────
+function normalizeValue(value: string | null | undefined) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s*\([^)]*\)\s*$/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function isGenericUserLabel(value: string | null | undefined) {
+  return GENERIC_USER_LABELS.has(normalizeValue(value));
+}
+
+function pickBestHumanLabel(...values: Array<string | null | undefined>) {
+  return values.find((value) => typeof value === "string" && value.trim() && !isGenericUserLabel(value)) || "";
+}
+
+function getUserDisplayName(user: any) {
+  if (!user) return "";
+
+  const candidates = [
+    user.nome_completo,
+    user.name,
+    user.full_name,
+    user.apelido,
+    typeof user.email === "string" ? user.email.split("@")[0] : "",
+  ];
+
+  return candidates.find((value) => typeof value === "string" && value.trim() && !isGenericUserLabel(value)) || "";
+}
+
+function buildAddress(parts: Array<string | null | undefined>) {
+  const value = parts.filter(Boolean).map(part => String(part).trim()).filter(Boolean).join(", ");
+  return value || null;
+}
+
+function computeValorComDesconto(sim: any): number | null {
+  if (!sim) return null;
+  const vt = Number(sim.valor_tela) || 0;
+  if (!vt) return null;
+  const d1 = Number(sim.desconto1) || 0;
+  const d2 = Number(sim.desconto2) || 0;
+  const d3 = Number(sim.desconto3) || 0;
+  return vt * (1 - d1 / 100) * (1 - d2 / 100) * (1 - d3 / 100);
+}
+
+function extractAddressFromHtml(html: string | null | undefined) {
+  const content = String(html || "");
+  const match = content.match(/<strong>Endereço de entrega:\/strong>\s*([^<]+)\.?/i)
+    || content.match(/<strong>Endereço:<\/strong>\s*([^<]+)\.?/i);
+  return match?.[1]?.trim() || null;
+}
+
+function resolveOperationalStatus(clientStatus?: string | null, trackingStatus?: string | null, requestStatus?: string | null) {
+  const client = String(clientStatus || "").trim();
+  const tracking = String(trackingStatus || "").trim();
+  const request = String(requestStatus || "").trim();
+
+  if (OPERATIONAL_STATUSES.has(client)) return client;
+  if (OPERATIONAL_STATUSES.has(tracking)) return tracking;
+  if (request && request !== "concluido" && request !== "finalizado") return "em_medicao";
+  return client || tracking || request || "—";
+}
 
 interface LiberacaoRow {
   id: string;
@@ -79,6 +170,7 @@ interface LiberacaoRow {
   dataFinalizado: string | null;
   diasEmLiberacao: number | null;
   tecnicoResponsavel: string | null;
+  tecnicoEnderecoBase: string | null;
   loja: string | null;
   codigoLoja: string | null;
   vendedorProjetista: string | null;
