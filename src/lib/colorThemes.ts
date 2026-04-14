@@ -193,21 +193,15 @@ export const COLOR_THEMES: ColorTheme[] = [
 const THEME_STORAGE_KEY_PREFIX = "app_color_theme_";
 
 function getThemeStorageKey(): string {
-  try {
-    const sessionStr = localStorage.getItem("sb-auth-token") || sessionStorage.getItem("sb-auth-token");
-    if (sessionStr) {
-      const parsed = JSON.parse(sessionStr);
-      const userId = parsed?.user?.id || parsed?.currentSession?.user?.id;
-      if (userId) return `${THEME_STORAGE_KEY_PREFIX}${userId}`;
-    }
-  } catch {}
-  // Fallback: try supabase auth storage
+  // Try to find the user ID from supabase auth storage
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && key.startsWith("sb-") && key.endsWith("-auth-token")) {
-        const val = JSON.parse(localStorage.getItem(key) || "{}");
-        const userId = val?.user?.id;
+        const raw = localStorage.getItem(key) || "{}";
+        const val = JSON.parse(raw);
+        // supabase-js v2 stores as object with user.id
+        const userId = val?.user?.id || val?.currentSession?.user?.id;
         if (userId) return `${THEME_STORAGE_KEY_PREFIX}${userId}`;
       }
     }
