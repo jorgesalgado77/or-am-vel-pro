@@ -183,6 +183,11 @@ export function TaskCreateModal({ open, onClose, onSave, editingTask, currentUse
             <Label>Descrição</Label>
             <Textarea value={descricao} onChange={e => setDescricao(e.target.value)} rows={3} placeholder="Detalhes da tarefa..." />
           </div>
+
+          {editingTask && (
+            <TaskClientInfo taskTitle={editingTask.titulo} tenantId={tenantId} />
+          )}
+
           <div>
             <Label>Anexos</Label>
             <div className="flex items-center gap-2 mt-1">
