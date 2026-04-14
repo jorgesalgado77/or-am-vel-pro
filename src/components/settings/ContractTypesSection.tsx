@@ -13,18 +13,28 @@ interface ContractType {
   id: string;
   nome: string;
   prazo_entrega: string;
+  prazo_liberacao_tecnica: string;
+  prazo_inicio_montagem: string;
+  prazo_assistencia_tecnica: string;
   ativo: boolean;
 }
+
+const PRAZO_FIELDS = [
+  { key: "prazo_entrega", label: "Prazo Entrega Loja", placeholder: "Ex: 60 dias úteis" },
+  { key: "prazo_liberacao_tecnica", label: "Prazo Liberação Técnica", placeholder: "Ex: 10 dias úteis" },
+  { key: "prazo_inicio_montagem", label: "Prazo Início Montagem", placeholder: "Ex: 15 dias úteis" },
+  { key: "prazo_assistencia_tecnica", label: "Prazo Assistência Técnica", placeholder: "Ex: 30 dias" },
+] as const;
 
 export function ContractTypesSection() {
   const [types, setTypes] = useState<ContractType[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newNome, setNewNome] = useState("");
-  const [newPrazo, setNewPrazo] = useState("");
+  const [newPrazos, setNewPrazos] = useState({ prazo_entrega: "", prazo_liberacao_tecnica: "", prazo_inicio_montagem: "", prazo_assistencia_tecnica: "" });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNome, setEditNome] = useState("");
-  const [editPrazo, setEditPrazo] = useState("");
+  const [editPrazos, setEditPrazos] = useState({ prazo_entrega: "", prazo_liberacao_tecnica: "", prazo_inicio_montagem: "", prazo_assistencia_tecnica: "" });
 
   const fetchTypes = async () => {
     const tenantId = await getResolvedTenantId();
@@ -38,6 +48,9 @@ export function ContractTypesSection() {
       id: d.id,
       nome: d.nome,
       prazo_entrega: d.prazo_entrega || "",
+      prazo_liberacao_tecnica: d.prazo_liberacao_tecnica || "",
+      prazo_inicio_montagem: d.prazo_inicio_montagem || "",
+      prazo_assistencia_tecnica: d.prazo_assistencia_tecnica || "",
       ativo: d.ativo !== false,
     })));
     setLoading(false);
@@ -53,13 +66,20 @@ export function ContractTypesSection() {
 
     const { error } = await supabase
       .from("contract_types" as any)
-      .insert({ tenant_id: tenantId, nome: newNome.trim(), prazo_entrega: newPrazo.trim() } as any);
+      .insert({
+        tenant_id: tenantId,
+        nome: newNome.trim(),
+        prazo_entrega: newPrazos.prazo_entrega.trim(),
+        prazo_liberacao_tecnica: newPrazos.prazo_liberacao_tecnica.trim(),
+        prazo_inicio_montagem: newPrazos.prazo_inicio_montagem.trim(),
+        prazo_assistencia_tecnica: newPrazos.prazo_assistencia_tecnica.trim(),
+      } as any);
 
     if (error) toast.error("Erro: " + error.message);
     else {
       toast.success("Tipo de contrato adicionado!");
       setNewNome("");
-      setNewPrazo("");
+      setNewPrazos({ prazo_entrega: "", prazo_liberacao_tecnica: "", prazo_inicio_montagem: "", prazo_assistencia_tecnica: "" });
       fetchTypes();
     }
     setSaving(false);
@@ -80,7 +100,12 @@ export function ContractTypesSection() {
   const startEdit = (t: ContractType) => {
     setEditingId(t.id);
     setEditNome(t.nome);
-    setEditPrazo(t.prazo_entrega);
+    setEditPrazos({
+      prazo_entrega: t.prazo_entrega,
+      prazo_liberacao_tecnica: t.prazo_liberacao_tecnica,
+      prazo_inicio_montagem: t.prazo_inicio_montagem,
+      prazo_assistencia_tecnica: t.prazo_assistencia_tecnica,
+    });
   };
 
   const handleSaveEdit = async () => {
@@ -88,7 +113,14 @@ export function ContractTypesSection() {
     setSaving(true);
     const { error } = await supabase
       .from("contract_types" as any)
-      .update({ nome: editNome.trim(), prazo_entrega: editPrazo.trim(), updated_at: new Date().toISOString() } as any)
+      .update({
+        nome: editNome.trim(),
+        prazo_entrega: editPrazos.prazo_entrega.trim(),
+        prazo_liberacao_tecnica: editPrazos.prazo_liberacao_tecnica.trim(),
+        prazo_inicio_montagem: editPrazos.prazo_inicio_montagem.trim(),
+        prazo_assistencia_tecnica: editPrazos.prazo_assistencia_tecnica.trim(),
+        updated_at: new Date().toISOString(),
+      } as any)
       .eq("id", editingId);
     if (error) toast.error("Erro: " + error.message);
     else {
@@ -122,29 +154,35 @@ export function ContractTypesSection() {
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Add new */}
-        <div className="flex items-end gap-3">
-          <div className="flex-1 space-y-1">
-            <Label className="text-xs">Nome do Tipo</Label>
-            <Input
-              value={newNome}
-              onChange={e => setNewNome(e.target.value)}
-              placeholder="Ex: Projeto Completo"
-              className="h-9 text-sm"
-            />
+        <div className="space-y-3 p-4 rounded-lg border border-dashed border-border bg-muted/20">
+          <div className="flex items-end gap-3">
+            <div className="flex-1 space-y-1">
+              <Label className="text-xs font-medium">Nome do Tipo</Label>
+              <Input
+                value={newNome}
+                onChange={e => setNewNome(e.target.value)}
+                placeholder="Ex: Projeto Completo"
+                className="h-9 text-sm"
+              />
+            </div>
+            <Button onClick={handleAdd} disabled={saving} size="sm" className="gap-1.5 h-9">
+              <Plus className="h-4 w-4" />
+              Adicionar
+            </Button>
           </div>
-          <div className="flex-1 space-y-1">
-            <Label className="text-xs">Prazo de Entrega</Label>
-            <Input
-              value={newPrazo}
-              onChange={e => setNewPrazo(e.target.value)}
-              placeholder="Ex: 45 dias úteis"
-              className="h-9 text-sm"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            {PRAZO_FIELDS.map(f => (
+              <div key={f.key} className="space-y-1">
+                <Label className="text-xs text-muted-foreground">{f.label}</Label>
+                <Input
+                  value={newPrazos[f.key]}
+                  onChange={e => setNewPrazos(prev => ({ ...prev, [f.key]: e.target.value }))}
+                  placeholder={f.placeholder}
+                  className="h-8 text-sm"
+                />
+              </div>
+            ))}
           </div>
-          <Button onClick={handleAdd} disabled={saving} size="sm" className="gap-1.5 h-9">
-            <Plus className="h-4 w-4" />
-            Adicionar
-          </Button>
         </div>
 
         {/* List */}
@@ -155,14 +193,11 @@ export function ContractTypesSection() {
         ) : (
           <div className="space-y-2">
             {types.map(t => (
-              <div key={t.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30 gap-2">
+              <div key={t.id} className="p-3 rounded-lg border border-border bg-muted/30 space-y-2">
                 {editingId === t.id ? (
                   <>
-                    <div className="flex items-center gap-2 flex-1">
+                    <div className="flex items-center gap-2">
                       <Input value={editNome} onChange={e => setEditNome(e.target.value)} className="h-8 text-sm flex-1" placeholder="Nome" />
-                      <Input value={editPrazo} onChange={e => setEditPrazo(e.target.value)} className="h-8 text-sm flex-1" placeholder="Prazo" />
-                    </div>
-                    <div className="flex items-center gap-1">
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={handleSaveEdit} disabled={saving}>
                         <Check className="h-3.5 w-3.5" />
                       </Button>
@@ -170,22 +205,40 @@ export function ContractTypesSection() {
                         <X className="h-3.5 w-3.5" />
                       </Button>
                     </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {PRAZO_FIELDS.map(f => (
+                        <div key={f.key} className="space-y-1">
+                          <Label className="text-[10px] text-muted-foreground">{f.label}</Label>
+                          <Input
+                            value={editPrazos[f.key]}
+                            onChange={e => setEditPrazos(prev => ({ ...prev, [f.key]: e.target.value }))}
+                            className="h-7 text-xs"
+                            placeholder={f.placeholder}
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </>
                 ) : (
                   <>
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline" className="text-xs">{t.nome}</Badge>
-                      {t.prazo_entrega && (
-                        <span className="text-xs text-muted-foreground">Prazo: {t.prazo_entrega}</span>
-                      )}
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline" className="text-xs font-semibold">{t.nome}</Badge>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEdit(t)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(t.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEdit(t)}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(t.id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
+                      {PRAZO_FIELDS.map(f => {
+                        const val = t[f.key];
+                        return val ? (
+                          <span key={f.key}>{f.label}: <span className="text-foreground">{val}</span></span>
+                        ) : null;
+                      })}
                     </div>
                   </>
                 )}
