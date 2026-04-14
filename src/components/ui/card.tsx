@@ -2,10 +2,9 @@ import * as React from "react";
 import { Eye, EyeOff } from "lucide-react";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const CARD_VISIBILITY_STORAGE_PREFIX = "card-visibility";
+export const CARD_VISIBILITY_STORAGE_PREFIX = "card-visibility";
 
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   cardId?: string;
@@ -33,7 +32,7 @@ function extractTextContent(node: React.ReactNode): string {
   return "";
 }
 
-function normalizeCardKey(value: string) {
+export function normalizeCardKey(value: string) {
   return value
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -42,6 +41,16 @@ function normalizeCardKey(value: string) {
     .replace(/\s+/g, "-")
     .replace(/[^a-z0-9\-_:/]/g, "");
 }
+
+/** Custom event fired when individual cards toggle, so global toggle can react */
+const CARD_TOGGLE_EVENT = "card-visibility-changed";
+
+function fireCardToggleEvent() {
+  window.dispatchEvent(new CustomEvent(CARD_TOGGLE_EVENT));
+}
+
+/** Listen to global toggle-all events */
+const GLOBAL_TOGGLE_EVENT = "card-global-toggle";
 
 const Card = React.forwardRef<HTMLDivElement, CardProps>(({
   className,
@@ -103,13 +112,29 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(({
       if (storageKey) {
         try {
           window.localStorage.setItem(storageKey, next ? "1" : "0");
-        } catch {
-          // ignore storage failures
-        }
+        } catch { /* ignore */ }
       }
+      setTimeout(fireCardToggleEvent, 0);
       return next;
     });
   }, [storageKey]);
+
+  // Listen for global toggle events
+  React.useEffect(() => {
+    if (!collapsible || !storageKey) return;
+
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { action: "collapse" | "expand" };
+      const newVal = detail.action === "collapse";
+      setCollapsed(newVal);
+      try {
+        window.localStorage.setItem(storageKey, newVal ? "1" : "0");
+      } catch { /* ignore */ }
+    };
+
+    window.addEventListener(GLOBAL_TOGGLE_EVENT, handler);
+    return () => window.removeEventListener(GLOBAL_TOGGLE_EVENT, handler);
+  }, [collapsible, storageKey]);
 
   return (
     <CardContext.Provider value={{ cardId, collapsible, collapsed, title, storageKey, setTitle, toggleCollapsed }}>
@@ -130,24 +155,21 @@ const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDiv
     const showToggle = Boolean(cardContext?.collapsible && cardContext.storageKey);
 
     return (
-      <div ref={ref} className={cn("flex flex-col space-y-1.5 p-6", className)} {...props}>
-        {children}
+      <div ref={ref} className={cn("flex items-start justify-between gap-2 p-6", className)} {...props}>
+        <div className="flex flex-col space-y-1.5 flex-1 min-w-0">
+          {children}
+        </div>
         {showToggle && (
-          <div className="flex justify-end pt-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={cardContext.toggleCollapsed}
-              aria-expanded={!cardContext.collapsed}
-              aria-label={cardContext.collapsed ? "Visualizar informações do card" : "Ocultar informações do card"}
-              title={cardContext.collapsed ? "Visualizar informações" : "Ocultar informações"}
-              className="h-8 px-2 text-muted-foreground hover:text-foreground"
-            >
-              {cardContext.collapsed ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-              <span className="sr-only">{cardContext.collapsed ? "Visualizar informações" : "Ocultar informações"}</span>
-            </Button>
-          </div>
+          <button
+            type="button"
+            onClick={cardContext!.toggleCollapsed}
+            aria-expanded={!cardContext!.collapsed}
+            aria-label={cardContext!.collapsed ? "Visualizar informações" : "Ocultar informações"}
+            title={cardContext!.collapsed ? "Visualizar informações" : "Ocultar informações"}
+            className="shrink-0 mt-0.5 p-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            {cardContext!.collapsed ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+          </button>
         )}
       </div>
     );
@@ -201,4 +223,4 @@ const CardFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDiv
 );
 CardFooter.displayName = "CardFooter";
 
-export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent };
+export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent, GLOBAL_TOGGLE_EVENT, CARD_TOGGLE_EVENT };
