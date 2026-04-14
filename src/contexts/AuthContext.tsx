@@ -63,7 +63,24 @@ function isGenericProfileLabel(value: string | null | undefined) {
   return !normalized || normalized === "admin" || normalized === "admin master" || normalized === "usuário" || normalized === "usuario";
 }
 
-function getProfileCompletenessScore(appUser: AppUser | null | undefined) {
+/** Load color theme from DB (usuarios.color_theme), fallback to localStorage */
+async function loadAndApplyUserTheme(authUserId: string) {
+  try {
+    const { data } = await supabase
+      .from("usuarios")
+      .select("color_theme")
+      .eq("auth_user_id", authUserId)
+      .maybeSingle();
+    const dbTheme = (data as any)?.color_theme;
+    if (dbTheme && dbTheme !== "default") {
+      applyTheme(dbTheme);
+      return;
+    }
+  } catch { /* silent */ }
+  // Fallback to localStorage
+  initializeTheme();
+}
+
   if (!appUser) return 0;
 
   let score = 0;
