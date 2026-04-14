@@ -211,6 +211,7 @@ export default function Login() {
         if (!cancelled && row && typeof row === "object") {
           const r = row as Record<string, string>;
           if (r.nome || r.company_name || r.nome_empresa || r.nome_loja) {
+            if (r.id || r.tenant_id) setResolvedTenantId(r.id || r.tenant_id);
             setTenantInfo({
               nome: r.nome || r.company_name || r.nome_empresa || r.nome_loja,
               subtitulo: r.subtitulo || r.company_subtitle || "",
