@@ -81,6 +81,7 @@ async function loadAndApplyUserTheme(authUserId: string) {
   initializeTheme();
 }
 
+function getProfileCompletenessScore(appUser: AppUser | null | undefined) {
   if (!appUser) return 0;
 
   let score = 0;
