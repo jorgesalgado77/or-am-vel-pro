@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { calculateRoundTripKm } from "@/hooks/useGoogleMapsKey";
 import { PedagioModal } from "./PedagioModal";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 const STATUS_LABELS: Record<string, string> = {
   novo: "Novo",
