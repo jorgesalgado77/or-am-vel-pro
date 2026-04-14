@@ -171,6 +171,7 @@ interface LiberacaoRow {
   dataFinalizado: string | null;
   diasEmLiberacao: number | null;
   tecnicoResponsavel: string | null;
+  responsavelRefs: string[];
   tecnicoEnderecoBase: string | null;
   loja: string | null;
   codigoLoja: string | null;
