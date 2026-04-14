@@ -259,6 +259,7 @@ export default function Login() {
         const tid = typeof resolved === "string" ? resolved : (resolved as Record<string, string>)?.tenant_id || (resolved as Record<string, string>)?.id;
 
         if (!cancelled && tid) {
+          setResolvedTenantId(tid);
           const { data: csData3 } = await supabase
             .from("company_settings" as unknown as "clients")
             .select("company_name, nome_empresa, company_subtitle, logo_url")
