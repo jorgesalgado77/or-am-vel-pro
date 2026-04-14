@@ -194,6 +194,7 @@ export default function Login() {
 
     if (digits.length < 6) {
       setTenantInfo(null);
+      setResolvedTenantId(null);
       return;
     }
 
