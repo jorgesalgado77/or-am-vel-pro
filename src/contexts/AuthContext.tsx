@@ -268,17 +268,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [loadFromSession]);
 
-  const login = useCallback(async (email: string, password: string, storeCode?: string) => {
+  const login = useCallback(async (email: string, password: string, storeCode?: string, preResolvedTenantId?: string | null) => {
     loginInProgressRef.current = true;
 
     try {
       const normalizedEmail_ = email.trim().toLowerCase();
       const normalizedStoreCode = storeCode?.replace(/\D/g, "") ?? "";
-      const tenantResolutionPromise = normalizedStoreCode.length === 6
-        ? resolveTenantIdByStoreCode(normalizedStoreCode)
-        : Promise.resolve<string | null>(null);
+      const tenantResolutionPromise = preResolvedTenantId
+        ? Promise.resolve(preResolvedTenantId)
+        : normalizedStoreCode.length === 6
+          ? resolveTenantIdByStoreCode(normalizedStoreCode)
+          : Promise.resolve<string | null>(null);
 
-      let resolvedTenantId: string | null = null;
+      let resolvedTenantId: string | null = preResolvedTenantId ?? null;
 
       const lookupStoreUsers = async (tenantId: string, authUserId?: string | null) => {
         const userSelect = "id, tenant_id, ativo, auth_user_id, nome_completo, email";
