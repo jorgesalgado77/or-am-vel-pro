@@ -38,7 +38,7 @@ const StockPurchaseRequests = lazy(() => import("@/components/catalog/StockPurch
 const CommercialAIPanel = lazy(() => import("@/components/commercial/CommercialAIPanel").then(m => ({ default: m.CommercialAIPanel })));
 const EmailPanel = lazy(() => import("@/components/EmailPanel").then(m => ({ default: m.EmailPanel })));
 const OnboardingAIAssistant = lazy(() => import("@/components/onboarding/OnboardingAIAssistant").then(m => ({ default: m.OnboardingAIAssistant })));
-const LiberacaoModal = lazy(() => import("@/components/LiberacaoModal").then(m => ({ default: m.LiberacaoModal })));
+const LiberacaoTecnicaPanel = lazy(() => import("@/components/liberacao/LiberacaoTecnicaPanel").then(m => ({ default: m.LiberacaoTecnicaPanel })));
 
 import { CurrentUserContext } from "@/hooks/useCurrentUser";
 import { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
@@ -78,6 +78,7 @@ const VIEW_TITLES: Record<string, { title: string; subtitle: string }> = {
   catalog: { title: "Catálogo de Produtos", subtitle: "Gerencie produtos, fornecedores, estoque e precificação" },
   "commercial-ai": { title: "IA Gerente Comercial", subtitle: "Monitoramento inteligente de vendas, alertas e coaching" },
   emails: { title: "Email", subtitle: "Compose e envie emails, veja o histórico de envios" },
+  liberacao: { title: "Liberação Técnica", subtitle: "Gerencie liberações técnicas com filtros e ações por cliente" },
 };
 
 export default function Index() {
@@ -115,7 +116,7 @@ export default function Index() {
     return saved === "true";
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [showLiberacao, setShowLiberacao] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [simulatingClient, setSimulatingClient] = useState<Client | null>(null);
@@ -187,7 +188,6 @@ export default function Index() {
   const handleHistory = (client: Client) => { setHistoryClient(client); setSimulatingClient(null); setContractsClient(null); setActiveView("history"); };
   const handleContracts = (client: Client) => { setContractsClient(client); setSimulatingClient(null); setHistoryClient(null); setActiveView("contracts"); };
   const handleViewChange = (v: string) => {
-    if (v === "liberacao") { setShowLiberacao(true); return; }
     setActiveView(v); setSimulatingClient(null); setHistoryClient(null); setContractsClient(null); setLoadedSimulation(null);
   };
 
@@ -481,6 +481,7 @@ export default function Index() {
               {activeView === "stock-purchases" && <StockPurchaseRequests />}
               {activeView === "commercial-ai" && <CommercialAIPanel />}
               {activeView === "emails" && <EmailPanel />}
+              {activeView === "liberacao" && <LiberacaoTecnicaPanel />}
 
               <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={onSaveClient} client={editingClient} saving={saving} />
             </Suspense>
@@ -500,7 +501,6 @@ export default function Index() {
             )}
             <SupportDialog open={showSupport} onClose={() => setShowSupport(false)} />
             <UserProfileModal open={showProfile} onClose={() => setShowProfile(false)} />
-            <LiberacaoModal open={showLiberacao} onClose={() => setShowLiberacao(false)} />
           </Suspense>
           <UpgradePlanDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} message={upgradeMsg} />
           <Suspense fallback={null}>
