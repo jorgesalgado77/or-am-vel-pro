@@ -68,6 +68,8 @@ export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId
   const [resolvedClientAddr, setResolvedClientAddr] = useState<string | null>(null);
   const [resolvedTechAddr, setResolvedTechAddr] = useState<string | null>(null);
   const [addrLoading, setAddrLoading] = useState(false);
+  const [notifyingSent, setNotifyingSent] = useState(false);
+  const [notifyingLoading, setNotifyingLoading] = useState(false);
 
   const { currentUser } = useCurrentUser();
   const { googleMapsKey } = useGoogleMapsKey(tenantId || null);
