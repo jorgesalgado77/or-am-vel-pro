@@ -1119,6 +1119,7 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
                 </div>
               )}
             </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
