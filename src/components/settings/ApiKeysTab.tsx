@@ -280,6 +280,94 @@ export function ApiKeysTab() {
         </CardContent>
       </Card>
 
+      {/* Shared Master Admin APIs */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Share2 className="h-5 w-5 text-primary" />
+            <CardTitle className="text-lg">APIs Compartilhadas (Admin Master)</CardTitle>
+            {activeShared.length > 0 && (
+              <Badge variant="default" className="ml-auto text-[10px]">
+                {activeShared.length} ativa{activeShared.length !== 1 ? "s" : ""}
+              </Badge>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            APIs compartilhadas pelo Administrador Master com sua loja. Quando uma API própria é desativada, o sistema utiliza automaticamente a API compartilhada correspondente.
+          </p>
+
+          {sharedLoading ? (
+            <div className="flex items-center justify-center py-6">
+              <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : sharedApis.length === 0 ? (
+            <div className="text-center py-6 text-muted-foreground">
+              <Share2 className="h-10 w-10 mx-auto mb-2 opacity-20" />
+              <p className="text-sm">Nenhuma API compartilhada com sua loja</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {expiringSoon.length > 0 && (
+                <div className="flex items-center gap-2 p-2 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-600 text-xs">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span><strong>{expiringSoon.length}</strong> API(s) com vencimento próximo. Solicite renovação ou configure sua própria chave.</span>
+                </div>
+              )}
+              {sharedApis.map(api => {
+                const isUsedAsFallback = !keys.some(k => k.provider === api.provider && k.is_active) && api.is_active && !api.expired;
+                return (
+                  <div
+                    key={api.id}
+                    className={`flex items-center justify-between p-3 rounded-lg border ${
+                      api.expired ? "border-destructive/30 bg-destructive/5" :
+                      api.expiring_soon ? "border-amber-500/30 bg-amber-500/5" :
+                      "border-border bg-card"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {api.is_active && !api.expired ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-destructive shrink-0" />
+                      )}
+                      <div>
+                        <span className="font-medium text-sm">{api.nome}</span>
+                        {isUsedAsFallback && (
+                          <Badge variant="outline" className="ml-2 text-[9px] border-primary/40 text-primary">
+                            Em uso (fallback)
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {api.expired ? (
+                        <Badge variant="destructive" className="text-[10px]">Expirada</Badge>
+                      ) : api.is_active ? (
+                        <Badge variant="default" className="text-[10px] bg-emerald-500/20 text-emerald-600 border-emerald-500/30">Ativa</Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-[10px]">Inativa</Badge>
+                      )}
+                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        {api.expired ? (
+                          <span className="text-destructive">Expirou {new Date(api.ends_at).toLocaleDateString("pt-BR")}</span>
+                        ) : api.expiring_soon ? (
+                          <span className="text-amber-600">{api.days_left}d restantes</span>
+                        ) : (
+                          <span>Até {new Date(api.ends_at).toLocaleDateString("pt-BR")}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Asaas Webhook Configuration */}
       <AsaasWebhookConfig tenantId={tenantId} />
     </div>
