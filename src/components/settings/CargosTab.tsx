@@ -9,7 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Plus, Trash2, Save, Pencil, X, ChevronDown, ChevronRight, TrendingUp, DollarSign, Landmark, Copy, Shield, EyeOff, Search, Download, Upload, HelpCircle, Bot } from "lucide-react";
+import { Plus, Trash2, Save, Pencil, X, ChevronDown, ChevronRight, TrendingUp, DollarSign, Landmark, Copy, Shield, EyeOff, Search, Download, Upload, HelpCircle, Bot, Loader2, CheckCircle2, Power } from "lucide-react";
 import { maskCurrency, unmaskCurrency } from "@/lib/masks";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
@@ -105,6 +105,171 @@ const ALL_TOOLTIPS: Record<string, string> = {
   ...Object.fromEntries(Object.entries(PERM_META_DASHBOARD).map(([k, v]) => [k, v.tip])),
   ...Object.fromEntries(Object.entries(PERM_META_MIA).map(([k, v]) => [k, v.tip])),
 };
+
+// ── Default / Standard Cargos ─────────────────────────────────
+
+interface DefaultCargo {
+  nome: string;
+  descricao: string;
+  icon: string;
+  permissoes: Partial<CargoPermissoes>;
+  tipoComissao: string;
+  comissaoDefault: number;
+}
+
+const BASE_FALSE: CargoPermissoes = {
+  clientes: false, simulador: false, configuracoes: false, desconto1: false, desconto2: false, desconto3: false, plus: false,
+  folha_pagamento: false, financeiro: false, planos: false, funil: false, campanhas: false, indicacoes: false,
+  vendazap: false, chat_vendas: false, dealroom: false, smart3d: false, divulgue_ganhe: false, mensagens: false, suporte: false,
+  ia_gerente: false, catalogo: false, medicao: false, liberacao: false, liberacao_tecnica: false, tutoriais: false, email: false, cadastrar_produtos: false,
+  dash_ia_auto: false, dash_kpis: false, dash_leads_origem: false, dash_graficos: false, dash_projetista: false,
+  dash_indicador: false, dash_produtos_vendidos: false, dash_contratos: false, dash_medicao: false, dash_estoque: false,
+  mia_alertas_proativos: true, mia_kpis: false, mia_leads: false, mia_mensagens: false, mia_tarefas: true,
+  mia_financeiro: false, mia_estoque: false, mia_medicoes: false, mia_contratos: false, mia_fluxo_vendas: false,
+  mia_pesquisa_mercado: false, mia_criar_tarefas: true, mia_enviar_email: false, mia_followup_auto: false,
+};
+
+const DEFAULT_CARGOS: DefaultCargo[] = [
+  {
+    nome: "Gerente",
+    descricao: "Gestão da equipe comercial, metas, aprovações de desconto e visão geral do faturamento",
+    icon: "👔",
+    permissoes: {
+      ...BASE_FALSE,
+      clientes: true, simulador: true, desconto1: true, desconto2: true, desconto3: true, plus: true,
+      ia_gerente: true, catalogo: true, medicao: true, liberacao: true, tutoriais: true, email: true,
+      folha_pagamento: true, financeiro: true, funil: true, campanhas: true, indicacoes: true,
+      vendazap: true, chat_vendas: true, dealroom: true, mensagens: true, suporte: true,
+      dash_ia_auto: true, dash_kpis: true, dash_leads_origem: true, dash_graficos: true, dash_projetista: true,
+      dash_indicador: true, dash_produtos_vendidos: true, dash_contratos: true, dash_medicao: true, dash_estoque: true,
+      mia_alertas_proativos: true, mia_kpis: true, mia_leads: true, mia_mensagens: true, mia_tarefas: true,
+      mia_financeiro: true, mia_estoque: true, mia_contratos: true, mia_fluxo_vendas: true,
+      mia_criar_tarefas: true, mia_enviar_email: true, mia_followup_auto: true,
+    },
+    tipoComissao: "fixa",
+    comissaoDefault: 2,
+  },
+  {
+    nome: "Gerente Técnico",
+    descricao: "Supervisão de medições, liberações técnicas e qualidade dos projetos",
+    icon: "🔧",
+    permissoes: {
+      ...BASE_FALSE,
+      clientes: true, simulador: true, desconto1: true, desconto2: true,
+      catalogo: true, medicao: true, liberacao: true, liberacao_tecnica: true, tutoriais: true, email: true,
+      smart3d: true, mensagens: true, suporte: true,
+      dash_kpis: true, dash_projetista: true, dash_contratos: true, dash_medicao: true, dash_estoque: true,
+      mia_alertas_proativos: true, mia_tarefas: true, mia_medicoes: true, mia_estoque: true, mia_contratos: true,
+      mia_criar_tarefas: true,
+    },
+    tipoComissao: "clt",
+    comissaoDefault: 0,
+  },
+  {
+    nome: "Liberador",
+    descricao: "Aprovação de pedidos, conferência de projetos e liberação para produção",
+    icon: "✅",
+    permissoes: {
+      ...BASE_FALSE,
+      clientes: true, simulador: true,
+      catalogo: true, liberacao: true, liberacao_tecnica: true, tutoriais: true, mensagens: true,
+      dash_contratos: true, dash_estoque: true,
+      mia_alertas_proativos: true, mia_tarefas: true, mia_contratos: true, mia_estoque: true,
+      mia_criar_tarefas: true,
+    },
+    tipoComissao: "clt_only",
+    comissaoDefault: 0,
+  },
+  {
+    nome: "Projetista",
+    descricao: "Criação de projetos, briefings, simulações técnicas e acompanhamento de produção",
+    icon: "📐",
+    permissoes: {
+      ...BASE_FALSE,
+      clientes: true, simulador: true, desconto1: true,
+      catalogo: true, medicao: true, tutoriais: true, email: true, smart3d: true, mensagens: true, suporte: true,
+      dash_projetista: true, dash_contratos: true, dash_medicao: true, dash_estoque: true,
+      mia_alertas_proativos: true, mia_tarefas: true, mia_medicoes: true, mia_leads: true,
+      mia_criar_tarefas: true, mia_fluxo_vendas: true,
+    },
+    tipoComissao: "fixa",
+    comissaoDefault: 1,
+  },
+  {
+    nome: "Comprador",
+    descricao: "Gestão de estoque, pedidos de compra e negociação com fornecedores",
+    icon: "🛒",
+    permissoes: {
+      ...BASE_FALSE,
+      catalogo: true, cadastrar_produtos: true, tutoriais: true, email: true, mensagens: true,
+      dash_estoque: true, dash_produtos_vendidos: true,
+      mia_alertas_proativos: true, mia_tarefas: true, mia_estoque: true,
+      mia_criar_tarefas: true, mia_enviar_email: true,
+    },
+    tipoComissao: "clt_only",
+    comissaoDefault: 0,
+  },
+  {
+    nome: "Gerente de Montagem",
+    descricao: "Coordenação de montagens, agendamento de equipes e controle de qualidade pós-entrega",
+    icon: "🏗️",
+    permissoes: {
+      ...BASE_FALSE,
+      clientes: true, catalogo: true, medicao: true, tutoriais: true, email: true, mensagens: true, suporte: true,
+      dash_contratos: true, dash_medicao: true, dash_estoque: true,
+      mia_alertas_proativos: true, mia_tarefas: true, mia_medicoes: true, mia_contratos: true, mia_estoque: true,
+      mia_criar_tarefas: true,
+    },
+    tipoComissao: "clt_only",
+    comissaoDefault: 0,
+  },
+  {
+    nome: "Gerente de Logística",
+    descricao: "Controle de entregas, rotas, agendamentos de transporte e gestão de estoque",
+    icon: "🚚",
+    permissoes: {
+      ...BASE_FALSE,
+      clientes: true, catalogo: true, tutoriais: true, email: true, mensagens: true, suporte: true,
+      dash_contratos: true, dash_estoque: true,
+      mia_alertas_proativos: true, mia_tarefas: true, mia_estoque: true, mia_contratos: true,
+      mia_criar_tarefas: true,
+    },
+    tipoComissao: "clt_only",
+    comissaoDefault: 0,
+  },
+  {
+    nome: "Supervisor Técnico",
+    descricao: "Supervisão de medições em campo, validação técnica e treinamento de equipe técnica",
+    icon: "📋",
+    permissoes: {
+      ...BASE_FALSE,
+      clientes: true, simulador: true,
+      catalogo: true, medicao: true, liberacao_tecnica: true, tutoriais: true, email: true, smart3d: true, mensagens: true, suporte: true,
+      dash_projetista: true, dash_contratos: true, dash_medicao: true, dash_estoque: true,
+      mia_alertas_proativos: true, mia_tarefas: true, mia_medicoes: true, mia_estoque: true,
+      mia_criar_tarefas: true,
+    },
+    tipoComissao: "clt_only",
+    comissaoDefault: 0,
+  },
+  {
+    nome: "Supervisor Comercial",
+    descricao: "Apoio à equipe de vendas, monitoramento de metas, treinamento e acompanhamento de negociações",
+    icon: "📊",
+    permissoes: {
+      ...BASE_FALSE,
+      clientes: true, simulador: true, desconto1: true, desconto2: true,
+      ia_gerente: true, catalogo: true, tutoriais: true, email: true,
+      funil: true, campanhas: true, indicacoes: true, vendazap: true, chat_vendas: true, dealroom: true, mensagens: true, suporte: true,
+      dash_ia_auto: true, dash_kpis: true, dash_leads_origem: true, dash_graficos: true, dash_projetista: true,
+      dash_indicador: true, dash_produtos_vendidos: true, dash_contratos: true,
+      mia_alertas_proativos: true, mia_kpis: true, mia_leads: true, mia_mensagens: true, mia_tarefas: true,
+      mia_contratos: true, mia_fluxo_vendas: true, mia_criar_tarefas: true, mia_followup_auto: true,
+    },
+    tipoComissao: "fixa",
+    comissaoDefault: 1,
+  },
+];
 
 // ── Permission row with tooltip ──────────────────────────────
 
@@ -303,6 +468,47 @@ export function CargosTab() {
     input.click();
   };
 
+  const [activatingCargo, setActivatingCargo] = useState<string | null>(null);
+
+  // Check which default cargos are already activated (by name match)
+  const activatedDefaults = DEFAULT_CARGOS.map(dc => ({
+    ...dc,
+    isActive: cargos.some(c => c.nome.toLowerCase() === dc.nome.toLowerCase()),
+    cargoId: cargos.find(c => c.nome.toLowerCase() === dc.nome.toLowerCase())?.id || null,
+  }));
+
+  const handleActivateDefault = async (dc: DefaultCargo) => {
+    const tenantId = getTenantId();
+    if (!tenantId) { toast.error("Sessão inválida"); return; }
+    setActivatingCargo(dc.nome);
+    try {
+      const fullPerms = { ...DEFAULT_PERMISSOES, ...dc.permissoes } as CargoPermissoes;
+      const { error } = await supabase.from("cargos").insert({
+        nome: dc.nome,
+        permissoes: fullPerms as any,
+        comissao_percentual: dc.comissaoDefault,
+        tipo_comissao: dc.tipoComissao,
+        tenant_id: tenantId,
+      });
+      if (error) toast.error("Erro ao ativar cargo: " + error.message);
+      else { toast.success(`Cargo "${dc.nome}" ativado!`); refresh(); }
+    } finally {
+      setActivatingCargo(null);
+    }
+  };
+
+  const handleDeactivateDefault = async (cargoId: string, nome: string) => {
+    if (!confirm(`Desativar o cargo padrão "${nome}"? Isso removerá o cargo do sistema. Usuários vinculados a ele ficarão sem cargo.`)) return;
+    setActivatingCargo(nome);
+    try {
+      const { error } = await supabase.from("cargos").delete().eq("id", cargoId);
+      if (error) toast.error("Erro ao desativar: " + error.message);
+      else { toast.success(`Cargo "${nome}" desativado!`); refresh(); }
+    } finally {
+      setActivatingCargo(null);
+    }
+  };
+
   // Toggle all MIA permissions for a cargo
   const toggleAllMIA = (cargoId: string, current: CargoPermissoes, enable: boolean) => {
     const existing = editPerms[cargoId] || { ...current };
@@ -350,7 +556,76 @@ export function CargosTab() {
           </CardContent>
         </Card>
 
-        {/* Search + Export/Import */}
+        {/* Default / Standard Cargos */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Power className="h-5 w-5 text-primary" />
+              <CardTitle className="text-base">Cargos Padrão do Sistema</CardTitle>
+              <Badge variant="outline" className="ml-auto text-[10px]">
+                {activatedDefaults.filter(d => d.isActive).length}/{DEFAULT_CARGOS.length} ativos
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Cargos pré-configurados com permissões otimizadas para cada função. Ative para adicionar ao sistema com todas as permissões já definidas.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {activatedDefaults.map(dc => (
+                <div
+                  key={dc.nome}
+                  className={`rounded-lg border p-3 space-y-2 transition-colors ${
+                    dc.isActive
+                      ? "border-primary/40 bg-primary/5"
+                      : "border-border bg-muted/20"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{dc.icon}</span>
+                      <span className="text-sm font-semibold text-foreground">{dc.nome}</span>
+                    </div>
+                    {dc.isActive ? (
+                      <Badge variant="default" className="text-[9px] gap-1">
+                        <CheckCircle2 className="h-3 w-3" />Ativo
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-[9px]">Inativo</Badge>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">{dc.descricao}</p>
+                  <div>
+                    {dc.isActive ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full h-7 text-[11px] text-destructive hover:text-destructive"
+                        onClick={() => handleDeactivateDefault(dc.cargoId!, dc.nome)}
+                        disabled={activatingCargo === dc.nome}
+                      >
+                        {activatingCargo === dc.nome ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                        Desativar
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="w-full h-7 text-[11px]"
+                        onClick={() => handleActivateDefault(dc)}
+                        disabled={activatingCargo === dc.nome}
+                      >
+                        {activatingCargo === dc.nome ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Plus className="h-3 w-3 mr-1" />}
+                        Ativar Cargo
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
