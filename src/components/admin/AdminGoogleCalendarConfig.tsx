@@ -265,10 +265,32 @@ export function AdminGoogleCalendarConfig() {
       {/* Settings Card */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <CalendarSync className="h-5 w-5 text-primary" />
-            Configurações OAuth — Google Calendar
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <CalendarSync className="h-5 w-5 text-primary" />
+              Configurações OAuth — Google Calendar
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              {testStatus === "online" && (
+                <Badge className="gap-1.5 text-[10px] px-2 py-0.5 bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 dark:text-emerald-400">
+                  <Wifi className="h-3 w-3" />
+                  API Online
+                </Badge>
+              )}
+              {testStatus === "offline" && (
+                <Badge variant="destructive" className="gap-1.5 text-[10px] px-2 py-0.5">
+                  <WifiOff className="h-3 w-3" />
+                  API Offline
+                </Badge>
+              )}
+              {testStatus === "testing" && (
+                <Badge variant="outline" className="gap-1.5 text-[10px] px-2 py-0.5 animate-pulse">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Testando...
+                </Badge>
+              )}
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
