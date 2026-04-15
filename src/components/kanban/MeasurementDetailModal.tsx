@@ -822,8 +822,84 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
           </DialogHeader>
 
           <div ref={contentRef} className="flex-1 overflow-y-auto px-6 pb-6">
+            {loading ? (
+              <div className="space-y-5 py-4 animate-fade-in">
+                {/* Audit skeleton */}
+                <div className="bg-muted/30 rounded-lg p-3 border space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-3.5 w-3.5 rounded-full" />
+                    <div className="space-y-1.5 flex-1">
+                      <Skeleton className="h-2.5 w-16" />
+                      <Skeleton className="h-3.5 w-40" />
+                      <Skeleton className="h-2.5 w-32" />
+                    </div>
+                  </div>
+                </div>
+                {/* Client skeleton */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-4 w-4 rounded" />
+                    <Skeleton className="h-4 w-20" />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-muted/30 rounded-lg p-3 border">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="space-y-1.5">
+                        <Skeleton className="h-2.5 w-16" />
+                        <Skeleton className="h-3.5 w-32" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* Request info skeleton */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-4 w-4 rounded" />
+                    <Skeleton className="h-4 w-36" />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-muted/30 rounded-lg p-3 border">
+                    <div className="space-y-1.5">
+                      <Skeleton className="h-2.5 w-24" />
+                      <Skeleton className="h-3.5 w-36" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Skeleton className="h-2.5 w-28" />
+                      <Skeleton className="h-3.5 w-28" />
+                    </div>
+                  </div>
+                </div>
+                {/* Address skeleton */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-4 w-4 rounded" />
+                    <Skeleton className="h-4 w-32" />
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-3 border space-y-1.5">
+                    <Skeleton className="h-3.5 w-48" />
+                    <Skeleton className="h-3 w-36" />
+                    <Skeleton className="h-3 w-20" />
+                  </div>
+                </div>
+                {/* Environments skeleton */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-4 w-4 rounded" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                  {[1, 2].map((i) => (
+                    <div key={i} className="bg-muted/30 rounded-lg p-3 border space-y-2">
+                      <Skeleton className="h-4 w-28" />
+                      <Skeleton className="h-3 w-full" />
+                      <div className="grid grid-cols-3 gap-2">
+                        <Skeleton className="aspect-square rounded-lg" />
+                        <Skeleton className="aspect-square rounded-lg" />
+                        <Skeleton className="aspect-square rounded-lg" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
             <div className="space-y-5 py-4">
-              <div className="space-y-2">
                 <div className="bg-muted/30 rounded-lg p-3 border space-y-2">
                   <div className="flex items-center gap-2">
                     <User className="h-3.5 w-3.5 text-primary" />
