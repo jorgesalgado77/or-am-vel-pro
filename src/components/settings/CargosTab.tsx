@@ -313,6 +313,59 @@ function PermRow({ permKey, label, checked, onToggle }: { permKey: string; label
   );
 }
 
+// ── Cargo Summary Card with expand/collapse ──────────────────
+
+interface CargoSummaryProps {
+  cargo: { nome: string; hiddenCount: number; activeCount: number; sections: { category: string; labels: string[] }[] };
+  totalPerms: number;
+}
+
+function CargoSummaryCard({ cargo: c, totalPerms }: CargoSummaryProps) {
+  const [expanded, setExpanded] = useState(false);
+  const hasRestrictions = c.hiddenCount > 0;
+
+  return (
+    <div className={`rounded-md border bg-background p-2.5 space-y-1 ${hasRestrictions ? "border-amber-500/30" : "border-emerald-500/30"}`}>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-foreground">{c.nome}</p>
+        <div className="flex items-center gap-1.5">
+          <Badge variant={hasRestrictions ? "secondary" : "default"} className="text-[9px]">
+            {c.activeCount}/{totalPerms} ativas
+          </Badge>
+          {hasRestrictions && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5 p-0"
+              onClick={() => setExpanded(!expanded)}
+            >
+              {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            </Button>
+          )}
+        </div>
+      </div>
+      {!hasRestrictions && (
+        <p className="text-[10px] text-emerald-600">✅ Todas as permissões ativas</p>
+      )}
+      {hasRestrictions && !expanded && (
+        <p className="text-[10px] text-muted-foreground/70 line-clamp-1">
+          🔒 {c.hiddenCount} restrição(ões): {c.sections.map(s => s.labels.join(", ")).join(", ")}
+        </p>
+      )}
+      {hasRestrictions && expanded && (
+        <div className="space-y-1 pt-1 border-t border-border/50">
+          {c.sections.map(s => (
+            <div key={s.category}>
+              <p className="text-[10px] font-medium text-muted-foreground">{s.category}:</p>
+              <p className="text-[10px] text-muted-foreground/70">{s.labels.join(", ")}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Component ────────────────────────────────────────────────
 
 export function CargosTab() {
