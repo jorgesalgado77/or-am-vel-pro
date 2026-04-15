@@ -95,6 +95,7 @@ export function AdminWhatsAppConfig() {
   const [testPhone, setTestPhone] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
   const [connectionTestLog, setConnectionTestLog] = useState("");
+  const [connectionStatus, setConnectionStatus] = useState<"idle" | "testing" | "online" | "offline">("idle");
 
   const fetchSettings = async () => {
     const { data } = await supabase
