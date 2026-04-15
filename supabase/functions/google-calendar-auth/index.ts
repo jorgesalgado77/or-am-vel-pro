@@ -99,6 +99,39 @@ serve(async (req) => {
       }, 400);
     }
 
+    // ── Test Connection ──
+    if (action === "testConnection") {
+      const testClientId = body.client_id || creds.clientId;
+      const testClientSecret = body.client_secret || creds.clientSecret;
+      if (!testClientId) {
+        return respond({ error: "Client ID não configurado" }, 400);
+      }
+      try {
+        // Validate credentials by requesting token endpoint with invalid grant
+        // A valid client_id/secret returns a specific error; invalid ones return a different error
+        const testRes = await fetch(GOOGLE_TOKEN_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            client_id: testClientId,
+            client_secret: testClientSecret || "",
+            grant_type: "authorization_code",
+            code: "test_invalid_code",
+            redirect_uri: "https://localhost",
+          }),
+        });
+        const testData = await testRes.json();
+        // "invalid_grant" or "redirect_uri_mismatch" means credentials are valid
+        // "invalid_client" means credentials are wrong
+        if (testData.error === "invalid_client") {
+          return respond({ error: "Client ID ou Client Secret inválido", online: false }, 400);
+        }
+        return respond({ success: true, online: true, message: "Credenciais válidas — API acessível" });
+      } catch (e: any) {
+        return respond({ error: "Não foi possível conectar ao Google: " + (e?.message || ""), online: false }, 500);
+      }
+    }
+
     // ── Get Auth URL ──
     if (action === "getAuthUrl") {
       const { redirect_uri } = body;
