@@ -243,6 +243,50 @@ export function OnboardingAIAssistant() {
             }));
           }
         });
+
+        // Inject MIA permissions status log for non-admin cargos
+        if (currentUser?.cargo_nome && currentUser?.permissoes) {
+          const cargoLower = currentUser.cargo_nome.toLowerCase();
+          const isAdmin = cargoLower.includes("administrador") || cargoLower.includes("admin");
+          if (!isAdmin) {
+            const MIA_PERM_LABELS: Record<string, string> = {
+              mia_alertas_proativos: "Alertas Proativos",
+              mia_kpis: "KPIs e Métricas",
+              mia_leads: "Informações de Leads",
+              mia_mensagens: "Mensagens Pendentes",
+              mia_tarefas: "Gestão de Tarefas",
+              mia_financeiro: "Dados Financeiros",
+              mia_estoque: "Alertas de Estoque",
+              mia_medicoes: "Medições Pendentes",
+              mia_contratos: "Dados de Contratos",
+              mia_fluxo_vendas: "Fluxo de Vendas",
+              mia_pesquisa_mercado: "Pesquisa de Mercado",
+              mia_criar_tarefas: "Criar Tarefas",
+              mia_enviar_email: "Enviar E-mails",
+              mia_followup_auto: "Follow-up Automático",
+            };
+            const perms = currentUser.permissoes;
+            const active: string[] = [];
+            const blocked: string[] = [];
+            for (const [key, label] of Object.entries(MIA_PERM_LABELS)) {
+              if ((perms as any)[key] !== false) active.push(label);
+              else blocked.push(label);
+            }
+            const lines: string[] = [`🤖 **Seu cargo: ${currentUser.cargo_nome}**\n`];
+            if (active.length > 0) {
+              lines.push(`✅ **Funções ativas** (${active.length}):\n${active.map(a => `  • ${a}`).join("\n")}`);
+            }
+            if (blocked.length > 0) {
+              lines.push(`\n🔒 **Funções restritas** (${blocked.length}):\n${blocked.map(b => `  • ${b}`).join("\n")}`);
+            }
+            if (blocked.length === 0) {
+              lines.push(`\n🎯 Todas as funções da MIA estão disponíveis para você!`);
+            }
+            window.dispatchEvent(new CustomEvent("mia-inject-message", {
+              detail: { content: lines.join("\n") },
+            }));
+          }
+        }
       }
     }
   }, [open, checkAlerts]);
