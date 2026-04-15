@@ -9,7 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Plus, Trash2, Save, Pencil, X, ChevronDown, ChevronRight, TrendingUp, DollarSign, Landmark, Copy, Shield, EyeOff, Search, Download, Upload, HelpCircle, Bot } from "lucide-react";
+import { Plus, Trash2, Save, Pencil, X, ChevronDown, ChevronRight, TrendingUp, DollarSign, Landmark, Copy, Shield, EyeOff, Search, Download, Upload, HelpCircle, Bot, Loader2, CheckCircle2, Power } from "lucide-react";
 import { maskCurrency, unmaskCurrency } from "@/lib/masks";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
