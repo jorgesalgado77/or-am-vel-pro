@@ -15,7 +15,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import {
   Save, Eye, EyeOff, MessageSquare, CheckCircle2, XCircle,
-  Plus, Trash2, Edit, Send, Wifi, WifiOff, Loader2,
+  Plus, Trash2, Edit, Send, Wifi, WifiOff, Loader2, Share2,
 } from "lucide-react";
 
 type WhatsAppProvider = "evolution" | "twilio" | "zapi";
