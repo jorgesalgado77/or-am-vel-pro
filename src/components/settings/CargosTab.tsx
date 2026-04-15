@@ -132,7 +132,7 @@ const BASE_FALSE: CargoPermissoes = {
 const DEFAULT_CARGOS: DefaultCargo[] = [
   {
     nome: "Gerente",
-    descricao: "Gestão da equipe comercial, metas, aprovações de desconto e visão geral do faturamento",
+    descricao: "Líder da equipe comercial. Acompanha KPIs de faturamento, taxa de conversão e ticket médio. Aprova descontos especiais, monitora leads parados, cobra follow-ups e garante o atingimento das metas mensais. Acessa: Dashboard completo, Clientes, Simulador, Chat de Vendas, Deal Room, Financeiro, Campanhas, Funil e Folha de Pagamento.",
     icon: "👔",
     permissoes: {
       ...BASE_FALSE,
@@ -151,7 +151,7 @@ const DEFAULT_CARGOS: DefaultCargo[] = [
   },
   {
     nome: "Gerente Técnico",
-    descricao: "Supervisão de medições, liberações técnicas e qualidade dos projetos",
+    descricao: "Responsável pela qualidade técnica dos projetos. Supervisiona medições em campo, valida projetos antes da liberação para produção e acompanha prazos técnicos. Acessa: Clientes, Simulador, Catálogo, Medições, Liberação Técnica, Smart 3D, Dashboard (Projetista, Contratos, Medições, Estoque).",
     icon: "🔧",
     permissoes: {
       ...BASE_FALSE,
@@ -166,8 +166,24 @@ const DEFAULT_CARGOS: DefaultCargo[] = [
     comissaoDefault: 0,
   },
   {
+    nome: "Gerente Financeiro",
+    descricao: "Gestão completa do setor financeiro. Controla contas a pagar/receber, fluxo de caixa, comissões, folha de pagamento e projeções de lucro. Analisa relatórios de faturamento e margem de lucro da loja. Acessa: Financeiro, Folha de Pagamento, Planos, Dashboard (KPIs, Gráficos, Contratos, Estoque).",
+    icon: "💰",
+    permissoes: {
+      ...BASE_FALSE,
+      clientes: true, catalogo: true, tutoriais: true, email: true, mensagens: true, suporte: true,
+      folha_pagamento: true, financeiro: true, planos: true,
+      dash_kpis: true, dash_graficos: true, dash_contratos: true, dash_estoque: true, dash_produtos_vendidos: true,
+      mia_alertas_proativos: true, mia_kpis: true, mia_tarefas: true,
+      mia_financeiro: true, mia_estoque: true, mia_contratos: true,
+      mia_criar_tarefas: true, mia_enviar_email: true,
+    },
+    tipoComissao: "clt_only",
+    comissaoDefault: 0,
+  },
+  {
     nome: "Liberador",
-    descricao: "Aprovação de pedidos, conferência de projetos e liberação para produção",
+    descricao: "Responsável pela aprovação final dos pedidos antes da produção. Confere projetos, valida especificações técnicas, verifica estoque disponível e libera ordens de produção. Acessa: Clientes, Simulador, Catálogo, Liberação, Liberação Técnica, Dashboard (Contratos, Estoque).",
     icon: "✅",
     permissoes: {
       ...BASE_FALSE,
@@ -182,7 +198,7 @@ const DEFAULT_CARGOS: DefaultCargo[] = [
   },
   {
     nome: "Projetista",
-    descricao: "Criação de projetos, briefings, simulações técnicas e acompanhamento de produção",
+    descricao: "Cria projetos personalizados a partir do briefing do cliente. Preenche medidas, define ambientes, seleciona materiais e gera simulações detalhadas. Acompanha a produção e atualiza o status dos projetos. Acessa: Clientes, Simulador, Catálogo, Medições, Smart 3D, Dashboard (Projetista, Contratos, Medições, Estoque).",
     icon: "📐",
     permissoes: {
       ...BASE_FALSE,
@@ -197,7 +213,7 @@ const DEFAULT_CARGOS: DefaultCargo[] = [
   },
   {
     nome: "Comprador",
-    descricao: "Gestão de estoque, pedidos de compra e negociação com fornecedores",
+    descricao: "Gerencia o estoque e a reposição de produtos. Negocia com fornecedores, cadastra novos produtos, controla níveis de estoque mínimo e gera pedidos de compra. Recebe alertas de estoque baixo da MIA. Acessa: Catálogo, Cadastro de Produtos, Email, Dashboard (Estoque, Produtos Mais Vendidos).",
     icon: "🛒",
     permissoes: {
       ...BASE_FALSE,
@@ -211,7 +227,7 @@ const DEFAULT_CARGOS: DefaultCargo[] = [
   },
   {
     nome: "Gerente de Montagem",
-    descricao: "Coordenação de montagens, agendamento de equipes e controle de qualidade pós-entrega",
+    descricao: "Coordena as equipes de montagem em campo. Agenda instalações, acompanha prazos de entrega, controla a qualidade pós-montagem e resolve pendências técnicas com clientes. Acessa: Clientes, Catálogo, Medições, Email, Dashboard (Contratos, Medições, Estoque).",
     icon: "🏗️",
     permissoes: {
       ...BASE_FALSE,
@@ -225,7 +241,7 @@ const DEFAULT_CARGOS: DefaultCargo[] = [
   },
   {
     nome: "Gerente de Logística",
-    descricao: "Controle de entregas, rotas, agendamentos de transporte e gestão de estoque",
+    descricao: "Controla todo o fluxo de entregas da loja. Planeja rotas, agenda transportes, monitora prazos de entrega e gerencia o estoque de produtos acabados. Garante que os pedidos cheguem no prazo ao cliente. Acessa: Clientes, Catálogo, Email, Dashboard (Contratos, Estoque).",
     icon: "🚚",
     permissoes: {
       ...BASE_FALSE,
@@ -239,7 +255,7 @@ const DEFAULT_CARGOS: DefaultCargo[] = [
   },
   {
     nome: "Supervisor Técnico",
-    descricao: "Supervisão de medições em campo, validação técnica e treinamento de equipe técnica",
+    descricao: "Supervisiona as medições técnicas em campo e treina a equipe de técnicos. Valida medidas antes da criação do projeto, acompanha a agenda de medições e garante a precisão técnica. Acessa: Clientes, Simulador, Catálogo, Medições, Liberação Técnica, Smart 3D, Dashboard (Projetista, Contratos, Medições, Estoque).",
     icon: "📋",
     permissoes: {
       ...BASE_FALSE,
@@ -254,7 +270,7 @@ const DEFAULT_CARGOS: DefaultCargo[] = [
   },
   {
     nome: "Supervisor Comercial",
-    descricao: "Apoio à equipe de vendas, monitoramento de metas, treinamento e acompanhamento de negociações",
+    descricao: "Apoia e monitora a equipe de vendas no dia a dia. Acompanha metas individuais, analisa taxas de conversão, treina novos vendedores e intervém em negociações complexas. Acessa: Clientes, Simulador, Catálogo, Chat de Vendas, Deal Room, Funil, Campanhas, Indicações, Dashboard (KPIs, Gráficos, Leads, Contratos).",
     icon: "📊",
     permissoes: {
       ...BASE_FALSE,
