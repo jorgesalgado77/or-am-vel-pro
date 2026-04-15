@@ -1641,6 +1641,70 @@ export function useOnboardingAI(tenantId: string | null) {
       return true;
     }
 
+    // === "minhas permissões" command ===
+    if (/minhas?\s+permiss[õo]es|meu\s+acesso|o\s+que\s+posso\s+acessar|minhas?\s+fun[çc][õo]es/i.test(lower)) {
+      const MIA_PERM_LABELS: Record<string, string> = {
+        mia_alertas_proativos: "Alertas Proativos",
+        mia_kpis: "KPIs e Métricas",
+        mia_leads: "Informações de Leads",
+        mia_mensagens: "Mensagens Pendentes",
+        mia_tarefas: "Gestão de Tarefas",
+        mia_financeiro: "Dados Financeiros",
+        mia_estoque: "Alertas de Estoque",
+        mia_medicoes: "Medições Pendentes",
+        mia_contratos: "Dados de Contratos",
+        mia_fluxo_vendas: "Fluxo de Vendas",
+        mia_pesquisa_mercado: "Pesquisa de Mercado",
+        mia_criar_tarefas: "Criar Tarefas",
+        mia_enviar_email: "Enviar E-mails",
+        mia_followup_auto: "Follow-up Automático",
+      };
+      const GENERAL_PERM_LABELS: Record<string, string> = {
+        clientes: "Clientes", simulador: "Simulador", configuracoes: "Configurações",
+        folha_pagamento: "Folha de Pagamento", financeiro: "Financeiro", planos: "Planos",
+        funil: "Funil de Captação", campanhas: "Campanhas", indicacoes: "Indicações",
+        vendazap: "VendaZap AI", chat_vendas: "Chat Vendas", dealroom: "Deal Room",
+        smart3d: "3D Smart Import", catalogo: "Catálogo", medicao: "Medição",
+        liberacao: "Liberação", liberacao_tecnica: "Liberação Técnica", email: "Email",
+        cadastrar_produtos: "Cadastrar Produtos", mensagens: "Mensagens", suporte: "Suporte",
+      };
+      const perms = currentUser?.permissoes;
+      const cargoName = currentUser?.cargo_nome || "Não definido";
+      const cargoLower = cargoName.toLowerCase();
+      const isAdmin = cargoLower.includes("administrador") || cargoLower.includes("admin");
+
+      if (isAdmin) {
+        appendAssistant(`🤖 **Seu cargo: ${cargoName}**\n\n🎯 Como **Administrador**, você tem acesso total a todas as funções do sistema e da MIA. Nenhuma restrição ativa.`);
+      } else if (perms) {
+        const activeMia: string[] = [];
+        const blockedMia: string[] = [];
+        for (const [key, label] of Object.entries(MIA_PERM_LABELS)) {
+          if ((perms as any)[key] !== false) activeMia.push(label);
+          else blockedMia.push(label);
+        }
+        const activeGeneral: string[] = [];
+        const blockedGeneral: string[] = [];
+        for (const [key, label] of Object.entries(GENERAL_PERM_LABELS)) {
+          if ((perms as any)[key] !== false) activeGeneral.push(label);
+          else blockedGeneral.push(label);
+        }
+        const lines: string[] = [`🤖 **Seu cargo: ${cargoName}**\n`];
+        lines.push(`### 📋 Módulos do Sistema`);
+        if (activeGeneral.length > 0) lines.push(`✅ **Liberados** (${activeGeneral.length}): ${activeGeneral.join(", ")}`);
+        if (blockedGeneral.length > 0) lines.push(`🔒 **Restritos** (${blockedGeneral.length}): ${blockedGeneral.join(", ")}`);
+        lines.push(`\n### 🧠 Funções da MIA`);
+        if (activeMia.length > 0) lines.push(`✅ **Ativas** (${activeMia.length}): ${activeMia.join(", ")}`);
+        if (blockedMia.length > 0) lines.push(`🔒 **Bloqueadas** (${blockedMia.length}): ${blockedMia.join(", ")}`);
+        if (blockedMia.length === 0 && blockedGeneral.length === 0) {
+          lines.push(`\n🎯 Todas as funções estão disponíveis para você!`);
+        }
+        appendAssistant(lines.join("\n"));
+      } else {
+        appendAssistant(`🤖 **Seu cargo: ${cargoName}**\n\nNão foi possível carregar suas permissões. Tente novamente mais tarde.`);
+      }
+      return true;
+    }
+
     return false;
   }, [appendAssistant, context, tenantId, addAlert]);
 
