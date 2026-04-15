@@ -1122,9 +1122,13 @@ export function MeasurementRequestModal({
 
     if (inferredKind === "other") return null;
 
-    const thumbnailUrl = inferredKind === "pdf"
-      ? (await createPdfThumbnail(sourceUrl)) || sourceUrl
+    const cachedThumbnail = inferredKind === "pdf"
+      ? thumbnailCacheRef.current.get(sourceUrl) || getCachedPdfThumbnail(sourceUrl) || ""
       : sourceUrl;
+
+    if (cachedThumbnail && inferredKind === "pdf") {
+      thumbnailCacheRef.current.set(sourceUrl, cachedThumbnail);
+    }
 
     return {
       id: `${envId}-persisted-${normalizedAttachment?.id || normalizedAttachment?.path || index}`,
@@ -1132,12 +1136,49 @@ export function MeasurementRequestModal({
       mimeType,
       name,
       previewUrl: sourceUrl,
-      thumbnailUrl,
+      thumbnailUrl: cachedThumbnail,
       sourceUrl,
     };
   }
 
-  const handleFileChange = async (envId: string, files: FileList | null) => {
+  useEffect(() => {
+    if (!open) return;
+    const pdfAttachments = Object.values(envAttachments)
+      .flat()
+      .filter((attachment) => attachment.kind === "pdf" && attachment.sourceUrl && !attachment.thumbnailUrl);
+
+    if (pdfAttachments.length === 0) return;
+
+    let cancelled = false;
+
+    const warmPdfThumbnails = async () => {
+      for (const attachment of pdfAttachments) {
+        if (cancelled || !attachment.sourceUrl) return;
+        const thumbnail = await createPdfThumbnail(attachment.sourceUrl);
+        if (!thumbnail || cancelled) continue;
+
+        setEnvAttachments((prev) => {
+          let changed = false;
+          const nextEntries = Object.entries(prev).map(([envId, attachments]) => {
+            const nextAttachments = attachments.map((item) => {
+              if (item.id !== attachment.id || item.thumbnailUrl) return item;
+              changed = true;
+              return { ...item, thumbnailUrl: thumbnail };
+            });
+            return [envId, nextAttachments];
+          });
+
+          return changed ? Object.fromEntries(nextEntries) : prev;
+        });
+      }
+    };
+
+    void warmPdfThumbnails();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [createPdfThumbnail, envAttachments, open]);
     if (!files) return;
 
     const selectedFiles = Array.from(files);
