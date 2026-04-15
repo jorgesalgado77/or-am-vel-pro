@@ -5,6 +5,7 @@
  */
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -27,6 +28,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { sendPushIfEnabled } from "@/lib/pushHelper";
 import { sendWhatsAppText } from "@/lib/whatsappSender";
+import { getCachedPdfThumbnail, setCachedPdfThumbnail } from "@/lib/measurementCache";
 import type { Client, LastSimInfo } from "./kanbanTypes";
 import type { ClientTrackingRecord } from "@/hooks/useClientTracking";
 
@@ -801,6 +803,7 @@ export function MeasurementRequestModal({
     setHydrating(true);
 
     const loadData = async () => {
+      await waitForNextPaint();
       try {
         const [{ data: sims }, latestRequest, contractRes] = await Promise.all([
           supabase
@@ -1026,14 +1029,26 @@ export function MeasurementRequestModal({
       .catch(reject);
   }), []);
 
-  // In-memory thumbnail cache to avoid re-fetching and re-rendering
   const thumbnailCacheRef = useRef<Map<string, string>>(new Map());
 
+  const waitForNextPaint = useCallback(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      setTimeout(() => resolve(), 0);
+    });
+  }), []);
+
   const createPdfThumbnail = useCallback(async (source: string | File) => {
-    // Check cache for URL-based sources
     const cacheKey = typeof source === "string" ? source : null;
-    if (cacheKey && thumbnailCacheRef.current.has(cacheKey)) {
-      return thumbnailCacheRef.current.get(cacheKey)!;
+
+    if (cacheKey) {
+      const localCached = thumbnailCacheRef.current.get(cacheKey);
+      if (localCached) return localCached;
+
+      const sharedCached = getCachedPdfThumbnail(cacheKey);
+      if (sharedCached) {
+        thumbnailCacheRef.current.set(cacheKey, sharedCached);
+        return sharedCached;
+      }
     }
 
     try {
@@ -1051,8 +1066,10 @@ export function MeasurementRequestModal({
       await page.render({ canvas, canvasContext: context, viewport }).promise;
       const dataUrl = canvas.toDataURL("image/png");
 
-      // Store in cache
-      if (cacheKey) thumbnailCacheRef.current.set(cacheKey, dataUrl);
+      if (cacheKey) {
+        thumbnailCacheRef.current.set(cacheKey, dataUrl);
+        setCachedPdfThumbnail(cacheKey, dataUrl);
+      }
 
       return dataUrl;
     } catch {
@@ -1105,9 +1122,13 @@ export function MeasurementRequestModal({
 
     if (inferredKind === "other") return null;
 
-    const thumbnailUrl = inferredKind === "pdf"
-      ? (await createPdfThumbnail(sourceUrl)) || sourceUrl
+    const cachedThumbnail = inferredKind === "pdf"
+      ? thumbnailCacheRef.current.get(sourceUrl) || getCachedPdfThumbnail(sourceUrl) || ""
       : sourceUrl;
+
+    if (cachedThumbnail && inferredKind === "pdf") {
+      thumbnailCacheRef.current.set(sourceUrl, cachedThumbnail);
+    }
 
     return {
       id: `${envId}-persisted-${normalizedAttachment?.id || normalizedAttachment?.path || index}`,
@@ -1115,11 +1136,49 @@ export function MeasurementRequestModal({
       mimeType,
       name,
       previewUrl: sourceUrl,
-      thumbnailUrl,
+      thumbnailUrl: cachedThumbnail,
       sourceUrl,
     };
   }
 
+  useEffect(() => {
+    if (!open) return;
+    const pdfAttachments = Object.values(envAttachments)
+      .flat()
+      .filter((attachment) => attachment.kind === "pdf" && attachment.sourceUrl && !attachment.thumbnailUrl);
+
+    if (pdfAttachments.length === 0) return;
+
+    let cancelled = false;
+
+    const warmPdfThumbnails = async () => {
+      for (const attachment of pdfAttachments) {
+        if (cancelled || !attachment.sourceUrl) return;
+        const thumbnail = await createPdfThumbnail(attachment.sourceUrl);
+        if (!thumbnail || cancelled) continue;
+
+        setEnvAttachments((prev) => {
+          let changed = false;
+          const nextEntries = Object.entries(prev).map(([envId, attachments]) => {
+            const nextAttachments = attachments.map((item) => {
+              if (item.id !== attachment.id || item.thumbnailUrl) return item;
+              changed = true;
+              return { ...item, thumbnailUrl: thumbnail };
+            });
+            return [envId, nextAttachments];
+          });
+
+          return changed ? Object.fromEntries(nextEntries) : prev;
+        });
+      }
+    };
+
+    void warmPdfThumbnails();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [createPdfThumbnail, envAttachments, open]);
   const handleFileChange = async (envId: string, files: FileList | null) => {
     if (!files) return;
 
@@ -1589,14 +1648,36 @@ export function MeasurementRequestModal({
 
         <div className="flex-1 overflow-y-auto px-6 pb-2 relative" style={{ maxHeight: "calc(90vh - 140px)" }}>
           {hydrating && (
-            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                Carregando dados da solicitação...
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/85 backdrop-blur-sm">
+              <div className="w-full max-w-lg space-y-5 px-6 animate-fade-in">
+                <div className="pointer-events-none space-y-4 opacity-40 blur-[2px] select-none">
+                  <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 space-y-3">
+                    <Skeleton className="h-4 w-32" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                    </div>
+                  </div>
+                  <div className="bg-success/10 border border-success/30 rounded-lg p-4 space-y-3">
+                    <Skeleton className="h-4 w-36" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-center gap-3 text-base text-muted-foreground">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  <span>Carregando dados da solicitação...</span>
+                </div>
               </div>
             </div>
           )}
-          <div className="space-y-4 py-4">
+          <div className={cn("space-y-4 py-4 transition-opacity duration-200", hydrating && "opacity-20")}>
             {/* Store Info */}
             <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 space-y-2">
               <h4 className="text-sm font-semibold text-primary flex items-center gap-2">
