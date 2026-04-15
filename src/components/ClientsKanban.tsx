@@ -179,7 +179,7 @@ export function ClientsKanban({
       }
       return true;
     });
-  }, [localClients, search, filterProjetista, filterIndicador, filterTemperature, filterTipoCliente, effectiveDates, currentUser, cargoNome, liberadorMonth, measurementStatus, lastSims]);
+  }, [localClients, search, filterProjetista, filterIndicador, filterTemperature, filterTipoCliente, effectiveDates, currentUser, cargoNome, liberadorMonth, measurementStatus, lastSims, contractDates]);
 
   const isGerente = cargoNome.includes("gerente") && !isGerenteTecnico;
   const activeColumns = isTechnicalRole ? KANBAN_COLUMNS_TECNICO : (isAdmin || isGerente) ? KANBAN_ALL_COLUMNS : KANBAN_COLUMNS;
