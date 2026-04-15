@@ -1148,15 +1148,25 @@ export function MeasurementRequestModal({
       .flat()
       .filter((attachment) => attachment.kind === "pdf" && attachment.sourceUrl && !attachment.thumbnailUrl);
 
-    if (pdfAttachments.length === 0) return;
+    if (pdfAttachments.length === 0) {
+      setProcessingPdfCount(0);
+      return;
+    }
 
+    setProcessingPdfCount(pdfAttachments.length);
     let cancelled = false;
+    let remaining = pdfAttachments.length;
 
     const warmPdfThumbnails = async () => {
       for (const attachment of pdfAttachments) {
         if (cancelled || !attachment.sourceUrl) return;
         const thumbnail = await createPdfThumbnail(attachment.sourceUrl);
-        if (!thumbnail || cancelled) continue;
+        if (cancelled) return;
+
+        remaining--;
+        setProcessingPdfCount(Math.max(0, remaining));
+
+        if (!thumbnail) continue;
 
         setEnvAttachments((prev) => {
           let changed = false;
