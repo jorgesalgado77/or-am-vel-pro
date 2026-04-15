@@ -14,7 +14,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import {
   Save, Eye, EyeOff, CalendarSync, CheckCircle2, XCircle,
-  Plus, Trash2, Share2,
+  Plus, Trash2, Share2, Wifi, WifiOff, Loader2, FlaskConical,
 } from "lucide-react";
 
 const GCAL_PROVIDER_KEY = "google_calendar_master";
