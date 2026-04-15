@@ -201,30 +201,56 @@ export function AdminWhatsAppConfig() {
   const handleTestConnection = async () => {
     setTesting(true);
     setConnectionTestLog("");
+    setConnectionStatus("testing");
     try {
       if (provider === "evolution") {
         if (!evolutionUrl || !evolutionKey) {
           toast.error("Preencha a URL e API Key da Evolution API");
           setTesting(false);
+          setConnectionStatus("offline");
           return;
         }
         const url = `${evolutionUrl.replace(/\/$/, "")}/instance/fetchInstances`;
         const res = await fetch(url, { headers: { apikey: evolutionKey } });
         setConnectionTestLog(`[${res.status}] ${res.statusText} - ${url}`);
-        if (res.ok) toast.success("Conexão com Evolution API estabelecida!");
-        else toast.error(`Erro na conexão: ${res.status} ${res.statusText}`);
+        if (res.ok) {
+          toast.success("Conexão com Evolution API estabelecida!");
+          setConnectionStatus("online");
+        } else {
+          toast.error(`Erro na conexão: ${res.status} ${res.statusText}`);
+          setConnectionStatus("offline");
+        }
       } else if (provider === "twilio") {
         if (!twilioSid || !twilioToken) {
           toast.error("Preencha o Account SID e Auth Token do Twilio");
           setTesting(false);
+          setConnectionStatus("offline");
           return;
         }
-        setConnectionTestLog("Twilio: use o botão 'Enviar Teste' para validar envio.");
-        toast.info("Para testar o Twilio, use o botão 'Enviar Mensagem de Teste'.");
+        // Validate Twilio credentials by fetching account info
+        const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioSid.trim()}.json`;
+        const res = await fetch(twilioUrl, {
+          headers: {
+            Authorization: "Basic " + btoa(`${twilioSid.trim()}:${twilioToken.trim()}`),
+          },
+        });
+        const data = await res.json().catch(() => null);
+        setConnectionTestLog(`[${res.status}] ${res.statusText} - ${twilioUrl}\n${JSON.stringify(data || {}, null, 2)}`);
+        if (res.ok && data?.status === "active") {
+          toast.success(`Twilio conectado! Conta: ${data.friendly_name || twilioSid}`);
+          setConnectionStatus("online");
+        } else if (res.ok) {
+          toast.warning(`Twilio respondeu, mas status da conta: ${data?.status || "desconhecido"}`);
+          setConnectionStatus("online");
+        } else {
+          toast.error(`Falha na autenticação Twilio: ${res.status} ${data?.message || ""}`);
+          setConnectionStatus("offline");
+        }
       } else {
         if (!zapiInstanceId || !zapiToken || !zapiClientToken) {
           toast.error("Preencha Instância, Token e Client Token da Z-API");
           setTesting(false);
+          setConnectionStatus("offline");
           return;
         }
 
@@ -246,11 +272,17 @@ export function AdminWhatsAppConfig() {
           statusText === "open";
 
         setConnectionTestLog(`[${res.status}] ${res.statusText || "sem status"} - ${statusUrl} :: ${JSON.stringify(payload || {})}`);
-        if (res.ok || isConnected) toast.success("Conexão com Z-API estabelecida!");
-        else toast.error("Falha ao conectar na Z-API. Verifique Instância, Token e Client Token.");
+        if (res.ok || isConnected) {
+          toast.success("Conexão com Z-API estabelecida!");
+          setConnectionStatus("online");
+        } else {
+          toast.error("Falha ao conectar na Z-API. Verifique Instância, Token e Client Token.");
+          setConnectionStatus("offline");
+        }
       }
     } catch {
       toast.error("Erro ao testar conexão. Verifique a URL e credenciais.");
+      setConnectionStatus("offline");
     }
     setTesting(false);
   };
