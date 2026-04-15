@@ -14,7 +14,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import {
   Save, Eye, EyeOff, MessageSquare, CheckCircle2, XCircle,
-  Plus, Trash2, Edit, Send, Wifi, WifiOff,
+  Plus, Trash2, Edit, Send, Wifi, WifiOff, Loader2,
 } from "lucide-react";
 
 type WhatsAppProvider = "evolution" | "twilio" | "zapi";
@@ -95,6 +95,7 @@ export function AdminWhatsAppConfig() {
   const [testPhone, setTestPhone] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
   const [connectionTestLog, setConnectionTestLog] = useState("");
+  const [connectionStatus, setConnectionStatus] = useState<"idle" | "testing" | "online" | "offline">("idle");
 
   const fetchSettings = async () => {
     const { data } = await supabase
@@ -200,30 +201,56 @@ export function AdminWhatsAppConfig() {
   const handleTestConnection = async () => {
     setTesting(true);
     setConnectionTestLog("");
+    setConnectionStatus("testing");
     try {
       if (provider === "evolution") {
         if (!evolutionUrl || !evolutionKey) {
           toast.error("Preencha a URL e API Key da Evolution API");
           setTesting(false);
+          setConnectionStatus("offline");
           return;
         }
         const url = `${evolutionUrl.replace(/\/$/, "")}/instance/fetchInstances`;
         const res = await fetch(url, { headers: { apikey: evolutionKey } });
         setConnectionTestLog(`[${res.status}] ${res.statusText} - ${url}`);
-        if (res.ok) toast.success("Conexão com Evolution API estabelecida!");
-        else toast.error(`Erro na conexão: ${res.status} ${res.statusText}`);
+        if (res.ok) {
+          toast.success("Conexão com Evolution API estabelecida!");
+          setConnectionStatus("online");
+        } else {
+          toast.error(`Erro na conexão: ${res.status} ${res.statusText}`);
+          setConnectionStatus("offline");
+        }
       } else if (provider === "twilio") {
         if (!twilioSid || !twilioToken) {
           toast.error("Preencha o Account SID e Auth Token do Twilio");
           setTesting(false);
+          setConnectionStatus("offline");
           return;
         }
-        setConnectionTestLog("Twilio: use o botão 'Enviar Teste' para validar envio.");
-        toast.info("Para testar o Twilio, use o botão 'Enviar Mensagem de Teste'.");
+        // Validate Twilio credentials by fetching account info
+        const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioSid.trim()}.json`;
+        const res = await fetch(twilioUrl, {
+          headers: {
+            Authorization: "Basic " + btoa(`${twilioSid.trim()}:${twilioToken.trim()}`),
+          },
+        });
+        const data = await res.json().catch(() => null);
+        setConnectionTestLog(`[${res.status}] ${res.statusText} - ${twilioUrl}\n${JSON.stringify(data || {}, null, 2)}`);
+        if (res.ok && data?.status === "active") {
+          toast.success(`Twilio conectado! Conta: ${data.friendly_name || twilioSid}`);
+          setConnectionStatus("online");
+        } else if (res.ok) {
+          toast.warning(`Twilio respondeu, mas status da conta: ${data?.status || "desconhecido"}`);
+          setConnectionStatus("online");
+        } else {
+          toast.error(`Falha na autenticação Twilio: ${res.status} ${data?.message || ""}`);
+          setConnectionStatus("offline");
+        }
       } else {
         if (!zapiInstanceId || !zapiToken || !zapiClientToken) {
           toast.error("Preencha Instância, Token e Client Token da Z-API");
           setTesting(false);
+          setConnectionStatus("offline");
           return;
         }
 
@@ -245,11 +272,17 @@ export function AdminWhatsAppConfig() {
           statusText === "open";
 
         setConnectionTestLog(`[${res.status}] ${res.statusText || "sem status"} - ${statusUrl} :: ${JSON.stringify(payload || {})}`);
-        if (res.ok || isConnected) toast.success("Conexão com Z-API estabelecida!");
-        else toast.error("Falha ao conectar na Z-API. Verifique Instância, Token e Client Token.");
+        if (res.ok || isConnected) {
+          toast.success("Conexão com Z-API estabelecida!");
+          setConnectionStatus("online");
+        } else {
+          toast.error("Falha ao conectar na Z-API. Verifique Instância, Token e Client Token.");
+          setConnectionStatus("offline");
+        }
       }
     } catch {
       toast.error("Erro ao testar conexão. Verifique a URL e credenciais.");
+      setConnectionStatus("offline");
     }
     setTesting(false);
   };
@@ -290,6 +323,25 @@ export function AdminWhatsAppConfig() {
 
         if (res.ok) toast.success("Mensagem de teste enviada via Z-API!");
         else toast.error("Erro ao enviar mensagem de teste via Z-API");
+      } else if (provider === "twilio" && twilioSid && twilioToken && twilioPhone) {
+        const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioSid.trim()}/Messages.json`;
+        const res = await fetch(twilioUrl, {
+          method: "POST",
+          headers: {
+            Authorization: "Basic " + btoa(`${twilioSid.trim()}:${twilioToken.trim()}`),
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            To: "+55" + testPhone.replace(/\D/g, ""),
+            From: twilioPhone.trim(),
+            Body: "✅ Mensagem de teste - OrçaMóvel PRO Admin Master",
+          }),
+        });
+        if (res.ok) toast.success("SMS de teste enviado via Twilio!");
+        else {
+          const err = await res.json().catch(() => null);
+          toast.error(`Erro Twilio: ${err?.message || res.statusText}`);
+        }
       } else {
         toast.error("Configure as credenciais do provedor primeiro");
       }
@@ -389,9 +441,29 @@ export function AdminWhatsAppConfig() {
               <MessageSquare className="h-5 w-5 text-primary" />
               Configuração do WhatsApp — Admin Master
             </CardTitle>
-            <Badge variant={ativo ? "default" : "secondary"} className={`gap-1 ${ativo ? "bg-green-600 text-white" : ""}`}>
-              {ativo ? <><CheckCircle2 className="h-3 w-3" />Ativo</> : <><XCircle className="h-3 w-3" />Inativo</>}
-            </Badge>
+            <div className="flex items-center gap-2">
+              {connectionStatus === "online" && (
+                <Badge className="gap-1.5 text-[10px] px-2 py-0.5 bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 dark:text-emerald-400">
+                  <Wifi className="h-3 w-3" />
+                  {provider === "evolution" ? "Evolution Online" : provider === "twilio" ? "Twilio Online" : "Z-API Online"}
+                </Badge>
+              )}
+              {connectionStatus === "offline" && (
+                <Badge variant="destructive" className="gap-1.5 text-[10px] px-2 py-0.5">
+                  <WifiOff className="h-3 w-3" />
+                  {provider === "evolution" ? "Evolution Offline" : provider === "twilio" ? "Twilio Offline" : "Z-API Offline"}
+                </Badge>
+              )}
+              {connectionStatus === "testing" && (
+                <Badge variant="outline" className="gap-1.5 text-[10px] px-2 py-0.5 animate-pulse">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Testando...
+                </Badge>
+              )}
+              <Badge variant={ativo ? "default" : "secondary"} className={`gap-1 ${ativo ? "bg-green-600 text-white" : ""}`}>
+                {ativo ? <><CheckCircle2 className="h-3 w-3" />Ativo</> : <><XCircle className="h-3 w-3" />Inativo</>}
+              </Badge>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -540,18 +612,18 @@ export function AdminWhatsAppConfig() {
         <CardContent className="space-y-4">
           <div className="flex gap-3">
             <Button variant="outline" onClick={handleTestConnection} disabled={testing} className="gap-2">
-              {testing ? <WifiOff className="h-4 w-4 animate-pulse" /> : <Wifi className="h-4 w-4" />}
+              {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wifi className="h-4 w-4" />}
               {testing ? "Testando..." : "Testar Conexão"}
             </Button>
           </div>
-          {provider === "zapi" && (
+          {connectionTestLog && (
             <div>
-              <Label>Log do teste Z-API</Label>
+              <Label>Log do teste</Label>
               <Textarea
                 value={connectionTestLog}
                 readOnly
-                placeholder="Clique em 'Testar Conexão' para ver o retorno do endpoint de status."
-                rows={7}
+                placeholder="Clique em 'Testar Conexão' para ver o retorno."
+                rows={5}
                 className="mt-1 font-mono text-xs"
               />
             </div>
