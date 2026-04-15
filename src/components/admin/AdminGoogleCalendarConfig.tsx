@@ -175,7 +175,29 @@ export function AdminGoogleCalendarConfig() {
     }
   };
 
-  const openShareDialog = () => {
+  const testConnection = async () => {
+    if (!clientId.trim()) {
+      toast.error("Preencha o Client ID antes de testar.");
+      return;
+    }
+    setTestStatus("testing");
+    try {
+      const { data, error } = await supabase.functions.invoke("google-calendar-auth", {
+        body: { action: "testConnection", client_id: clientId.trim(), client_secret: clientSecret.trim() },
+      });
+      if (error || data?.error) {
+        setTestStatus("offline");
+        toast.error("Conexão falhou: " + (data?.error || error?.message || "Erro desconhecido"));
+      } else {
+        setTestStatus("online");
+        toast.success("✅ API Google Calendar está online e acessível!");
+      }
+    } catch (e: any) {
+      setTestStatus("offline");
+      toast.error("Erro ao testar: " + (e?.message || "desconhecido"));
+    }
+  };
+
     const now = new Date();
     setShareTenantId("");
     setShareStartsAt(formatForInput(now.toISOString()));
