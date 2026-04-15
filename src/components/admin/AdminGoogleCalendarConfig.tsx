@@ -182,15 +182,27 @@ export function AdminGoogleCalendarConfig() {
     }
     setTestStatus("testing");
     try {
-      const { data, error } = await supabase.functions.invoke("google-calendar-auth", {
-        body: { action: "testConnection", client_id: clientId.trim(), client_secret: clientSecret.trim() },
+      // Test credentials directly against Google's token endpoint
+      const res = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: clientId.trim(),
+          client_secret: clientSecret.trim() || "",
+          grant_type: "authorization_code",
+          code: "test_invalid_code",
+          redirect_uri: "https://localhost",
+        }),
       });
-      if (error || data?.error) {
+      const data = await res.json().catch(() => null);
+      // "invalid_grant" or "redirect_uri_mismatch" = credentials valid
+      // "invalid_client" = credentials wrong
+      if (data?.error === "invalid_client") {
         setTestStatus("offline");
-        toast.error("Conexão falhou: " + (data?.error || error?.message || "Erro desconhecido"));
+        toast.error("Client ID ou Client Secret inválido");
       } else {
         setTestStatus("online");
-        toast.success("✅ API Google Calendar está online e acessível!");
+        toast.success("✅ Credenciais válidas — API Google Calendar acessível!");
       }
     } catch (e: any) {
       setTestStatus("offline");
