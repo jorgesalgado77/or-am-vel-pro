@@ -165,6 +165,7 @@ export function useKanbanData(externalClients: Client[]) {
         });
 
         setContractClientIds(ids);
+        setContractDates(dateMap);
 
         const needsStatusUpdate = currentClients.filter(c => ids.has(c.id) && (c as any).status !== "fechado");
         const missingContractDate = currentClients.filter(c => ids.has(c.id) && !(c as any).data_contrato);
