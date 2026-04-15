@@ -441,9 +441,29 @@ export function AdminWhatsAppConfig() {
               <MessageSquare className="h-5 w-5 text-primary" />
               Configuração do WhatsApp — Admin Master
             </CardTitle>
-            <Badge variant={ativo ? "default" : "secondary"} className={`gap-1 ${ativo ? "bg-green-600 text-white" : ""}`}>
-              {ativo ? <><CheckCircle2 className="h-3 w-3" />Ativo</> : <><XCircle className="h-3 w-3" />Inativo</>}
-            </Badge>
+            <div className="flex items-center gap-2">
+              {connectionStatus === "online" && (
+                <Badge className="gap-1.5 text-[10px] px-2 py-0.5 bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 dark:text-emerald-400">
+                  <Wifi className="h-3 w-3" />
+                  {provider === "evolution" ? "Evolution Online" : provider === "twilio" ? "Twilio Online" : "Z-API Online"}
+                </Badge>
+              )}
+              {connectionStatus === "offline" && (
+                <Badge variant="destructive" className="gap-1.5 text-[10px] px-2 py-0.5">
+                  <WifiOff className="h-3 w-3" />
+                  {provider === "evolution" ? "Evolution Offline" : provider === "twilio" ? "Twilio Offline" : "Z-API Offline"}
+                </Badge>
+              )}
+              {connectionStatus === "testing" && (
+                <Badge variant="outline" className="gap-1.5 text-[10px] px-2 py-0.5 animate-pulse">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Testando...
+                </Badge>
+              )}
+              <Badge variant={ativo ? "default" : "secondary"} className={`gap-1 ${ativo ? "bg-green-600 text-white" : ""}`}>
+                {ativo ? <><CheckCircle2 className="h-3 w-3" />Ativo</> : <><XCircle className="h-3 w-3" />Inativo</>}
+              </Badge>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
