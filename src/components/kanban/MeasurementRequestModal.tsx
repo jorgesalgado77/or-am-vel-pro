@@ -803,6 +803,7 @@ export function MeasurementRequestModal({
     setHydrating(true);
 
     const loadData = async () => {
+      await waitForNextPaint();
       try {
         const [{ data: sims }, latestRequest, contractRes] = await Promise.all([
           supabase
