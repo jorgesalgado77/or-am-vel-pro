@@ -1,11 +1,10 @@
 /**
  * useMIAProactiveAlerts — Cargo-aware proactive alerts for MIA chat.
- * Vendedor → leads parados, mensagens pendentes
- * Projetista → medições pendentes, clientes aguardando projeto
- * Gerente/Admin → KPIs, equipe, visão global
+ * Now filters alerts based on cargo MIA permissions (mia_* flags).
  */
 import { useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import type { CargoPermissoes } from "@/hooks/useCargos";
 
 export interface ProactiveAlertAction {
   type: "send_followup" | "navigate" | "send_whatsapp" | "schedule_task";
@@ -22,7 +21,6 @@ export interface ProactiveAlert {
   detail: string;
   count: number;
   action?: { label: string; target: string };
-  /** Executable action for MIA agent mode */
   executableAction?: ProactiveAlertAction;
 }
 
@@ -41,10 +39,17 @@ function classifyCargo(cargoNome: string | null): CargoCategory {
   return "outro";
 }
 
+/** Check if a MIA permission is enabled (defaults to true if not set) */
+function hasMiaPerm(perms: CargoPermissoes | null | undefined, key: keyof CargoPermissoes): boolean {
+  if (!perms) return true; // admin / no perms = full access
+  return perms[key] !== false;
+}
+
 export function useMIAProactiveAlerts(
   tenantId: string | null,
   userId: string | null,
-  cargoNome?: string | null
+  cargoNome?: string | null,
+  cargoPermissoes?: CargoPermissoes | null
 ) {
   const runningRef = useRef(false);
   const cargo = classifyCargo(cargoNome ?? null);
@@ -55,182 +60,205 @@ export function useMIAProactiveAlerts(
     const lastCheck = sessionStorage.getItem(COOLDOWN_KEY);
     if (lastCheck && Date.now() - Number(lastCheck) < COOLDOWN_MS) return [];
 
+    // Admin cargo always gets all alerts
+    const isAdmin = cargo === "admin";
+    const p = isAdmin ? null : cargoPermissoes;
+
+    // If proactive alerts are globally disabled for this cargo, skip
+    if (!isAdmin && !hasMiaPerm(p, "mia_alertas_proativos")) return [];
+
     runningRef.current = true;
     const alerts: ProactiveAlert[] = [];
     const today = new Date().toISOString().slice(0, 10);
     const twoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString();
 
     try {
-      // === TAREFAS (all cargos — gerente/admin see team, others see own) ===
-      const tasksQuery = supabase
-        .from("tasks" as any)
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenantId)
-        .in("status", ["nova", "pendente", "em_execucao"])
-        .lte("data_tarefa", today);
+      // === TAREFAS ===
+      if (hasMiaPerm(p, "mia_tarefas")) {
+        const tasksQuery = supabase
+          .from("tasks" as any)
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .in("status", ["nova", "pendente", "em_execucao"])
+          .lte("data_tarefa", today);
 
-      if (cargo !== "gerente" && cargo !== "admin") {
-        tasksQuery.eq("assigned_to", userId);
-      }
+        if (cargo !== "gerente" && cargo !== "admin") {
+          tasksQuery.eq("assigned_to", userId);
+        }
 
-      const { count: overdueCount } = await tasksQuery;
-      if ((overdueCount || 0) > 0) {
-        const isTeam = cargo === "gerente" || cargo === "admin";
-        alerts.push({
-          type: "tarefas_atrasadas",
-          icon: "⏰",
-          title: isTeam ? "Tarefas da equipe atrasadas" : "Tarefas atrasadas",
-          detail: isTeam
-            ? `A equipe tem **${overdueCount}** tarefa(s) vencida(s). Acompanhe e redistribua!`
-            : `Você tem **${overdueCount}** tarefa(s) vencida(s) ou para hoje. Priorize-as!`,
-          count: overdueCount || 0,
-          action: { label: "Ver Tarefas", target: "tasks" },
-        });
+        const { count: overdueCount } = await tasksQuery;
+        if ((overdueCount || 0) > 0) {
+          const isTeam = cargo === "gerente" || cargo === "admin";
+          alerts.push({
+            type: "tarefas_atrasadas",
+            icon: "⏰",
+            title: isTeam ? "Tarefas da equipe atrasadas" : "Tarefas atrasadas",
+            detail: isTeam
+              ? `A equipe tem **${overdueCount}** tarefa(s) vencida(s). Acompanhe e redistribua!`
+              : `Você tem **${overdueCount}** tarefa(s) vencida(s) ou para hoje. Priorize-as!`,
+            count: overdueCount || 0,
+            action: { label: "Ver Tarefas", target: "tasks" },
+          });
+        }
       }
 
       // === VENDEDOR / OUTRO / ADMIN: Leads & mensagens ===
       if (cargo === "vendedor" || cargo === "outro" || cargo === "admin") {
-        const { count: leadsCount } = await supabase
-          .from("clients" as any)
-          .select("id", { count: "exact", head: true })
-          .eq("tenant_id", tenantId)
-          .in("status", ["novo", "em_atendimento"])
-          .lt("updated_at", twoDaysAgo);
+        if (hasMiaPerm(p, "mia_leads")) {
+          const { count: leadsCount } = await supabase
+            .from("clients" as any)
+            .select("id", { count: "exact", head: true })
+            .eq("tenant_id", tenantId)
+            .in("status", ["novo", "em_atendimento"])
+            .lt("updated_at", twoDaysAgo);
 
-        if ((leadsCount || 0) > 0) {
-          alerts.push({
-            type: "leads_parados",
-            icon: "🚨",
-            title: "Leads parados",
-            detail: `Você tem **${leadsCount}** lead(s) sem movimentação há mais de 2 dias. Faça follow-up!`,
-            count: leadsCount || 0,
-            action: { label: "Ver Leads", target: "clients" },
-            executableAction: {
-              type: "send_followup",
-              label: "Enviar follow-up automático",
-              target: "vendazap-chat",
-              requiresConfirmation: true,
-            },
-          });
+          if ((leadsCount || 0) > 0) {
+            alerts.push({
+              type: "leads_parados",
+              icon: "🚨",
+              title: "Leads parados",
+              detail: `Você tem **${leadsCount}** lead(s) sem movimentação há mais de 2 dias. Faça follow-up!`,
+              count: leadsCount || 0,
+              action: { label: "Ver Leads", target: "clients" },
+              executableAction: hasMiaPerm(p, "mia_followup_auto") ? {
+                type: "send_followup",
+                label: "Enviar follow-up automático",
+                target: "vendazap-chat",
+                requiresConfirmation: true,
+              } : undefined,
+            });
+          }
         }
 
-        const { count: unreadCount } = await supabase
-          .from("tracking_messages" as any)
-          .select("id", { count: "exact", head: true })
-          .eq("tenant_id", tenantId)
-          .eq("remetente_tipo", "cliente")
-          .eq("lida", false);
+        if (hasMiaPerm(p, "mia_mensagens")) {
+          const { count: unreadCount } = await supabase
+            .from("tracking_messages" as any)
+            .select("id", { count: "exact", head: true })
+            .eq("tenant_id", tenantId)
+            .eq("remetente_tipo", "cliente")
+            .eq("lida", false);
 
-        if ((unreadCount || 0) > 0) {
-          alerts.push({
-            type: "mensagens_pendentes",
-            icon: "💬",
-            title: "Mensagens não respondidas",
-            detail: `Há **${unreadCount}** mensagem(ns) aguardando resposta. Responda rápido!`,
-            count: unreadCount || 0,
-            action: { label: "Ver Mensagens", target: "vendazap-chat" },
-            executableAction: {
-              type: "navigate",
-              label: "Abrir Chat de Vendas",
-              target: "vendazap-chat",
-              requiresConfirmation: false,
-            },
-          });
+          if ((unreadCount || 0) > 0) {
+            alerts.push({
+              type: "mensagens_pendentes",
+              icon: "💬",
+              title: "Mensagens não respondidas",
+              detail: `Há **${unreadCount}** mensagem(ns) aguardando resposta. Responda rápido!`,
+              count: unreadCount || 0,
+              action: { label: "Ver Mensagens", target: "vendazap-chat" },
+              executableAction: {
+                type: "navigate",
+                label: "Abrir Chat de Vendas",
+                target: "vendazap-chat",
+                requiresConfirmation: false,
+              },
+            });
+          }
         }
       }
 
       // === GERENTE / ADMIN: KPIs, equipe, visão global ===
       if (cargo === "gerente" || cargo === "admin") {
-        const { count: allStaleLeads } = await supabase
-          .from("clients" as any)
-          .select("id", { count: "exact", head: true })
-          .eq("tenant_id", tenantId)
-          .in("status", ["novo", "em_atendimento"])
-          .lt("updated_at", twoDaysAgo);
+        if (hasMiaPerm(p, "mia_leads")) {
+          const { count: allStaleLeads } = await supabase
+            .from("clients" as any)
+            .select("id", { count: "exact", head: true })
+            .eq("tenant_id", tenantId)
+            .in("status", ["novo", "em_atendimento"])
+            .lt("updated_at", twoDaysAgo);
 
-        if ((allStaleLeads || 0) > 0) {
+          if ((allStaleLeads || 0) > 0) {
+            alerts.push({
+              type: "leads_equipe",
+              icon: "📊",
+              title: "Leads parados na loja",
+              detail: `A loja tem **${allStaleLeads}** lead(s) estagnado(s). Cobre follow-up da equipe!`,
+              count: allStaleLeads || 0,
+              action: { label: "Ver Dashboard", target: "dashboard" },
+            });
+          }
+        }
+
+        if (hasMiaPerm(p, "mia_contratos")) {
+          const monthStart = new Date();
+          monthStart.setDate(1);
+          monthStart.setHours(0, 0, 0, 0);
+          const { count: contractsThisMonth } = await supabase
+            .from("client_contracts" as any)
+            .select("id", { count: "exact", head: true })
+            .eq("tenant_id", tenantId)
+            .gte("created_at", monthStart.toISOString());
+
           alerts.push({
-            type: "leads_equipe",
-            icon: "📊",
-            title: "Leads parados na loja",
-            detail: `A loja tem **${allStaleLeads}** lead(s) estagnado(s). Cobre follow-up da equipe!`,
-            count: allStaleLeads || 0,
-            action: { label: "Ver Dashboard", target: "dashboard" },
+            type: "kpi_contratos",
+            icon: "📈",
+            title: "KPI — Contratos do mês",
+            detail: `**${contractsThisMonth || 0}** contrato(s) fechado(s) este mês. Acompanhe as metas!`,
+            count: contractsThisMonth || 0,
+            action: { label: "Ver KPIs", target: "dashboard" },
           });
         }
 
-        const monthStart = new Date();
-        monthStart.setDate(1);
-        monthStart.setHours(0, 0, 0, 0);
-        const { count: contractsThisMonth } = await supabase
-          .from("client_contracts" as any)
-          .select("id", { count: "exact", head: true })
-          .eq("tenant_id", tenantId)
-          .gte("created_at", monthStart.toISOString());
+        if (hasMiaPerm(p, "mia_mensagens")) {
+          const { count: teamUnread } = await supabase
+            .from("tracking_messages" as any)
+            .select("id", { count: "exact", head: true })
+            .eq("tenant_id", tenantId)
+            .eq("remetente_tipo", "cliente")
+            .eq("lida", false);
 
-        alerts.push({
-          type: "kpi_contratos",
-          icon: "📈",
-          title: "KPI — Contratos do mês",
-          detail: `**${contractsThisMonth || 0}** contrato(s) fechado(s) este mês. Acompanhe as metas!`,
-          count: contractsThisMonth || 0,
-          action: { label: "Ver KPIs", target: "dashboard" },
-        });
-
-        const { count: teamUnread } = await supabase
-          .from("tracking_messages" as any)
-          .select("id", { count: "exact", head: true })
-          .eq("tenant_id", tenantId)
-          .eq("remetente_tipo", "cliente")
-          .eq("lida", false);
-
-        if ((teamUnread || 0) > 0) {
-          alerts.push({
-            type: "mensagens_equipe",
-            icon: "💬",
-            title: "Mensagens pendentes da equipe",
-            detail: `Há **${teamUnread}** mensagem(ns) sem resposta na loja. Monitore!`,
-            count: teamUnread || 0,
-            action: { label: "Ver Chat", target: "vendazap-chat" },
-          });
+          if ((teamUnread || 0) > 0) {
+            alerts.push({
+              type: "mensagens_equipe",
+              icon: "💬",
+              title: "Mensagens pendentes da equipe",
+              detail: `Há **${teamUnread}** mensagem(ns) sem resposta na loja. Monitore!`,
+              count: teamUnread || 0,
+              action: { label: "Ver Chat", target: "vendazap-chat" },
+            });
+          }
         }
       }
 
       // === PROJETISTA: Medições & projetos ===
       if (cargo === "projetista") {
-        const { count: pendingMeasurements } = await supabase
-          .from("measurement_requests" as any)
-          .select("id", { count: "exact", head: true })
-          .eq("tenant_id", tenantId)
-          .in("status", ["pendente", "agendada"]);
+        if (hasMiaPerm(p, "mia_medicoes")) {
+          const { count: pendingMeasurements } = await supabase
+            .from("measurement_requests" as any)
+            .select("id", { count: "exact", head: true })
+            .eq("tenant_id", tenantId)
+            .in("status", ["pendente", "agendada"]);
 
-        if ((pendingMeasurements || 0) > 0) {
-          alerts.push({
-            type: "medicoes_pendentes",
-            icon: "📐",
-            title: "Medições pendentes",
-            detail: `Há **${pendingMeasurements}** medição(ões) aguardando execução!`,
-            count: pendingMeasurements || 0,
-            action: { label: "Ver Medições", target: "medicao" },
-          });
+          if ((pendingMeasurements || 0) > 0) {
+            alerts.push({
+              type: "medicoes_pendentes",
+              icon: "📐",
+              title: "Medições pendentes",
+              detail: `Há **${pendingMeasurements}** medição(ões) aguardando execução!`,
+              count: pendingMeasurements || 0,
+              action: { label: "Ver Medições", target: "medicao" },
+            });
+          }
         }
 
-        const { count: leadsNoSim } = await supabase
-          .from("clients" as any)
-          .select("id", { count: "exact", head: true })
-          .eq("tenant_id", tenantId)
-          .in("status", ["novo", "em_atendimento"])
-          .lt("updated_at", twoDaysAgo);
+        if (hasMiaPerm(p, "mia_leads")) {
+          const { count: leadsNoSim } = await supabase
+            .from("clients" as any)
+            .select("id", { count: "exact", head: true })
+            .eq("tenant_id", tenantId)
+            .in("status", ["novo", "em_atendimento"])
+            .lt("updated_at", twoDaysAgo);
 
-        if ((leadsNoSim || 0) > 0) {
-          alerts.push({
-            type: "leads_sem_projeto",
-            icon: "🏗️",
-            title: "Clientes aguardando projeto",
-            detail: `**${leadsNoSim}** cliente(s) sem movimentação. Verifique briefings pendentes!`,
-            count: leadsNoSim || 0,
-            action: { label: "Ver Clientes", target: "clients" },
-          });
+          if ((leadsNoSim || 0) > 0) {
+            alerts.push({
+              type: "leads_sem_projeto",
+              icon: "🏗️",
+              title: "Clientes aguardando projeto",
+              detail: `**${leadsNoSim}** cliente(s) sem movimentação. Verifique briefings pendentes!`,
+              count: leadsNoSim || 0,
+              action: { label: "Ver Clientes", target: "clients" },
+            });
+          }
         }
       }
 
@@ -242,7 +270,7 @@ export function useMIAProactiveAlerts(
     }
 
     return alerts;
-  }, [tenantId, userId, cargo]);
+  }, [tenantId, userId, cargo, cargoPermissoes]);
 
   return { checkAlerts };
 }
