@@ -198,6 +198,7 @@ export function AdminGoogleCalendarConfig() {
     }
   };
 
+  const openShareDialog = () => {
     const now = new Date();
     setShareTenantId("");
     setShareStartsAt(formatForInput(now.toISOString()));
