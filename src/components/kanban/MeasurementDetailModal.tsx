@@ -411,19 +411,42 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
       if (!tenantId) return;
       const snapshot = request.client_snapshot || {};
 
+      // Use cached tenant data (usuarios + cargos) when available
+      let usersData: any[] | null = null;
+      let cargosData: any[] | null = null;
+      const cached = getCachedTenantData(tenantId);
+      if (cached) {
+        usersData = cached.users;
+        cargosData = cached.cargos;
+      } else {
+        const [usersRes, cargosRes] = await Promise.all([
+          supabase.from("usuarios").select("id, auth_user_id, nome_completo, apelido, email, cargo_id").eq("tenant_id", tenantId) as any,
+          supabase.from("cargos").select("id, nome").eq("tenant_id", tenantId) as any,
+        ]);
+        usersData = usersRes.data;
+        cargosData = cargosRes.data;
+        if (usersData && cargosData) setCachedTenantData(tenantId, usersData, cargosData);
+      }
+
+      // Use cached client data
       const emptyResponse = Promise.resolve({ data: null } as any);
-      const [{ data: usersData }, { data: cargosData }, { data: clientData }, { data: trackingData }] = await Promise.all([
-        (supabase.from("usuarios").select("id, auth_user_id, nome_completo, apelido, email, cargo_id").eq("tenant_id", tenantId)) as any,
-        (supabase.from("cargos").select("id, nome").eq("tenant_id", tenantId)) as any,
-        request.client_id
-          ? ((supabase.from("clients" as any).select("*").eq("id", request.client_id).maybeSingle()) as any)
-          : emptyResponse,
-        request.tracking_id
-          ? ((supabase.from("client_tracking" as any).select("*").eq("id", request.tracking_id).maybeSingle()) as any)
-          : request.client_id
-            ? ((supabase.from("client_tracking" as any).select("*").eq("client_id", request.client_id).order("updated_at", { ascending: false }).limit(1).maybeSingle()) as any)
-            : emptyResponse,
-      ]);
+      let clientData: any = null;
+      if (request.client_id) {
+        const cachedClient = getCachedClient(request.client_id);
+        if (cachedClient) {
+          clientData = cachedClient;
+        } else {
+          const { data } = await (supabase.from("clients" as any).select("*").eq("id", request.client_id).maybeSingle()) as any;
+          clientData = data;
+          if (data) setCachedClient(request.client_id, data);
+        }
+      }
+
+      const { data: trackingData } = request.tracking_id
+        ? await ((supabase.from("client_tracking" as any).select("*").eq("id", request.tracking_id).maybeSingle()) as any)
+        : request.client_id
+          ? await ((supabase.from("client_tracking" as any).select("*").eq("client_id", request.client_id).order("updated_at", { ascending: false }).limit(1).maybeSingle()) as any)
+          : emptyResponse;
 
       const cargoMap = new Map((cargosData || []).map((cargo: any) => [cargo.id, cargo.nome]));
       const users = (usersData || []).map((user: any) => ({
