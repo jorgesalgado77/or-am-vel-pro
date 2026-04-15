@@ -14,7 +14,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import {
   Save, Eye, EyeOff, CalendarSync, CheckCircle2, XCircle,
-  Plus, Trash2, Share2,
+  Plus, Trash2, Share2, Wifi, WifiOff, Loader2, FlaskConical,
 } from "lucide-react";
 
 const GCAL_PROVIDER_KEY = "google_calendar_master";
@@ -54,6 +54,9 @@ export function AdminGoogleCalendarConfig() {
   const [clientSecret, setClientSecret] = useState("");
   const [redirectUri, setRedirectUri] = useState("");
   const [ativo, setAtivo] = useState(false);
+
+  // Connection test
+  const [testStatus, setTestStatus] = useState<"idle" | "testing" | "online" | "offline">("idle");
 
   // Sharing
   const [tenants, setTenants] = useState<TenantRow[]>([]);
@@ -172,7 +175,29 @@ export function AdminGoogleCalendarConfig() {
     }
   };
 
-  const openShareDialog = () => {
+  const testConnection = async () => {
+    if (!clientId.trim()) {
+      toast.error("Preencha o Client ID antes de testar.");
+      return;
+    }
+    setTestStatus("testing");
+    try {
+      const { data, error } = await supabase.functions.invoke("google-calendar-auth", {
+        body: { action: "testConnection", client_id: clientId.trim(), client_secret: clientSecret.trim() },
+      });
+      if (error || data?.error) {
+        setTestStatus("offline");
+        toast.error("Conexão falhou: " + (data?.error || error?.message || "Erro desconhecido"));
+      } else {
+        setTestStatus("online");
+        toast.success("✅ API Google Calendar está online e acessível!");
+      }
+    } catch (e: any) {
+      setTestStatus("offline");
+      toast.error("Erro ao testar: " + (e?.message || "desconhecido"));
+    }
+  };
+
     const now = new Date();
     setShareTenantId("");
     setShareStartsAt(formatForInput(now.toISOString()));
@@ -240,10 +265,32 @@ export function AdminGoogleCalendarConfig() {
       {/* Settings Card */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <CalendarSync className="h-5 w-5 text-primary" />
-            Configurações OAuth — Google Calendar
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <CalendarSync className="h-5 w-5 text-primary" />
+              Configurações OAuth — Google Calendar
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              {testStatus === "online" && (
+                <Badge className="gap-1.5 text-[10px] px-2 py-0.5 bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 dark:text-emerald-400">
+                  <Wifi className="h-3 w-3" />
+                  API Online
+                </Badge>
+              )}
+              {testStatus === "offline" && (
+                <Badge variant="destructive" className="gap-1.5 text-[10px] px-2 py-0.5">
+                  <WifiOff className="h-3 w-3" />
+                  API Offline
+                </Badge>
+              )}
+              {testStatus === "testing" && (
+                <Badge variant="outline" className="gap-1.5 text-[10px] px-2 py-0.5 animate-pulse">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Testando...
+                </Badge>
+              )}
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -305,10 +352,22 @@ export function AdminGoogleCalendarConfig() {
                 )}
               </span>
             </div>
-            <Button onClick={saveSettings} disabled={saving} className="gap-2">
-              <Save className="h-4 w-4" />
-              {saving ? "Salvando..." : "Salvar Configurações"}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={testConnection}
+                disabled={testStatus === "testing" || !clientId.trim()}
+                className="gap-2"
+              >
+                {testStatus === "testing" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FlaskConical className="h-4 w-4" />}
+                Testar Conexão
+              </Button>
+              <Button onClick={saveSettings} disabled={saving} className="gap-2">
+                <Save className="h-4 w-4" />
+                {saving ? "Salvando..." : "Salvar Configurações"}
+              </Button>
+            </div>
           </div>
 
           <Separator />
