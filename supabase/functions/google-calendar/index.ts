@@ -158,18 +158,27 @@ async function refreshAccessToken(refreshToken: string, tenantId: string) {
 }
 
 async function gcalFetch(config: AuthConfig, path: string, method = "GET", body?: unknown) {
+  // API keys only support reading public data — write ops require OAuth
+  if (config.type === "apikey" && method !== "GET") {
+    return {
+      success: false,
+      error: "Google Calendar requer autenticação OAuth para criar/editar/excluir eventos. Conecte sua conta Google em Configurações > Google Agenda.",
+      needs_oauth: true,
+      data: null,
+    };
+  }
+
   const url = `${GCAL_BASE}${path}`;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
 
+  let finalUrl = url;
   if (config.type === "oauth") {
     headers["Authorization"] = `Bearer ${config.accessToken}`;
-  }
-
-  let finalUrl = url;
-  if (config.type === "apikey") {
+    finalUrl = url;
+  } else if (config.type === "apikey") {
+    // API keys go as query parameter only, NOT as Authorization header
     const sep = url.includes("?") ? "&" : "?";
     finalUrl = `${url}${sep}key=${config.apiKey}`;
-    headers["Authorization"] = `Bearer ${config.apiKey}`;
   }
 
   const opts: RequestInit = { method, headers };
