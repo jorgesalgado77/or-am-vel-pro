@@ -75,6 +75,34 @@ export function useApiKeys(tenantId: string | null) {
       .update({ is_active: isActive })
       .eq("id", id);
     if (error) { toast.error("Erro ao alterar status"); return; }
+
+    // When deactivating, check if shared API is available as fallback
+    if (!isActive) {
+      const key = keys.find(k => k.id === id);
+      if (key && tenantId) {
+        try {
+          const { data: shares } = await (supabase as any)
+            .from("dealroom_api_shares")
+            .select("id, config_id, ends_at, is_active")
+            .eq("tenant_id", tenantId)
+            .eq("is_active", true);
+          if (shares) {
+            const configIds = shares.map((s: any) => s.config_id);
+            const { data: configs } = await (supabase as any)
+              .from("dealroom_api_configs")
+              .select("id, provider, nome")
+              .in("id", configIds);
+            const matchingShared = (configs || []).find(
+              (c: any) => c.provider === key.provider && new Date((shares.find((s: any) => s.config_id === c.id))?.ends_at) > new Date()
+            );
+            if (matchingShared) {
+              toast.info(`🔄 API compartilhada "${matchingShared.nome}" será utilizada automaticamente como fallback.`);
+            }
+          }
+        } catch {}
+      }
+    }
+
     await fetchKeys();
   };
 

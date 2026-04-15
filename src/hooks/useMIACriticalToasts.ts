@@ -93,6 +93,54 @@ export function useMIACriticalToasts(
           }
         }
 
+        // Shared API expiration urgent notifications (admin/gerente only)
+        if (isManager) {
+          try {
+            const { data: shares } = await (supabase as any)
+              .from("dealroom_api_shares")
+              .select("id, config_id, ends_at, is_active")
+              .eq("tenant_id", tenantId)
+              .eq("is_active", true);
+
+            if (shares && shares.length > 0) {
+              const configIds = [...new Set(shares.map((s: any) => s.config_id))];
+              const { data: configs } = await (supabase as any)
+                .from("dealroom_api_configs")
+                .select("id, nome")
+                .in("id", configIds);
+              const configMap = Object.fromEntries((configs || []).map((c: any) => [c.id, c]));
+              const now = new Date();
+
+              for (const s of shares) {
+                const config = configMap[s.config_id];
+                if (!config) continue;
+                const daysLeft = Math.ceil((new Date(s.ends_at).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                if (daysLeft < 0) {
+                  toast.error(`🔴 API "${config.nome}" expirou!`, {
+                    description: "Configure sua própria chave para manter o serviço funcionando.",
+                    duration: 10000,
+                    action: {
+                      label: "Configurar APIs",
+                      onClick: () => window.dispatchEvent(new CustomEvent("navigate-to-settings")),
+                    },
+                  });
+                } else if (daysLeft <= 3) {
+                  toast.warning(`⚠️ API "${config.nome}" expira em ${daysLeft} dia(s)`, {
+                    description: "Configure sua própria chave antes do vencimento.",
+                    duration: 8000,
+                    action: {
+                      label: "Configurar APIs",
+                      onClick: () => window.dispatchEvent(new CustomEvent("navigate-to-settings")),
+                    },
+                  });
+                }
+              }
+            }
+          } catch {
+            // Non-critical
+          }
+        }
+
         sessionStorage.setItem(COOLDOWN_KEY, String(Date.now()));
       } catch (err) {
         console.warn("[MIA Critical Toasts] Error:", err);
