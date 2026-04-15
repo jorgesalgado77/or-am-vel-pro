@@ -352,10 +352,22 @@ export function AdminGoogleCalendarConfig() {
                 )}
               </span>
             </div>
-            <Button onClick={saveSettings} disabled={saving} className="gap-2">
-              <Save className="h-4 w-4" />
-              {saving ? "Salvando..." : "Salvar Configurações"}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={testConnection}
+                disabled={testStatus === "testing" || !clientId.trim()}
+                className="gap-2"
+              >
+                {testStatus === "testing" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FlaskConical className="h-4 w-4" />}
+                Testar Conexão
+              </Button>
+              <Button onClick={saveSettings} disabled={saving} className="gap-2">
+                <Save className="h-4 w-4" />
+                {saving ? "Salvando..." : "Salvar Configurações"}
+              </Button>
+            </div>
           </div>
 
           <Separator />
