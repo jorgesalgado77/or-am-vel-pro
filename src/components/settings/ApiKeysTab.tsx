@@ -16,6 +16,7 @@ import { toast } from "sonner";
 export function ApiKeysTab() {
   const { tenantId } = useTenant();
   const { keys, loading, upsertKey, toggleKey, deleteKey } = useApiKeys(tenantId);
+  const { sharedApis, activeShared, expiringSoon, loading: sharedLoading } = useSharedApis(tenantId);
   const [showForm, setShowForm] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<ApiProvider | "">("");
   const [apiKey, setApiKey] = useState("");
