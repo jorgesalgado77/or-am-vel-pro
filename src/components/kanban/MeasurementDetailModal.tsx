@@ -304,9 +304,14 @@ const AttachmentPreview = forwardRef<HTMLButtonElement, { attachment: Normalized
 
     if (attachment.kind !== "pdf" || attachment.thumbnailUrl || !attachment.url) {
       setPdfThumbnailUrl(attachment.thumbnailUrl || "");
-      return () => {
-        active = false;
-      };
+      return () => { active = false; };
+    }
+
+    // Check cache first
+    const cached = getCachedPdfThumbnail(attachment.url);
+    if (cached) {
+      setPdfThumbnailUrl(cached);
+      return () => { active = false; };
     }
 
     const loadPdfThumbnail = async () => {
@@ -324,20 +329,17 @@ const AttachmentPreview = forwardRef<HTMLButtonElement, { attachment: Normalized
         await page.render({ canvas, canvasContext: context, viewport }).promise;
 
         if (active) {
-          setPdfThumbnailUrl(canvas.toDataURL("image/png"));
+          const dataUrl = canvas.toDataURL("image/png");
+          setCachedPdfThumbnail(attachment.url, dataUrl);
+          setPdfThumbnailUrl(dataUrl);
         }
       } catch {
-        if (active) {
-          setPdfThumbnailUrl("");
-        }
+        if (active) setPdfThumbnailUrl("");
       }
     };
 
     void loadPdfThumbnail();
-
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [attachment.kind, attachment.thumbnailUrl, attachment.url]);
 
   const visualPreviewUrl = attachment.kind === "pdf"
