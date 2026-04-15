@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { sendPushIfEnabled } from "@/lib/pushHelper";
 import { sendWhatsAppText } from "@/lib/whatsappSender";
+import { getCachedPdfThumbnail, setCachedPdfThumbnail } from "@/lib/measurementCache";
 import type { Client, LastSimInfo } from "./kanbanTypes";
 import type { ClientTrackingRecord } from "@/hooks/useClientTracking";
 
