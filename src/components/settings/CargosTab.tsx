@@ -421,10 +421,19 @@ export function CargosTab() {
     refresh();
   };
 
-  const dashKeys = Object.keys(PERM_LABELS_DASHBOARD);
+  const allPermKeys = { ...PERM_META_CORE, ...PERM_META_MENU, ...PERM_META_DASHBOARD, ...PERM_META_MIA };
   const cargosWithHiddenSections = cargos.map(c => {
-    const hidden = dashKeys.filter(k => (c.permissoes as any)?.[k] === false);
-    return { nome: c.nome, hiddenCount: hidden.length, hiddenLabels: hidden.map(k => PERM_LABELS_DASHBOARD[k]) };
+    const hiddenCore = Object.keys(PERM_META_CORE).filter(k => (c.permissoes as any)?.[k] === false);
+    const hiddenMenu = Object.keys(PERM_META_MENU).filter(k => (c.permissoes as any)?.[k] === false);
+    const hiddenDash = Object.keys(PERM_META_DASHBOARD).filter(k => (c.permissoes as any)?.[k] === false);
+    const hiddenMia = Object.keys(PERM_META_MIA).filter(k => (c.permissoes as any)?.[k] === false);
+    const sections: { category: string; labels: string[] }[] = [];
+    if (hiddenCore.length > 0) sections.push({ category: "Gerais", labels: hiddenCore.map(k => allPermKeys[k].label) });
+    if (hiddenMenu.length > 0) sections.push({ category: "Menu", labels: hiddenMenu.map(k => allPermKeys[k].label) });
+    if (hiddenDash.length > 0) sections.push({ category: "Dashboard", labels: hiddenDash.map(k => allPermKeys[k].label) });
+    if (hiddenMia.length > 0) sections.push({ category: "MIA", labels: hiddenMia.map(k => allPermKeys[k].label) });
+    const totalHidden = hiddenCore.length + hiddenMenu.length + hiddenDash.length + hiddenMia.length;
+    return { nome: c.nome, hiddenCount: totalHidden, sections };
   }).filter(c => c.hiddenCount > 0);
 
   const filteredCargos = cargos.filter(c =>
