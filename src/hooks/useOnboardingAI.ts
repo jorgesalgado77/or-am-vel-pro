@@ -1665,7 +1665,7 @@ export function useOnboardingAI(tenantId: string | null) {
         : enrichedMessages;
 
       const { data, error } = await miaInvoke("onboarding-ai", {
-          action: "chat", tenant_id: tid, messages: finalMessages, metadata: { cargo_nome: cargoNome },
+          action: "chat", tenant_id: tid, messages: finalMessages, metadata: { cargo_nome: cargoNome, cargo_permissoes: currentUser?.permissoes || null },
         }, { tenantId: tid, userId: currentUser?.id || "system", origin: "onboarding", context: "onboarding" });
 
       if (error) throw error;

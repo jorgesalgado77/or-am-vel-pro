@@ -100,7 +100,8 @@ class MIAOrchestrator {
 
           // Always inject system knowledge (cargo-aware)
           const cargoNome = (request.metadata?.cargo_nome as string) || undefined;
-          const systemKnowledgeCtx = this.systemKnowledge.buildSystemKnowledge(cargoNome);
+          const cargoPermissoes = (request.metadata?.cargo_permissoes as any) || undefined;
+          const systemKnowledgeCtx = this.systemKnowledge.buildSystemKnowledge(cargoNome, cargoPermissoes);
           promises.push(Promise.resolve(systemKnowledgeCtx));
 
           const [memoryCtx, insightsCtx, personalizationCtx, systemCtx] = await Promise.all(promises);

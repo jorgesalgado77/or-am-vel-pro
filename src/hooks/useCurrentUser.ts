@@ -61,6 +61,20 @@ const DEFAULT_PERMS: CargoPermissoes = {
   dash_contratos: true,
   dash_medicao: true,
   dash_estoque: true,
+  mia_alertas_proativos: true,
+  mia_kpis: true,
+  mia_leads: true,
+  mia_mensagens: true,
+  mia_tarefas: true,
+  mia_financeiro: true,
+  mia_estoque: true,
+  mia_medicoes: true,
+  mia_contratos: true,
+  mia_fluxo_vendas: true,
+  mia_pesquisa_mercado: true,
+  mia_criar_tarefas: true,
+  mia_enviar_email: true,
+  mia_followup_auto: true,
 };
 
 export function useCurrentUserLoader() {

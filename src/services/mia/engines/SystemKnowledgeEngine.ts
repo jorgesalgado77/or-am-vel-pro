@@ -8,9 +8,11 @@
  * - Where to click, what fields to fill, what to expect
  * - Proactive suggestions based on context
  *
- * This engine does NOT call external APIs — it returns structured
- * knowledge that is injected into the system prompt.
+ * Now respects cargo MIA permissions (mia_* flags) to filter
+ * which knowledge sections are injected.
  */
+
+import type { CargoPermissoes } from "@/hooks/useCargos";
 
 export interface SystemFlowStep {
   step: number;
@@ -415,10 +417,17 @@ export class SystemKnowledgeEngine {
    * Build a comprehensive system knowledge context string
    * for injection into the MIA system prompt.
    */
-  buildSystemKnowledge(cargoNome?: string): string {
+  buildSystemKnowledge(cargoNome?: string, permissoes?: CargoPermissoes | null): string {
     const cargo = this.normalizeCargo(cargoNome);
+    const isAdmin = cargo === "administrador";
     const guidance = CARGO_GUIDANCE[cargo];
     const parts: string[] = [];
+
+    // Helper: check MIA permission (admin always true)
+    const hasPerm = (key: keyof CargoPermissoes): boolean => {
+      if (isAdmin || !permissoes) return true;
+      return permissoes[key] !== false;
+    };
 
     parts.push("\n=== CONHECIMENTO DO SISTEMA ORÇAMÓVEL PRO ===");
     parts.push(`\nVocê é a MIA, assistente inteligente do OrçaMóvel Pro.`);
@@ -435,17 +444,19 @@ export class SystemKnowledgeEngine {
       parts.push(`• ${item}`);
     }
 
-    if (guidance.kpis.length > 0) {
+    if (hasPerm("mia_kpis") && guidance.kpis.length > 0) {
       parts.push(`\n## KPIs IMPORTANTES`);
       for (const kpi of guidance.kpis) {
         parts.push(`• ${kpi}`);
       }
     }
 
-    // Sales flow summary
-    parts.push(`\n## FLUXO COMPLETO DE VENDA`);
-    for (const step of SALES_FLOW) {
-      parts.push(`${step.step}. **${step.title}**: ${step.description}`);
+    // Sales flow summary — only if allowed
+    if (hasPerm("mia_fluxo_vendas")) {
+      parts.push(`\n## FLUXO COMPLETO DE VENDA`);
+      for (const step of SALES_FLOW) {
+        parts.push(`${step.step}. **${step.title}**: ${step.description}`);
+      }
     }
 
     // Available modules
@@ -455,6 +466,28 @@ export class SystemKnowledgeEngine {
       if (accessible) {
         parts.push(`• ${mod.icon} **${mod.name}** — ${mod.description}`);
       }
+    }
+
+    // Restrictions based on MIA permissions
+    const restrictions: string[] = [];
+    if (!hasPerm("mia_financeiro")) restrictions.push("dados financeiros (contas, fluxo de caixa, folha)");
+    if (!hasPerm("mia_estoque")) restrictions.push("alertas e dados de estoque");
+    if (!hasPerm("mia_leads")) restrictions.push("informações detalhadas de leads e funil");
+    if (!hasPerm("mia_mensagens")) restrictions.push("mensagens pendentes de clientes");
+    if (!hasPerm("mia_contratos")) restrictions.push("dados de contratos");
+    if (!hasPerm("mia_medicoes")) restrictions.push("medições técnicas");
+    if (!hasPerm("mia_criar_tarefas")) restrictions.push("criar tarefas automaticamente");
+    if (!hasPerm("mia_enviar_email")) restrictions.push("enviar e-mails");
+    if (!hasPerm("mia_followup_auto")) restrictions.push("disparar follow-ups automáticos");
+    if (!hasPerm("mia_pesquisa_mercado")) restrictions.push("pesquisas de mercado externas");
+
+    if (restrictions.length > 0) {
+      parts.push(`\n## RESTRIÇÕES DO CARGO`);
+      parts.push(`O cargo deste usuário NÃO tem permissão para acessar via MIA:`);
+      for (const r of restrictions) {
+        parts.push(`• ${r}`);
+      }
+      parts.push(`Se o usuário perguntar sobre esses temas, informe educadamente que ele não possui permissão e sugira falar com o administrador.`);
     }
 
     // Teaching instructions
@@ -469,6 +502,7 @@ export class SystemKnowledgeEngine {
     parts.push(`8. Use tabelas markdown para dados estruturados`);
     parts.push(`9. Adapte o tom ao cargo: direto para gerentes, detalhado para novatos`);
     parts.push(`10. Nunca diga "não sei" sem sugerir alternativa`);
+    parts.push(`11. NUNCA forneça informações sobre áreas restritas ao cargo do usuário`);
 
     return parts.join("\n");
   }

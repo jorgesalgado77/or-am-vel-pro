@@ -44,6 +44,21 @@ export interface CargoPermissoes {
   dash_contratos: boolean;
   dash_medicao: boolean;
   dash_estoque: boolean;
+  // MIA AI permissions
+  mia_alertas_proativos: boolean;
+  mia_kpis: boolean;
+  mia_leads: boolean;
+  mia_mensagens: boolean;
+  mia_tarefas: boolean;
+  mia_financeiro: boolean;
+  mia_estoque: boolean;
+  mia_medicoes: boolean;
+  mia_contratos: boolean;
+  mia_fluxo_vendas: boolean;
+  mia_pesquisa_mercado: boolean;
+  mia_criar_tarefas: boolean;
+  mia_enviar_email: boolean;
+  mia_followup_auto: boolean;
 }
 
 const DEFAULT_PERMISSOES: CargoPermissoes = {
@@ -85,6 +100,21 @@ const DEFAULT_PERMISSOES: CargoPermissoes = {
   dash_contratos: true,
   dash_medicao: true,
   dash_estoque: true,
+  // MIA defaults
+  mia_alertas_proativos: true,
+  mia_kpis: true,
+  mia_leads: true,
+  mia_mensagens: true,
+  mia_tarefas: true,
+  mia_financeiro: true,
+  mia_estoque: true,
+  mia_medicoes: true,
+  mia_contratos: true,
+  mia_fluxo_vendas: true,
+  mia_pesquisa_mercado: true,
+  mia_criar_tarefas: true,
+  mia_enviar_email: true,
+  mia_followup_auto: true,
 };
 
 export interface Cargo {
