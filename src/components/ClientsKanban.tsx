@@ -23,7 +23,7 @@ export function ClientsKanban({
 }: ClientsKanbanProps) {
   const {
     localClients, setLocalClients,
-    lastSims, followUpStatus, contractClientIds, measurementStatus, setMeasurementStatus, scheduledMeasurements,
+    lastSims, followUpStatus, contractClientIds, contractDates, measurementStatus, setMeasurementStatus, scheduledMeasurements,
     expandedClient, setExpandedClient,
     settings, projetistas, usuarios, indicadores, currentUser,
     tenantId, cargoNome, handleClientUpdate,
