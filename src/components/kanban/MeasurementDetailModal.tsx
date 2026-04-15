@@ -397,6 +397,7 @@ const AttachmentPreview = forwardRef<HTMLButtonElement, { attachment: Normalized
 export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
   const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(false);
   const [relatedRecords, setRelatedRecords] = useState<{ client: any | null; tracking: any | null }>({ client: null, tracking: null });
   const [resolvedNames, setResolvedNames] = useState<{
     creator: string; creatorCargo: string; seller: string; sellerCargo: string;
