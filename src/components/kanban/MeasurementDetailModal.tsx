@@ -583,7 +583,7 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
       }
     };
 
-    void resolve();
+    void resolve().finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [request]);
 
