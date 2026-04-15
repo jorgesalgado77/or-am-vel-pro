@@ -556,7 +556,76 @@ export function CargosTab() {
           </CardContent>
         </Card>
 
-        {/* Search + Export/Import */}
+        {/* Default / Standard Cargos */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Power className="h-5 w-5 text-primary" />
+              <CardTitle className="text-base">Cargos Padrão do Sistema</CardTitle>
+              <Badge variant="outline" className="ml-auto text-[10px]">
+                {activatedDefaults.filter(d => d.isActive).length}/{DEFAULT_CARGOS.length} ativos
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Cargos pré-configurados com permissões otimizadas para cada função. Ative para adicionar ao sistema com todas as permissões já definidas.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {activatedDefaults.map(dc => (
+                <div
+                  key={dc.nome}
+                  className={`rounded-lg border p-3 space-y-2 transition-colors ${
+                    dc.isActive
+                      ? "border-primary/40 bg-primary/5"
+                      : "border-border bg-muted/20"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{dc.icon}</span>
+                      <span className="text-sm font-semibold text-foreground">{dc.nome}</span>
+                    </div>
+                    {dc.isActive ? (
+                      <Badge variant="default" className="text-[9px] gap-1">
+                        <CheckCircle2 className="h-3 w-3" />Ativo
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-[9px]">Inativo</Badge>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">{dc.descricao}</p>
+                  <div>
+                    {dc.isActive ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full h-7 text-[11px] text-destructive hover:text-destructive"
+                        onClick={() => handleDeactivateDefault(dc.cargoId!, dc.nome)}
+                        disabled={activatingCargo === dc.nome}
+                      >
+                        {activatingCargo === dc.nome ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                        Desativar
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="w-full h-7 text-[11px]"
+                        onClick={() => handleActivateDefault(dc)}
+                        disabled={activatingCargo === dc.nome}
+                      >
+                        {activatingCargo === dc.nome ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Plus className="h-3 w-3 mr-1" />}
+                        Ativar Cargo
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
