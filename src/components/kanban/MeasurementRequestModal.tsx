@@ -1648,14 +1648,36 @@ export function MeasurementRequestModal({
 
         <div className="flex-1 overflow-y-auto px-6 pb-2 relative" style={{ maxHeight: "calc(90vh - 140px)" }}>
           {hydrating && (
-            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                Carregando dados da solicitação...
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/85 backdrop-blur-sm">
+              <div className="w-full max-w-lg space-y-5 px-6 animate-fade-in">
+                <div className="pointer-events-none space-y-4 opacity-40 blur-[2px] select-none">
+                  <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 space-y-3">
+                    <Skeleton className="h-4 w-32" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                    </div>
+                  </div>
+                  <div className="bg-success/10 border border-success/30 rounded-lg p-4 space-y-3">
+                    <Skeleton className="h-4 w-36" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-center gap-3 text-base text-muted-foreground">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  <span>Carregando dados da solicitação...</span>
+                </div>
               </div>
             </div>
           )}
-          <div className="space-y-4 py-4">
+          <div className={cn("space-y-4 py-4 transition-opacity duration-200", hydrating && "opacity-20")}>
             {/* Store Info */}
             <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 space-y-2">
               <h4 className="text-sm font-semibold text-primary flex items-center gap-2">
