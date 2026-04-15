@@ -422,19 +422,24 @@ export function CargosTab() {
   };
 
   const allPermKeys = { ...PERM_META_CORE, ...PERM_META_MENU, ...PERM_META_DASHBOARD, ...PERM_META_MIA };
-  const cargosWithHiddenSections = cargos.map(c => {
-    const hiddenCore = Object.keys(PERM_META_CORE).filter(k => (c.permissoes as any)?.[k] === false);
-    const hiddenMenu = Object.keys(PERM_META_MENU).filter(k => (c.permissoes as any)?.[k] === false);
-    const hiddenDash = Object.keys(PERM_META_DASHBOARD).filter(k => (c.permissoes as any)?.[k] === false);
-    const hiddenMia = Object.keys(PERM_META_MIA).filter(k => (c.permissoes as any)?.[k] === false);
+  const totalPermCount = Object.keys(allPermKeys).length;
+  const cargosWithPermSummary = cargos.map(c => {
+    const perms = c.permissoes || {};
+    const hiddenCore = Object.keys(PERM_META_CORE).filter(k => (perms as any)[k] === false);
+    const hiddenMenu = Object.keys(PERM_META_MENU).filter(k => (perms as any)[k] === false);
+    const hiddenDash = Object.keys(PERM_META_DASHBOARD).filter(k => (perms as any)[k] === false);
+    const hiddenMia = Object.keys(PERM_META_MIA).filter(k => (perms as any)[k] === false);
+    // Also check for keys NOT present in permissoes (might be new keys not saved yet — treat as default)
     const sections: { category: string; labels: string[] }[] = [];
     if (hiddenCore.length > 0) sections.push({ category: "Gerais", labels: hiddenCore.map(k => allPermKeys[k].label) });
     if (hiddenMenu.length > 0) sections.push({ category: "Menu", labels: hiddenMenu.map(k => allPermKeys[k].label) });
     if (hiddenDash.length > 0) sections.push({ category: "Dashboard", labels: hiddenDash.map(k => allPermKeys[k].label) });
     if (hiddenMia.length > 0) sections.push({ category: "MIA", labels: hiddenMia.map(k => allPermKeys[k].label) });
     const totalHidden = hiddenCore.length + hiddenMenu.length + hiddenDash.length + hiddenMia.length;
-    return { nome: c.nome, hiddenCount: totalHidden, sections };
-  }).filter(c => c.hiddenCount > 0);
+    const totalActive = totalPermCount - totalHidden;
+    return { nome: c.nome, hiddenCount: totalHidden, activeCount: totalActive, sections };
+  });
+  const cargosWithHiddenSections = cargosWithPermSummary.filter(c => c.hiddenCount > 0);
 
   const filteredCargos = cargos.filter(c =>
     c.nome.toLowerCase().includes(searchTerm.toLowerCase())
