@@ -1179,6 +1179,7 @@ export function MeasurementRequestModal({
       cancelled = true;
     };
   }, [createPdfThumbnail, envAttachments, open]);
+  const handleFileChange = async (envId: string, files: FileList | null) => {
     if (!files) return;
 
     const selectedFiles = Array.from(files);
