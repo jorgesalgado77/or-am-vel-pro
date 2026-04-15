@@ -728,7 +728,23 @@ export function AdminWhatsAppConfig() {
               </div>
               <div>
                 <Label>Número de Telefone</Label>
-                <Input value={twilioPhone} onChange={(e) => setTwilioPhone(e.target.value)} placeholder="+5511999999999" className="mt-1" />
+                <Input
+                  value={twilioPhone}
+                  onChange={(e) => {
+                    let v = e.target.value.replace(/\D/g, "").slice(0, 13);
+                    if (v.startsWith("55")) {
+                      if (v.length > 4) v = `+${v.slice(0, 2)} (${v.slice(2, 4)}) ${v.slice(4, 9)}${v.length > 9 ? "-" + v.slice(9) : ""}`;
+                      else if (v.length > 2) v = `+${v.slice(0, 2)} (${v.slice(2)}`;
+                      else v = `+${v}`;
+                    } else {
+                      v = e.target.value;
+                    }
+                    setTwilioPhone(v);
+                  }}
+                  placeholder="+55 (11) 99999-9999"
+                  className="mt-1"
+                  maxLength={20}
+                />
               </div>
             </>
           )}
