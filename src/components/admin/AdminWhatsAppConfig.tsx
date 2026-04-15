@@ -114,6 +114,15 @@ export function AdminWhatsAppConfig() {
   const [connectionTestLog, setConnectionTestLog] = useState("");
   const [connectionStatus, setConnectionStatus] = useState<"idle" | "testing" | "online" | "offline">("idle");
 
+  // Sharing
+  const [whatsappShares, setWhatsappShares] = useState<ShareRow[]>([]);
+  const [shareTenants, setShareTenants] = useState<TenantRow[]>([]);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareTenantId, setShareTenantId] = useState("");
+  const [shareStartsAt, setShareStartsAt] = useState("");
+  const [shareEndsAt, setShareEndsAt] = useState("");
+  const [shareSaving, setShareSaving] = useState(false);
+
   const fetchSettings = async () => {
     const { data } = await supabase
       .from("admin_whatsapp_settings" as any)
