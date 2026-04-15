@@ -106,6 +106,171 @@ const ALL_TOOLTIPS: Record<string, string> = {
   ...Object.fromEntries(Object.entries(PERM_META_MIA).map(([k, v]) => [k, v.tip])),
 };
 
+// ── Default / Standard Cargos ─────────────────────────────────
+
+interface DefaultCargo {
+  nome: string;
+  descricao: string;
+  icon: string;
+  permissoes: Partial<CargoPermissoes>;
+  tipoComissao: string;
+  comissaoDefault: number;
+}
+
+const BASE_FALSE: CargoPermissoes = {
+  clientes: false, simulador: false, configuracoes: false, desconto1: false, desconto2: false, desconto3: false, plus: false,
+  folha_pagamento: false, financeiro: false, planos: false, funil: false, campanhas: false, indicacoes: false,
+  vendazap: false, chat_vendas: false, dealroom: false, smart3d: false, divulgue_ganhe: false, mensagens: false, suporte: false,
+  ia_gerente: false, catalogo: false, medicao: false, liberacao: false, liberacao_tecnica: false, tutoriais: false, email: false, cadastrar_produtos: false,
+  dash_ia_auto: false, dash_kpis: false, dash_leads_origem: false, dash_graficos: false, dash_projetista: false,
+  dash_indicador: false, dash_produtos_vendidos: false, dash_contratos: false, dash_medicao: false, dash_estoque: false,
+  mia_alertas_proativos: true, mia_kpis: false, mia_leads: false, mia_mensagens: false, mia_tarefas: true,
+  mia_financeiro: false, mia_estoque: false, mia_medicoes: false, mia_contratos: false, mia_fluxo_vendas: false,
+  mia_pesquisa_mercado: false, mia_criar_tarefas: true, mia_enviar_email: false, mia_followup_auto: false,
+};
+
+const DEFAULT_CARGOS: DefaultCargo[] = [
+  {
+    nome: "Gerente",
+    descricao: "Gestão da equipe comercial, metas, aprovações de desconto e visão geral do faturamento",
+    icon: "👔",
+    permissoes: {
+      ...BASE_FALSE,
+      clientes: true, simulador: true, desconto1: true, desconto2: true, desconto3: true, plus: true,
+      ia_gerente: true, catalogo: true, medicao: true, liberacao: true, tutoriais: true, email: true,
+      folha_pagamento: true, financeiro: true, funil: true, campanhas: true, indicacoes: true,
+      vendazap: true, chat_vendas: true, dealroom: true, mensagens: true, suporte: true,
+      dash_ia_auto: true, dash_kpis: true, dash_leads_origem: true, dash_graficos: true, dash_projetista: true,
+      dash_indicador: true, dash_produtos_vendidos: true, dash_contratos: true, dash_medicao: true, dash_estoque: true,
+      mia_alertas_proativos: true, mia_kpis: true, mia_leads: true, mia_mensagens: true, mia_tarefas: true,
+      mia_financeiro: true, mia_estoque: true, mia_contratos: true, mia_fluxo_vendas: true,
+      mia_criar_tarefas: true, mia_enviar_email: true, mia_followup_auto: true,
+    },
+    tipoComissao: "fixa",
+    comissaoDefault: 2,
+  },
+  {
+    nome: "Gerente Técnico",
+    descricao: "Supervisão de medições, liberações técnicas e qualidade dos projetos",
+    icon: "🔧",
+    permissoes: {
+      ...BASE_FALSE,
+      clientes: true, simulador: true, desconto1: true, desconto2: true,
+      catalogo: true, medicao: true, liberacao: true, liberacao_tecnica: true, tutoriais: true, email: true,
+      smart3d: true, mensagens: true, suporte: true,
+      dash_kpis: true, dash_projetista: true, dash_contratos: true, dash_medicao: true, dash_estoque: true,
+      mia_alertas_proativos: true, mia_tarefas: true, mia_medicoes: true, mia_estoque: true, mia_contratos: true,
+      mia_criar_tarefas: true,
+    },
+    tipoComissao: "clt",
+    comissaoDefault: 0,
+  },
+  {
+    nome: "Liberador",
+    descricao: "Aprovação de pedidos, conferência de projetos e liberação para produção",
+    icon: "✅",
+    permissoes: {
+      ...BASE_FALSE,
+      clientes: true, simulador: true,
+      catalogo: true, liberacao: true, liberacao_tecnica: true, tutoriais: true, mensagens: true,
+      dash_contratos: true, dash_estoque: true,
+      mia_alertas_proativos: true, mia_tarefas: true, mia_contratos: true, mia_estoque: true,
+      mia_criar_tarefas: true,
+    },
+    tipoComissao: "clt_only",
+    comissaoDefault: 0,
+  },
+  {
+    nome: "Projetista",
+    descricao: "Criação de projetos, briefings, simulações técnicas e acompanhamento de produção",
+    icon: "📐",
+    permissoes: {
+      ...BASE_FALSE,
+      clientes: true, simulador: true, desconto1: true,
+      catalogo: true, medicao: true, tutoriais: true, email: true, smart3d: true, mensagens: true, suporte: true,
+      dash_projetista: true, dash_contratos: true, dash_medicao: true, dash_estoque: true,
+      mia_alertas_proativos: true, mia_tarefas: true, mia_medicoes: true, mia_leads: true,
+      mia_criar_tarefas: true, mia_fluxo_vendas: true,
+    },
+    tipoComissao: "fixa",
+    comissaoDefault: 1,
+  },
+  {
+    nome: "Comprador",
+    descricao: "Gestão de estoque, pedidos de compra e negociação com fornecedores",
+    icon: "🛒",
+    permissoes: {
+      ...BASE_FALSE,
+      catalogo: true, cadastrar_produtos: true, tutoriais: true, email: true, mensagens: true,
+      dash_estoque: true, dash_produtos_vendidos: true,
+      mia_alertas_proativos: true, mia_tarefas: true, mia_estoque: true,
+      mia_criar_tarefas: true, mia_enviar_email: true,
+    },
+    tipoComissao: "clt_only",
+    comissaoDefault: 0,
+  },
+  {
+    nome: "Gerente de Montagem",
+    descricao: "Coordenação de montagens, agendamento de equipes e controle de qualidade pós-entrega",
+    icon: "🏗️",
+    permissoes: {
+      ...BASE_FALSE,
+      clientes: true, catalogo: true, medicao: true, tutoriais: true, email: true, mensagens: true, suporte: true,
+      dash_contratos: true, dash_medicao: true, dash_estoque: true,
+      mia_alertas_proativos: true, mia_tarefas: true, mia_medicoes: true, mia_contratos: true, mia_estoque: true,
+      mia_criar_tarefas: true,
+    },
+    tipoComissao: "clt_only",
+    comissaoDefault: 0,
+  },
+  {
+    nome: "Gerente de Logística",
+    descricao: "Controle de entregas, rotas, agendamentos de transporte e gestão de estoque",
+    icon: "🚚",
+    permissoes: {
+      ...BASE_FALSE,
+      clientes: true, catalogo: true, tutoriais: true, email: true, mensagens: true, suporte: true,
+      dash_contratos: true, dash_estoque: true,
+      mia_alertas_proativos: true, mia_tarefas: true, mia_estoque: true, mia_contratos: true,
+      mia_criar_tarefas: true,
+    },
+    tipoComissao: "clt_only",
+    comissaoDefault: 0,
+  },
+  {
+    nome: "Supervisor Técnico",
+    descricao: "Supervisão de medições em campo, validação técnica e treinamento de equipe técnica",
+    icon: "📋",
+    permissoes: {
+      ...BASE_FALSE,
+      clientes: true, simulador: true,
+      catalogo: true, medicao: true, liberacao_tecnica: true, tutoriais: true, email: true, smart3d: true, mensagens: true, suporte: true,
+      dash_projetista: true, dash_contratos: true, dash_medicao: true, dash_estoque: true,
+      mia_alertas_proativos: true, mia_tarefas: true, mia_medicoes: true, mia_estoque: true,
+      mia_criar_tarefas: true,
+    },
+    tipoComissao: "clt_only",
+    comissaoDefault: 0,
+  },
+  {
+    nome: "Supervisor Comercial",
+    descricao: "Apoio à equipe de vendas, monitoramento de metas, treinamento e acompanhamento de negociações",
+    icon: "📊",
+    permissoes: {
+      ...BASE_FALSE,
+      clientes: true, simulador: true, desconto1: true, desconto2: true,
+      ia_gerente: true, catalogo: true, tutoriais: true, email: true,
+      funil: true, campanhas: true, indicacoes: true, vendazap: true, chat_vendas: true, dealroom: true, mensagens: true, suporte: true,
+      dash_ia_auto: true, dash_kpis: true, dash_leads_origem: true, dash_graficos: true, dash_projetista: true,
+      dash_indicador: true, dash_produtos_vendidos: true, dash_contratos: true,
+      mia_alertas_proativos: true, mia_kpis: true, mia_leads: true, mia_mensagens: true, mia_tarefas: true,
+      mia_contratos: true, mia_fluxo_vendas: true, mia_criar_tarefas: true, mia_followup_auto: true,
+    },
+    tipoComissao: "fixa",
+    comissaoDefault: 1,
+  },
+];
+
 // ── Permission row with tooltip ──────────────────────────────
 
 function PermRow({ permKey, label, checked, onToggle }: { permKey: string; label: string; checked: boolean; onToggle: () => void }) {
