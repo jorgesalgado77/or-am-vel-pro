@@ -147,13 +147,19 @@ export function useKanbanData(externalClients: Client[]) {
     if (!tenantId || localClients.length === 0) return;
     const fetchContractClients = async () => {
       const currentClients = localClientsRef.current;
-      const { data } = await supabase.from("client_contracts").select("client_id, created_at").eq("tenant_id", tenantId);
+      const { data } = await supabase.from("client_contracts").select("client_id, created_at, data_fechamento").eq("tenant_id", tenantId);
       if (data) {
         const ids = new Set((data as any[]).map((d: any) => d.client_id));
         const contractDateByClientId = new Map<string, string>();
+        const dateMap: Record<string, string> = {};
         (data as any[]).forEach((d: any) => {
-          if (d.client_id && d.created_at && !contractDateByClientId.has(d.client_id)) {
-            contractDateByClientId.set(d.client_id, d.created_at);
+          if (d.client_id) {
+            // Prefer data_fechamento, then created_at
+            const bestDate = d.data_fechamento || d.created_at;
+            if (bestDate && !contractDateByClientId.has(d.client_id)) {
+              contractDateByClientId.set(d.client_id, bestDate);
+              dateMap[d.client_id] = bestDate;
+            }
           }
         });
 
