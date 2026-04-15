@@ -93,6 +93,7 @@ export function MeasurementRequestModal({
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
   const [hydrating, setHydrating] = useState(false);
+  const [processingPdfCount, setProcessingPdfCount] = useState(0);
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   const [pdfPreviewImages, setPdfPreviewImages] = useState<string[]>([]);
   const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false);
@@ -1147,15 +1148,25 @@ export function MeasurementRequestModal({
       .flat()
       .filter((attachment) => attachment.kind === "pdf" && attachment.sourceUrl && !attachment.thumbnailUrl);
 
-    if (pdfAttachments.length === 0) return;
+    if (pdfAttachments.length === 0) {
+      setProcessingPdfCount(0);
+      return;
+    }
 
+    setProcessingPdfCount(pdfAttachments.length);
     let cancelled = false;
+    let remaining = pdfAttachments.length;
 
     const warmPdfThumbnails = async () => {
       for (const attachment of pdfAttachments) {
         if (cancelled || !attachment.sourceUrl) return;
         const thumbnail = await createPdfThumbnail(attachment.sourceUrl);
-        if (!thumbnail || cancelled) continue;
+        if (cancelled) return;
+
+        remaining--;
+        setProcessingPdfCount(Math.max(0, remaining));
+
+        if (!thumbnail) continue;
 
         setEnvAttachments((prev) => {
           let changed = false;
@@ -1872,6 +1883,14 @@ export function MeasurementRequestModal({
               <h4 className="text-sm font-semibold flex items-center gap-2">
                 Ambientes Vendidos ({environments.length})
               </h4>
+              {processingPdfCount > 0 && (
+                <div className="flex items-center gap-2 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 animate-fade-in">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
+                  <span className="text-xs text-muted-foreground">
+                    Processando {processingPdfCount} miniatura{processingPdfCount > 1 ? "s" : ""} PDF em segundo plano…
+                  </span>
+                </div>
+              )}
               {environments.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhum ambiente encontrado nas simulações.</p>
               ) : (
@@ -1929,6 +1948,11 @@ export function MeasurementRequestModal({
                                       className="h-full w-full object-cover"
                                       loading="lazy"
                                     />
+                                  ) : attachment.kind === "pdf" ? (
+                                    <div className="flex flex-col items-center justify-center gap-1">
+                                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                                      <span className="text-[7px] text-muted-foreground">Gerando…</span>
+                                    </div>
                                   ) : (
                                     <FileText className="h-6 w-6 text-muted-foreground" />
                                   )}
