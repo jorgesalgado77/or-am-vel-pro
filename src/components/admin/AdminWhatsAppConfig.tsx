@@ -986,6 +986,50 @@ export function AdminWhatsAppConfig() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* WhatsApp Share Dialog */}
+      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Compartilhar WhatsApp com loja</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>API</Label>
+              <Input value={`WhatsApp — ${provider === "evolution" ? "Evolution API" : provider === "twilio" ? "Twilio" : "Z-API"}`} readOnly />
+            </div>
+            <div className="space-y-2">
+              <Label>Loja</Label>
+              <Select value={shareTenantId} onValueChange={setShareTenantId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a loja" />
+                </SelectTrigger>
+                <SelectContent>
+                  {shareTenants.filter(t => t.ativo).map(t => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.nome_loja} {t.codigo_loja ? `• ${t.codigo_loja}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Início do uso</Label>
+                <Input type="datetime-local" value={shareStartsAt} onChange={(e) => setShareStartsAt(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Fim programado</Label>
+                <Input type="datetime-local" value={shareEndsAt} onChange={(e) => setShareEndsAt(e.target.value)} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShareDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={saveWhatsappShare} disabled={shareSaving}>{shareSaving ? "Salvando..." : "Salvar compartilhamento"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
