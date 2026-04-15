@@ -313,6 +313,59 @@ function PermRow({ permKey, label, checked, onToggle }: { permKey: string; label
   );
 }
 
+// ── Cargo Summary Card with expand/collapse ──────────────────
+
+interface CargoSummaryProps {
+  cargo: { nome: string; hiddenCount: number; activeCount: number; sections: { category: string; labels: string[] }[] };
+  totalPerms: number;
+}
+
+function CargoSummaryCard({ cargo: c, totalPerms }: CargoSummaryProps) {
+  const [expanded, setExpanded] = useState(false);
+  const hasRestrictions = c.hiddenCount > 0;
+
+  return (
+    <div className={`rounded-md border bg-background p-2.5 space-y-1 ${hasRestrictions ? "border-amber-500/30" : "border-emerald-500/30"}`}>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-foreground">{c.nome}</p>
+        <div className="flex items-center gap-1.5">
+          <Badge variant={hasRestrictions ? "secondary" : "default"} className="text-[9px]">
+            {c.activeCount}/{totalPerms} ativas
+          </Badge>
+          {hasRestrictions && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5 p-0"
+              onClick={() => setExpanded(!expanded)}
+            >
+              {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            </Button>
+          )}
+        </div>
+      </div>
+      {!hasRestrictions && (
+        <p className="text-[10px] text-emerald-600">✅ Todas as permissões ativas</p>
+      )}
+      {hasRestrictions && !expanded && (
+        <p className="text-[10px] text-muted-foreground/70 line-clamp-1">
+          🔒 {c.hiddenCount} restrição(ões): {c.sections.map(s => s.labels.join(", ")).join(", ")}
+        </p>
+      )}
+      {hasRestrictions && expanded && (
+        <div className="space-y-1 pt-1 border-t border-border/50">
+          {c.sections.map(s => (
+            <div key={s.category}>
+              <p className="text-[10px] font-medium text-muted-foreground">{s.category}:</p>
+              <p className="text-[10px] text-muted-foreground/70">{s.labels.join(", ")}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Component ────────────────────────────────────────────────
 
 export function CargosTab() {
@@ -422,19 +475,24 @@ export function CargosTab() {
   };
 
   const allPermKeys = { ...PERM_META_CORE, ...PERM_META_MENU, ...PERM_META_DASHBOARD, ...PERM_META_MIA };
-  const cargosWithHiddenSections = cargos.map(c => {
-    const hiddenCore = Object.keys(PERM_META_CORE).filter(k => (c.permissoes as any)?.[k] === false);
-    const hiddenMenu = Object.keys(PERM_META_MENU).filter(k => (c.permissoes as any)?.[k] === false);
-    const hiddenDash = Object.keys(PERM_META_DASHBOARD).filter(k => (c.permissoes as any)?.[k] === false);
-    const hiddenMia = Object.keys(PERM_META_MIA).filter(k => (c.permissoes as any)?.[k] === false);
+  const totalPermCount = Object.keys(allPermKeys).length;
+  const cargosWithPermSummary = cargos.map(c => {
+    const perms = c.permissoes || {};
+    const hiddenCore = Object.keys(PERM_META_CORE).filter(k => (perms as any)[k] === false);
+    const hiddenMenu = Object.keys(PERM_META_MENU).filter(k => (perms as any)[k] === false);
+    const hiddenDash = Object.keys(PERM_META_DASHBOARD).filter(k => (perms as any)[k] === false);
+    const hiddenMia = Object.keys(PERM_META_MIA).filter(k => (perms as any)[k] === false);
+    // Also check for keys NOT present in permissoes (might be new keys not saved yet — treat as default)
     const sections: { category: string; labels: string[] }[] = [];
     if (hiddenCore.length > 0) sections.push({ category: "Gerais", labels: hiddenCore.map(k => allPermKeys[k].label) });
     if (hiddenMenu.length > 0) sections.push({ category: "Menu", labels: hiddenMenu.map(k => allPermKeys[k].label) });
     if (hiddenDash.length > 0) sections.push({ category: "Dashboard", labels: hiddenDash.map(k => allPermKeys[k].label) });
     if (hiddenMia.length > 0) sections.push({ category: "MIA", labels: hiddenMia.map(k => allPermKeys[k].label) });
     const totalHidden = hiddenCore.length + hiddenMenu.length + hiddenDash.length + hiddenMia.length;
-    return { nome: c.nome, hiddenCount: totalHidden, sections };
-  }).filter(c => c.hiddenCount > 0);
+    const totalActive = totalPermCount - totalHidden;
+    return { nome: c.nome, hiddenCount: totalHidden, activeCount: totalActive, sections };
+  });
+  const cargosWithHiddenSections = cargosWithPermSummary.filter(c => c.hiddenCount > 0);
 
   const filteredCargos = cargos.filter(c =>
     c.nome.toLowerCase().includes(searchTerm.toLowerCase())
@@ -559,30 +617,19 @@ export function CargosTab() {
                 <p className="text-xs text-muted-foreground">{cargos.length} cargo{cargos.length !== 1 ? "s" : ""} cadastrado{cargos.length !== 1 ? "s" : ""}</p>
               </div>
             </div>
-            {cargosWithHiddenSections.length > 0 ? (
+            {cargosWithPermSummary.length > 0 ? (
               <div className="space-y-2">
                 <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                  <EyeOff className="h-3.5 w-3.5" /> Funções restritas por cargo:
+                  <EyeOff className="h-3.5 w-3.5" /> Permissões por cargo:
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {cargosWithHiddenSections.map(c => (
-                    <div key={c.nome} className="rounded-md border border-border bg-background p-2.5 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-semibold text-foreground">{c.nome}</p>
-                        <Badge variant="secondary" className="text-[9px]">{c.hiddenCount} restrições</Badge>
-                      </div>
-                      {c.sections.map(s => (
-                        <div key={s.category}>
-                          <p className="text-[10px] font-medium text-muted-foreground">{s.category}:</p>
-                          <p className="text-[10px] text-muted-foreground/70 line-clamp-2">{s.labels.join(", ")}</p>
-                        </div>
-                      ))}
-                    </div>
+                  {cargosWithPermSummary.map(c => (
+                    <CargoSummaryCard key={c.nome} cargo={c} totalPerms={totalPermCount} />
                   ))}
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground italic">Todos os cargos possuem todas as funções ativas.</p>
+              <p className="text-xs text-muted-foreground italic">Nenhum cargo cadastrado.</p>
             )}
           </CardContent>
         </Card>

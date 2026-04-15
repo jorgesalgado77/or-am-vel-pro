@@ -20,6 +20,7 @@ export function useKanbanData(externalClients: Client[]) {
   const [lastSims, setLastSims] = useState<Record<string, LastSimInfo>>({});
   const [followUpStatus, setFollowUpStatus] = useState<Record<string, "active" | "paused" | "completed">>({});
   const [contractClientIds, setContractClientIds] = useState<Set<string>>(new Set());
+  const [contractDates, setContractDates] = useState<Record<string, string>>({});
   const [measurementStatus, setMeasurementStatus] = useState<Record<string, { status: string; assigned_to: string | null; updated_at: string | null }>>({});
   const [scheduledMeasurements, setScheduledMeasurements] = useState<Record<string, { date: string; time: string; km?: number }>>({});
   const [expandedClient, setExpandedClient] = useState<Client | null>(null);
@@ -147,17 +148,24 @@ export function useKanbanData(externalClients: Client[]) {
     if (!tenantId || localClients.length === 0) return;
     const fetchContractClients = async () => {
       const currentClients = localClientsRef.current;
-      const { data } = await supabase.from("client_contracts").select("client_id, created_at").eq("tenant_id", tenantId);
+      const { data } = await supabase.from("client_contracts").select("client_id, created_at, data_fechamento").eq("tenant_id", tenantId);
       if (data) {
         const ids = new Set((data as any[]).map((d: any) => d.client_id));
         const contractDateByClientId = new Map<string, string>();
+        const dateMap: Record<string, string> = {};
         (data as any[]).forEach((d: any) => {
-          if (d.client_id && d.created_at && !contractDateByClientId.has(d.client_id)) {
-            contractDateByClientId.set(d.client_id, d.created_at);
+          if (d.client_id) {
+            // Prefer data_fechamento, then created_at
+            const bestDate = d.data_fechamento || d.created_at;
+            if (bestDate && !contractDateByClientId.has(d.client_id)) {
+              contractDateByClientId.set(d.client_id, bestDate);
+              dateMap[d.client_id] = bestDate;
+            }
           }
         });
 
         setContractClientIds(ids);
+        setContractDates(dateMap);
 
         const needsStatusUpdate = currentClients.filter(c => ids.has(c.id) && (c as any).status !== "fechado");
         const missingContractDate = currentClients.filter(c => ids.has(c.id) && !(c as any).data_contrato);
@@ -373,7 +381,7 @@ export function useKanbanData(externalClients: Client[]) {
   return {
     localClients, setLocalClients,
     measurementStatus, setMeasurementStatus,
-    lastSims, followUpStatus, contractClientIds, scheduledMeasurements,
+    lastSims, followUpStatus, contractClientIds, contractDates, scheduledMeasurements,
     expandedClient, setExpandedClient,
     settings, projetistas, usuarios, indicadores, currentUser,
     tenantId, cargoNome,

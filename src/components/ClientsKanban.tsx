@@ -23,7 +23,7 @@ export function ClientsKanban({
 }: ClientsKanbanProps) {
   const {
     localClients, setLocalClients,
-    lastSims, followUpStatus, contractClientIds, measurementStatus, setMeasurementStatus, scheduledMeasurements,
+    lastSims, followUpStatus, contractClientIds, contractDates, measurementStatus, setMeasurementStatus, scheduledMeasurements,
     expandedClient, setExpandedClient,
     settings, projetistas, usuarios, indicadores, currentUser,
     tenantId, cargoNome, handleClientUpdate,
@@ -163,12 +163,15 @@ export function ClientsKanban({
         const isActiveOperational = hasContract && mr && !["finalizado", "concluido"].includes((mr.status || "").toLowerCase());
         if (!isActiveLead && !isActiveOperational) {
           // For closed/expired/lost deals, apply period filter
+          // Priority: contractDates (data_fechamento from contract table) > data_contrato on client > lastSim > created_at
+          const contractTableDate = contractDates[c.id] ? new Date(contractDates[c.id]) : null;
           const contractDate = (c as any).data_contrato ? new Date((c as any).data_contrato) : null;
           const clientCreated = new Date(c.created_at);
           const lastSimDate = lastSims[c.id]?.created_at ? new Date(lastSims[c.id].created_at) : null;
           
           let relevantDate = lastSimDate && lastSimDate > clientCreated ? lastSimDate : clientCreated;
-          if (hasContract && contractDate) relevantDate = contractDate;
+          if (contractDate) relevantDate = contractDate;
+          if (contractTableDate) relevantDate = contractTableDate;
           
           if (start && isBefore(relevantDate, startOfDay(start))) return false;
           if (end && isAfter(relevantDate, endOfDay(end))) return false;
@@ -176,7 +179,7 @@ export function ClientsKanban({
       }
       return true;
     });
-  }, [localClients, search, filterProjetista, filterIndicador, filterTemperature, filterTipoCliente, effectiveDates, currentUser, cargoNome, liberadorMonth, measurementStatus, lastSims]);
+  }, [localClients, search, filterProjetista, filterIndicador, filterTemperature, filterTipoCliente, effectiveDates, currentUser, cargoNome, liberadorMonth, measurementStatus, lastSims, contractDates]);
 
   const isGerente = cargoNome.includes("gerente") && !isGerenteTecnico;
   const activeColumns = isTechnicalRole ? KANBAN_COLUMNS_TECNICO : (isAdmin || isGerente) ? KANBAN_ALL_COLUMNS : KANBAN_COLUMNS;
