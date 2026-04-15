@@ -182,10 +182,117 @@ export function AdminWhatsAppConfig() {
     if (data) setTemplates(data as unknown as MessageTemplate[]);
   };
 
+  const WHATSAPP_PROVIDER_KEY = "whatsapp_master";
+
+  const formatForInput = (value?: string | null) => {
+    if (!value) return "";
+    const date = new Date(value);
+    const timezoneOffset = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
+  };
+
+  const toIso = (value: string) => {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+  };
+
+  const fetchShareTenants = async () => {
+    const { data } = await supabase.from("tenants").select("id, nome_loja, codigo_loja, ativo").order("nome_loja");
+    if (data) setShareTenants(data as TenantRow[]);
+  };
+
+  const fetchWhatsappShares = async () => {
+    const { data: cfg } = await (supabase as any)
+      .from("dealroom_api_configs")
+      .select("id")
+      .eq("provider", WHATSAPP_PROVIDER_KEY)
+      .limit(1)
+      .maybeSingle();
+    if (!cfg) { setWhatsappShares([]); return; }
+    const { data } = await (supabase as any)
+      .from("dealroom_api_shares")
+      .select("*")
+      .eq("config_id", cfg.id)
+      .order("created_at", { ascending: false });
+    if (data) setWhatsappShares(data as ShareRow[]);
+  };
+
+  const openWhatsappShareDialog = () => {
+    const now = new Date();
+    setShareTenantId("");
+    setShareStartsAt(formatForInput(now.toISOString()));
+    setShareEndsAt(formatForInput(addDays(now, 30).toISOString()));
+    setShareDialogOpen(true);
+  };
+
+  const saveWhatsappShare = async () => {
+    if (!shareTenantId || !shareEndsAt) {
+      toast.error("Selecione a loja e o período.");
+      return;
+    }
+    setShareSaving(true);
+    try {
+      // Ensure config exists
+      const providerLabel = provider === "evolution" ? "Evolution API" : provider === "twilio" ? "Twilio" : "Z-API";
+      const configPayload = {
+        provider: WHATSAPP_PROVIDER_KEY,
+        nome: `WhatsApp ${providerLabel}`,
+        categoria: "whatsapp",
+        credenciais: { provider_type: provider },
+        is_active: ativo,
+        updated_at: new Date().toISOString(),
+        created_by: "admin_master",
+      };
+
+      const { data: cfgData } = await (supabase as any)
+        .from("dealroom_api_configs")
+        .upsert(configPayload, { onConflict: "provider" })
+        .select("id")
+        .single();
+
+      const cfgId = cfgData?.id;
+      if (!cfgId) {
+        toast.error("Erro ao criar configuração base.");
+        setShareSaving(false);
+        return;
+      }
+
+      const { error } = await (supabase as any)
+        .from("dealroom_api_shares")
+        .upsert({
+          config_id: cfgId,
+          tenant_id: shareTenantId,
+          starts_at: toIso(shareStartsAt),
+          ends_at: toIso(shareEndsAt),
+          is_active: true,
+          shared_by: "admin_master",
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "config_id,tenant_id" });
+
+      if (error) throw new Error(error.message);
+      toast.success("WhatsApp compartilhado com a loja!");
+      setShareDialogOpen(false);
+      fetchWhatsappShares();
+    } catch (error: any) {
+      toast.error("Erro: " + (error?.message || "desconhecido"));
+    } finally {
+      setShareSaving(false);
+    }
+  };
+
+  const removeWhatsappShare = async (shareId: string) => {
+    if (!confirm("Remover este compartilhamento?")) return;
+    await (supabase as any).from("dealroom_api_shares").delete().eq("id", shareId);
+    toast.success("Compartilhamento removido");
+    fetchWhatsappShares();
+  };
+
   useEffect(() => {
     fetchSettings();
     fetchTemplates();
     fetchZapiConfig();
+    fetchShareTenants();
+    fetchWhatsappShares();
   }, []);
 
   const handleSave = async () => {
