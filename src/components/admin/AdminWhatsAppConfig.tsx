@@ -45,6 +45,22 @@ interface MessageTemplate {
   created_at: string;
 }
 
+interface TenantRow {
+  id: string;
+  nome_loja: string;
+  codigo_loja: string | null;
+  ativo: boolean;
+}
+
+interface ShareRow {
+  id: string;
+  config_id: string;
+  tenant_id: string;
+  starts_at: string;
+  ends_at: string;
+  is_active: boolean;
+}
+
 const TEMPLATE_TYPES = [
   { value: "boas_vindas", label: "Boas-vindas" },
   { value: "credenciais", label: "Credenciais de Acesso" },
