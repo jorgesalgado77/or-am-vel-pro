@@ -813,6 +813,65 @@ export function AdminWhatsAppConfig() {
         </Button>
       </div>
 
+      {/* Sharing with Stores */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Share2 className="h-5 w-5 text-primary" />
+              Compartilhar WhatsApp com Lojas
+            </CardTitle>
+            <Button size="sm" onClick={openWhatsappShareDialog} className="gap-2">
+              <Plus className="h-3 w-3" /> Compartilhar com loja
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {whatsappShares.length === 0 ? (
+            <p className="text-center text-muted-foreground py-6 text-sm">Nenhum compartilhamento ativo.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Loja</TableHead>
+                  <TableHead>Início</TableHead>
+                  <TableHead>Fim</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-16">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {whatsappShares.map((share) => {
+                  const tenant = shareTenants.find(t => t.id === share.tenant_id);
+                  const now = new Date();
+                  const isExpired = new Date(share.ends_at) < now;
+                  const isActive = share.is_active && !isExpired;
+                  return (
+                    <TableRow key={share.id}>
+                      <TableCell className="font-medium">
+                        {tenant ? `${tenant.nome_loja}${tenant.codigo_loja ? ` • ${tenant.codigo_loja}` : ""}` : share.tenant_id.slice(0, 8)}
+                      </TableCell>
+                      <TableCell className="text-xs">{format(new Date(share.starts_at), "dd/MM/yyyy HH:mm")}</TableCell>
+                      <TableCell className="text-xs">{format(new Date(share.ends_at), "dd/MM/yyyy HH:mm")}</TableCell>
+                      <TableCell>
+                        <Badge variant={isActive ? "default" : "secondary"} className={isActive ? "bg-green-600 text-white" : ""}>
+                          {isExpired ? "Expirado" : isActive ? "Ativo" : "Inativo"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeWhatsappShare(share.id)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
       <Separator className="my-8" />
 
       {/* Message Templates */}
