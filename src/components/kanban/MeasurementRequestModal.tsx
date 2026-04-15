@@ -1948,6 +1948,11 @@ export function MeasurementRequestModal({
                                       className="h-full w-full object-cover"
                                       loading="lazy"
                                     />
+                                  ) : attachment.kind === "pdf" ? (
+                                    <div className="flex flex-col items-center justify-center gap-1">
+                                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                                      <span className="text-[7px] text-muted-foreground">Gerando…</span>
+                                    </div>
                                   ) : (
                                     <FileText className="h-6 w-6 text-muted-foreground" />
                                   )}
