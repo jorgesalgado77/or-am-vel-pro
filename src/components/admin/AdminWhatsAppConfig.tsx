@@ -612,18 +612,18 @@ export function AdminWhatsAppConfig() {
         <CardContent className="space-y-4">
           <div className="flex gap-3">
             <Button variant="outline" onClick={handleTestConnection} disabled={testing} className="gap-2">
-              {testing ? <WifiOff className="h-4 w-4 animate-pulse" /> : <Wifi className="h-4 w-4" />}
+              {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wifi className="h-4 w-4" />}
               {testing ? "Testando..." : "Testar Conexão"}
             </Button>
           </div>
-          {provider === "zapi" && (
+          {connectionTestLog && (
             <div>
-              <Label>Log do teste Z-API</Label>
+              <Label>Log do teste</Label>
               <Textarea
                 value={connectionTestLog}
                 readOnly
-                placeholder="Clique em 'Testar Conexão' para ver o retorno do endpoint de status."
-                rows={7}
+                placeholder="Clique em 'Testar Conexão' para ver o retorno."
+                rows={5}
                 className="mt-1 font-mono text-xs"
               />
             </div>
