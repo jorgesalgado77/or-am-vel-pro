@@ -323,6 +323,25 @@ export function AdminWhatsAppConfig() {
 
         if (res.ok) toast.success("Mensagem de teste enviada via Z-API!");
         else toast.error("Erro ao enviar mensagem de teste via Z-API");
+      } else if (provider === "twilio" && twilioSid && twilioToken && twilioPhone) {
+        const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioSid.trim()}/Messages.json`;
+        const res = await fetch(twilioUrl, {
+          method: "POST",
+          headers: {
+            Authorization: "Basic " + btoa(`${twilioSid.trim()}:${twilioToken.trim()}`),
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            To: "+55" + testPhone.replace(/\D/g, ""),
+            From: twilioPhone.trim(),
+            Body: "✅ Mensagem de teste - OrçaMóvel PRO Admin Master",
+          }),
+        });
+        if (res.ok) toast.success("SMS de teste enviado via Twilio!");
+        else {
+          const err = await res.json().catch(() => null);
+          toast.error(`Erro Twilio: ${err?.message || res.statusText}`);
+        }
       } else {
         toast.error("Configure as credenciais do provedor primeiro");
       }
