@@ -564,30 +564,19 @@ export function CargosTab() {
                 <p className="text-xs text-muted-foreground">{cargos.length} cargo{cargos.length !== 1 ? "s" : ""} cadastrado{cargos.length !== 1 ? "s" : ""}</p>
               </div>
             </div>
-            {cargosWithHiddenSections.length > 0 ? (
+            {cargosWithPermSummary.length > 0 ? (
               <div className="space-y-2">
                 <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                  <EyeOff className="h-3.5 w-3.5" /> Funções restritas por cargo:
+                  <EyeOff className="h-3.5 w-3.5" /> Permissões por cargo:
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {cargosWithHiddenSections.map(c => (
-                    <div key={c.nome} className="rounded-md border border-border bg-background p-2.5 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-semibold text-foreground">{c.nome}</p>
-                        <Badge variant="secondary" className="text-[9px]">{c.hiddenCount} restrições</Badge>
-                      </div>
-                      {c.sections.map(s => (
-                        <div key={s.category}>
-                          <p className="text-[10px] font-medium text-muted-foreground">{s.category}:</p>
-                          <p className="text-[10px] text-muted-foreground/70 line-clamp-2">{s.labels.join(", ")}</p>
-                        </div>
-                      ))}
-                    </div>
+                  {cargosWithPermSummary.map(c => (
+                    <CargoSummaryCard key={c.nome} cargo={c} totalPerms={totalPermCount} />
                   ))}
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground italic">Todos os cargos possuem todas as funções ativas.</p>
+              <p className="text-xs text-muted-foreground italic">Nenhum cargo cadastrado.</p>
             )}
           </CardContent>
         </Card>
