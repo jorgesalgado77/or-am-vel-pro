@@ -1028,14 +1028,26 @@ export function MeasurementRequestModal({
       .catch(reject);
   }), []);
 
-  // In-memory thumbnail cache to avoid re-fetching and re-rendering
   const thumbnailCacheRef = useRef<Map<string, string>>(new Map());
 
+  const waitForNextPaint = useCallback(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      setTimeout(() => resolve(), 0);
+    });
+  }), []);
+
   const createPdfThumbnail = useCallback(async (source: string | File) => {
-    // Check cache for URL-based sources
     const cacheKey = typeof source === "string" ? source : null;
-    if (cacheKey && thumbnailCacheRef.current.has(cacheKey)) {
-      return thumbnailCacheRef.current.get(cacheKey)!;
+
+    if (cacheKey) {
+      const localCached = thumbnailCacheRef.current.get(cacheKey);
+      if (localCached) return localCached;
+
+      const sharedCached = getCachedPdfThumbnail(cacheKey);
+      if (sharedCached) {
+        thumbnailCacheRef.current.set(cacheKey, sharedCached);
+        return sharedCached;
+      }
     }
 
     try {
@@ -1053,8 +1065,10 @@ export function MeasurementRequestModal({
       await page.render({ canvas, canvasContext: context, viewport }).promise;
       const dataUrl = canvas.toDataURL("image/png");
 
-      // Store in cache
-      if (cacheKey) thumbnailCacheRef.current.set(cacheKey, dataUrl);
+      if (cacheKey) {
+        thumbnailCacheRef.current.set(cacheKey, dataUrl);
+        setCachedPdfThumbnail(cacheKey, dataUrl);
+      }
 
       return dataUrl;
     } catch {
