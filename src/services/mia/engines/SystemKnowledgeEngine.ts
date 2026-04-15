@@ -8,9 +8,11 @@
  * - Where to click, what fields to fill, what to expect
  * - Proactive suggestions based on context
  *
- * This engine does NOT call external APIs — it returns structured
- * knowledge that is injected into the system prompt.
+ * Now respects cargo MIA permissions (mia_* flags) to filter
+ * which knowledge sections are injected.
  */
+
+import type { CargoPermissoes } from "@/hooks/useCargos";
 
 export interface SystemFlowStep {
   step: number;
