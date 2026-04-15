@@ -20,6 +20,11 @@ import * as pdfjsLib from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
+import {
+  getCachedTenantData, setCachedTenantData,
+  getCachedPdfThumbnail, setCachedPdfThumbnail,
+  getCachedClient, setCachedClient,
+} from "@/lib/measurementCache";
 
 interface MeasurementRequest {
   id: string;
