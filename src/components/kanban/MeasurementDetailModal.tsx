@@ -900,6 +900,7 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
               </div>
             ) : (
             <div className="space-y-5 py-4">
+              <div className="space-y-2">
                 <div className="bg-muted/30 rounded-lg p-3 border space-y-2">
                   <div className="flex items-center gap-2">
                     <User className="h-3.5 w-3.5 text-primary" />
