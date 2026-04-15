@@ -141,7 +141,7 @@ Sou um profissional de móveis planejados.${chatContext}${simContext}${transcrip
           message: text,
           origin: "dealroom",
           context: "dealroom",
-          metadata: { cargo_nome: currentUser?.cargo_nome || null },
+          metadata: { cargo_nome: currentUser?.cargo_nome || null, cargo_permissoes: currentUser?.permissoes || null },
           messages: [
             { role: "system", content: systemContent },
             ...messages.map(m => ({ role: m.role, content: m.content })),
