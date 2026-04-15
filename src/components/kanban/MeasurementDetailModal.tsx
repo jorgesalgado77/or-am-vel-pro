@@ -407,6 +407,7 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
   useEffect(() => {
     if (!request) return;
     let active = true;
+    setLoading(true);
 
     const resolve = async () => {
       const tenantId = getTenantId() || request.tenant_id;
