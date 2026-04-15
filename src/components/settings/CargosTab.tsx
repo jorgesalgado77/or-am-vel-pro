@@ -468,6 +468,47 @@ export function CargosTab() {
     input.click();
   };
 
+  const [activatingCargo, setActivatingCargo] = useState<string | null>(null);
+
+  // Check which default cargos are already activated (by name match)
+  const activatedDefaults = DEFAULT_CARGOS.map(dc => ({
+    ...dc,
+    isActive: cargos.some(c => c.nome.toLowerCase() === dc.nome.toLowerCase()),
+    cargoId: cargos.find(c => c.nome.toLowerCase() === dc.nome.toLowerCase())?.id || null,
+  }));
+
+  const handleActivateDefault = async (dc: DefaultCargo) => {
+    const tenantId = getTenantId();
+    if (!tenantId) { toast.error("Sessão inválida"); return; }
+    setActivatingCargo(dc.nome);
+    try {
+      const fullPerms = { ...DEFAULT_PERMISSOES, ...dc.permissoes } as CargoPermissoes;
+      const { error } = await supabase.from("cargos").insert({
+        nome: dc.nome,
+        permissoes: fullPerms as any,
+        comissao_percentual: dc.comissaoDefault,
+        tipo_comissao: dc.tipoComissao,
+        tenant_id: tenantId,
+      });
+      if (error) toast.error("Erro ao ativar cargo: " + error.message);
+      else { toast.success(`Cargo "${dc.nome}" ativado!`); refresh(); }
+    } finally {
+      setActivatingCargo(null);
+    }
+  };
+
+  const handleDeactivateDefault = async (cargoId: string, nome: string) => {
+    if (!confirm(`Desativar o cargo padrão "${nome}"? Isso removerá o cargo do sistema. Usuários vinculados a ele ficarão sem cargo.`)) return;
+    setActivatingCargo(nome);
+    try {
+      const { error } = await supabase.from("cargos").delete().eq("id", cargoId);
+      if (error) toast.error("Erro ao desativar: " + error.message);
+      else { toast.success(`Cargo "${nome}" desativado!`); refresh(); }
+    } finally {
+      setActivatingCargo(null);
+    }
+  };
+
   // Toggle all MIA permissions for a cargo
   const toggleAllMIA = (cargoId: string, current: CargoPermissoes, enable: boolean) => {
     const existing = editPerms[cargoId] || { ...current };
