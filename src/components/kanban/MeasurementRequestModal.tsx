@@ -93,6 +93,7 @@ export function MeasurementRequestModal({
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
   const [hydrating, setHydrating] = useState(false);
+  const [processingPdfCount, setProcessingPdfCount] = useState(0);
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   const [pdfPreviewImages, setPdfPreviewImages] = useState<string[]>([]);
   const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false);
