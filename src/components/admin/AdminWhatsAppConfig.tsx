@@ -768,9 +768,16 @@ export function AdminWhatsAppConfig() {
             <div className="flex gap-2">
               <Input
                 value={testPhone}
-                onChange={(e) => setTestPhone(e.target.value)}
+                onChange={(e) => {
+                  let v = e.target.value.replace(/\D/g, "").slice(0, 11);
+                  if (v.length > 6) v = `(${v.slice(0, 2)}) ${v.slice(2, 7)}-${v.slice(7)}`;
+                  else if (v.length > 2) v = `(${v.slice(0, 2)}) ${v.slice(2)}`;
+                  else if (v.length > 0) v = `(${v}`;
+                  setTestPhone(v);
+                }}
                 placeholder="(99) 99999-9999"
                 className="max-w-xs"
+                maxLength={16}
               />
               <Button onClick={handleSendTestMessage} disabled={sendingTest} className="gap-2">
                 <Send className="h-4 w-4" />
