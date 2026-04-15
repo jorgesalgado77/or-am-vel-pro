@@ -22,10 +22,15 @@ export function useSharedApis(tenantId: string | null) {
   const fetchShared = useCallback(async () => {
     if (!tenantId) { setLoading(false); return; }
     try {
-      const { data: shares } = await (supabase as any)
+      // Query shares for this tenant
+      const { data: shares, error: sharesError } = await (supabase as any)
         .from("dealroom_api_shares")
         .select("id, config_id, starts_at, ends_at, is_active")
         .eq("tenant_id", tenantId);
+
+      if (sharesError) {
+        console.warn("[useSharedApis] Error fetching shares:", sharesError.message);
+      }
 
       if (!shares || shares.length === 0) {
         setSharedApis([]);
