@@ -262,6 +262,62 @@ export function useMIAProactiveAlerts(
         }
       }
 
+      // === Shared API expiration alerts (admin-only) ===
+      if (cargo === "admin" || cargo === "gerente") {
+        try {
+          const { data: shares } = await (supabase as any)
+            .from("dealroom_api_shares")
+            .select("id, config_id, ends_at, is_active")
+            .eq("tenant_id", tenantId);
+
+          if (shares && shares.length > 0) {
+            const configIds = [...new Set(shares.map((s: any) => s.config_id))];
+            const { data: configs } = await (supabase as any)
+              .from("dealroom_api_configs")
+              .select("id, provider, nome")
+              .in("id", configIds);
+            const configMap = Object.fromEntries((configs || []).map((c: any) => [c.id, c]));
+            const now = new Date();
+
+            const expiredApis: string[] = [];
+            const expiringSoonApis: string[] = [];
+
+            for (const s of shares) {
+              if (!s.is_active) continue;
+              const config = configMap[s.config_id];
+              if (!config) continue;
+              const daysLeft = Math.ceil((new Date(s.ends_at).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+              if (daysLeft < 0) expiredApis.push(config.nome);
+              else if (daysLeft <= 7) expiringSoonApis.push(`${config.nome} (${daysLeft}d)`);
+            }
+
+            if (expiredApis.length > 0) {
+              alerts.push({
+                type: "shared_api_expired",
+                icon: "🔴",
+                title: "APIs compartilhadas expiradas",
+                detail: `**${expiredApis.join(", ")}** expiraram. Configure suas próprias chaves em **Configurações > APIs**.`,
+                count: expiredApis.length,
+                action: { label: "Ir para APIs", target: "configuracoes" },
+              });
+            }
+
+            if (expiringSoonApis.length > 0) {
+              alerts.push({
+                type: "shared_api_expiring",
+                icon: "⚠️",
+                title: "APIs compartilhadas prestes a vencer",
+                detail: `**${expiringSoonApis.join(", ")}** — configure suas próprias chaves antes do vencimento.`,
+                count: expiringSoonApis.length,
+                action: { label: "Ir para APIs", target: "configuracoes" },
+              });
+            }
+          }
+        } catch {
+          // Non-critical
+        }
+      }
+
       sessionStorage.setItem(COOLDOWN_KEY, String(Date.now()));
     } catch (err) {
       console.warn("MIA proactive alerts check failed:", err);
