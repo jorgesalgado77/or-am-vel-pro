@@ -55,6 +55,9 @@ export function AdminGoogleCalendarConfig() {
   const [redirectUri, setRedirectUri] = useState("");
   const [ativo, setAtivo] = useState(false);
 
+  // Connection test
+  const [testStatus, setTestStatus] = useState<"idle" | "testing" | "online" | "offline">("idle");
+
   // Sharing
   const [tenants, setTenants] = useState<TenantRow[]>([]);
   const [shares, setShares] = useState<ShareRow[]>([]);
