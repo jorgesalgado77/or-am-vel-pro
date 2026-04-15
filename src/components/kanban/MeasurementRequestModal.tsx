@@ -1883,6 +1883,14 @@ export function MeasurementRequestModal({
               <h4 className="text-sm font-semibold flex items-center gap-2">
                 Ambientes Vendidos ({environments.length})
               </h4>
+              {processingPdfCount > 0 && (
+                <div className="flex items-center gap-2 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 animate-fade-in">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
+                  <span className="text-xs text-muted-foreground">
+                    Processando {processingPdfCount} miniatura{processingPdfCount > 1 ? "s" : ""} PDF em segundo plano…
+                  </span>
+                </div>
+              )}
               {environments.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhum ambiente encontrado nas simulações.</p>
               ) : (
