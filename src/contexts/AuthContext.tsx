@@ -378,7 +378,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email: normalizedEmail_,
             codigo_loja: normalizedStoreCode,
             tenant_id: resolvedTenantId,
-            resultado: "pre_validacao_sem_confirmacao",
+            resultado: "falha_vinculo",
             detalhes: {
               fase: "pre_validacao",
               motivo: "Vínculo não confirmado antes da autenticação; validação final será feita após login",
