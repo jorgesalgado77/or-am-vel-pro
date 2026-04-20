@@ -21,7 +21,23 @@ export class OnboardingEngine implements MIAEngineInterface {
         ...request.metadata,
       };
 
-      const { data, error } = await supabase.functions.invoke("onboarding-ai", { body });
+      // Garantir que a sessão atual seja enviada no header Authorization
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+
+      if (!accessToken) {
+        return {
+          type: "text",
+          message: "",
+          error: "Você precisa estar logado para conversar com a Mia Onboarding.",
+          engine: this.engineType,
+        };
+      }
+
+      const { data, error } = await supabase.functions.invoke("onboarding-ai", {
+        body,
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
 
       if (error) {
         return {
