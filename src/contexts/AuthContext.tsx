@@ -368,34 +368,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return null;
           }
 
+          console.warn("[Auth] Pré-validação não encontrou vínculo antes da autenticação; seguindo para validação pós-login.", {
+            email: normalizedEmail_,
+            tenant_id: resolvedTenantId,
+            tenant_ids_encontrados: storeLookup.tenantIdsEncontrados,
+          });
+
           logLoginDiagnostic({
             email: normalizedEmail_,
             codigo_loja: normalizedStoreCode,
             tenant_id: resolvedTenantId,
-            resultado: "falha_vinculo",
+            resultado: "pre_validacao_sem_confirmacao",
             detalhes: {
               fase: "pre_validacao",
-              motivo: "Email não cadastrado na loja informada",
+              motivo: "Vínculo não confirmado antes da autenticação; validação final será feita após login",
               tenant_ids_encontrados: storeLookup.tenantIdsEncontrados,
             },
           });
-          logAudit({
-            acao: "usuario_login",
-            entidade: "security",
-            detalhes: {
-              tipo: "acesso_cross_tenant_bloqueado",
-              fase: "pre_validacao",
-              email: normalizedEmail_,
-              codigo_loja_digitado: normalizedStoreCode,
-              tenant_id_tentado: resolvedTenantId,
-              tenant_ids_encontrados: storeLookup.tenantIdsEncontrados,
-              motivo: "Pré-validação bloqueou login sem vínculo com a loja informada",
-              timestamp: new Date().toISOString(),
-            },
-            tenant_id: resolvedTenantId,
-          });
-          await supabase.auth.signOut().catch(() => {});
-          return "Este email não está vinculado ao código da loja informado. Verifique o código da loja.";
+
+          return null;
         }
 
         const activeStoreMatch = storeMatches.find((candidate: any) => candidate.ativo !== false);
