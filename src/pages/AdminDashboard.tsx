@@ -39,6 +39,7 @@ import {AdminCanvaConfig} from "@/components/admin/AdminCanvaConfig";
 import {AdminAffiliates} from "@/components/admin/AdminAffiliates";
 import {AdminTutorials} from "@/components/admin/AdminTutorials";
 import {AdminSecurityAudit} from "@/components/admin/AdminSecurityAudit";
+import {AdminStoreCodeDivergences} from "@/components/admin/AdminStoreCodeDivergences";
 import {Admin3DSmartImport} from "@/components/admin/Admin3DSmartImport";
 import {AdminApiKeys} from "@/components/admin/AdminApiKeys";
 import {AdminSharedApiUsageList} from "@/components/admin/AdminSharedApiUsageList";
@@ -1087,6 +1088,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                 <TabsTrigger value="usage-billing" className="gap-2 data-[state=active]:bg-[hsl(260,60%,50%)] data-[state=active]:text-white"><TrendingUp className="h-4 w-4" />Consumo</TabsTrigger>
                 <TabsTrigger value="wa-funnel" className="gap-2 data-[state=active]:bg-[hsl(142,70%,40%)] data-[state=active]:text-white"><MessageCircle className="h-4 w-4" />Funil WA</TabsTrigger>
                 <TabsTrigger value="security-audit" className="gap-2 data-[state=active]:bg-[hsl(0,70%,45%)] data-[state=active]:text-white"><ShieldAlert className="h-4 w-4" />Auditoria</TabsTrigger>
+                <TabsTrigger value="code-divergences" className="gap-2 data-[state=active]:bg-[hsl(15,80%,50%)] data-[state=active]:text-white"><AlertTriangle className="h-4 w-4" />Códigos Divergentes</TabsTrigger>
               </TabsList>
             </div>
             <Button
@@ -1440,7 +1442,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             <AdminSecurityAudit />
           </TabsContent>
 
-          
+          {/* TAB: Códigos Divergentes */}
+          <TabsContent value="code-divergences">
+            <AdminStoreCodeDivergences />
+          </TabsContent>
+
         </Tabs>
         </AdminCollapsibleSection>
       </main>
