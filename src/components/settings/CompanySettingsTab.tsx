@@ -15,6 +15,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useCompanyPhones, type UsefulPhone } from "@/hooks/useCompanyPhones";
+import { useTenant } from "@/contexts/TenantContext";
 import { isNotificationSoundEnabled, setNotificationSoundEnabled, getNotificationVolume, setNotificationVolume, playNotificationSound } from "@/lib/notificationSound";
 
 const NotificationSoundToggle = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<"div">>(function NotificationSoundToggle({ className, ...props }, ref) {
@@ -68,6 +69,7 @@ const InactivitySoundToggle = forwardRef<HTMLDivElement, ComponentPropsWithoutRe
 
 export function CompanySettingsTab() {
   const { settings, refresh } = useCompanySettings();
+  const { tenant } = useTenant();
   const { phones, addPhone, updatePhone, deletePhone } = useCompanyPhones();
   const [newSetor, setNewSetor] = useState("");
   const [newResponsavel, setNewResponsavel] = useState("");
@@ -188,10 +190,26 @@ export function CompanySettingsTab() {
     <Card>
       <CardHeader><CardTitle className="text-base">Dados da Empresa</CardTitle></CardHeader>
       <CardContent className="space-y-4">
+        {tenant?.nome_loja && (
+          <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg bg-muted/40 border border-border/50">
+            <span className="text-xs uppercase tracking-wider text-muted-foreground">Loja oficial</span>
+            <span className="text-sm font-semibold text-foreground">{tenant.nome_loja}</span>
+            {tenant.codigo_loja && (
+              <span className="font-mono text-xs px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
+                Cód. {tenant.codigo_loja}
+              </span>
+            )}
+            {tenant.nome_loja !== name && name && (
+              <span className="text-[10px] text-amber-600 dark:text-amber-400">
+                ⚠ Nome no cadastro abaixo difere do nome oficial
+              </span>
+            )}
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div><Label>Nome da Empresa</Label><Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" /></div>
           <div><Label>Subtítulo</Label><Input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className="mt-1" /></div>
-          <div><Label>Código da Loja</Label><Input value={codigoLoja} readOnly disabled className="mt-1 bg-muted cursor-not-allowed" title="Código gerado automaticamente" /></div>
+          <div><Label>Código da Loja</Label><Input value={codigoLoja} readOnly disabled className="mt-1 bg-muted cursor-not-allowed" title="Código gerado automaticamente — sincronizado com a loja oficial" /></div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div><Label>CNPJ da Loja</Label><Input value={cnpjLoja} onChange={(e) => setCnpjLoja(e.target.value)} placeholder="00.000.000/0000-00" className="mt-1" /></div>
